@@ -93,3 +93,26 @@ The scored run is [41488797104](https://github.com/mark1russell7/typeset/actions
 - Noto Sans Hebrew, JP and KR are variable fonts. Their default instance is the weight 100. Chromium uses the weight 400, but the reader uses the default instance.
 - T1b adds the instances of variable fonts and a rounding mode. It also compares the widths on Linux at the device scale 2, on macOS and on Windows.
 - With the instance 400 and the mode `pixel`, the T1 canvas widths agree on 720 of 720 lines for Latin Extended, Greek and Cyrillic. They agree on 240 of 240 for Hebrew, Han and Hangul. The remaining Latin errors come from ligatures.
+
+## The result of T1b
+
+The scored run is [41505142794](https://github.com/mark1russell7/typeset/actions/runs/41505142794), on `main`. The run on the pull request gave the same outcomes. The table gives the worst error of the line class, in px.
+
+| Script | Bound | `linux-2` | `macos-2` | `windows-1` |
+|---|---|---|---|---|
+| latin | 0.5 | 31.6 | 2.689 | 2.689 |
+| greek | 0.5 | 32.0 | 0.001 | 0.001 |
+| cyrillic | 0.5 | 30.4 | 0.001 | 0.001 |
+| hebrew | 0.5 | 14.588 | 0.391 | 0.001 |
+| latin-extended | 1.0 | 31.6 | 0.001 | 0.001 |
+| han | 0.1 | 4.95 | 0.169 | 0.000 |
+| kana | 0.1 | 7.68 | 3.84 | 3.84 |
+| hangul | 0.1 | 23.84 | 0.456 | 0.001 |
+| Source Sans 3, weight 400 | 0.5 | 12.826 | 1.758 | 1.633 |
+| Source Sans 3, weight 700 | 0.5 | 17.459 | 1.834 | 1.633 |
+
+- The instance probe finds the CSS weight for each of the 13 fonts and weights, on each arm.
+- The WOFF2 widths are equal to the TrueType widths. The count of mismatches is 0.
+- On Linux at the device scale 2, each of the 4560 line widths is on the grid of 1/4 px. Thus Chromium on Linux also rounds the advances at this scale. The mode `pixel` models only the scale 1.
+- On macOS and Windows, Greek, Cyrillic and Latin Extended agree to 0.001 px. Latin, kana and Source Sans 3 do not agree. T1c finds the causes. Ligatures are the first suspect for Latin.
+- The prediction `typeset-t1b-instancing-platforms` gives 4 hits of 11 outcomes.
