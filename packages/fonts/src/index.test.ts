@@ -165,7 +165,7 @@ function outlineTables(): [string, Bytes][] {
   const box = [0, 0, 0, 0];
   const simple = (ends: number[]) => new Bytes().u16(ends.length, ...box).u16(...ends).u16(0).u8(...Array.from({ length: ends.at(-1)! + 1 }, () => 0x31));
   // The first component has word arguments and more components. The second has 1-byte arguments and a scale
-  const composite = new Bytes().u16((-1) & 0xffff, ...box).u16(0x23, 1, 0, 0).u16(0x0a, 1).u8(0, 0).u16(0x4000);
+  const composite = new Bytes().u16((-1) & 0xffff, ...box).u16(0x23, 1, 0, 0).u16(0x20a, 1).u8(0, 0).u16(0x4000);
   const glyphs = [new Bytes(), simple([2]), composite, simple([3, 7]), new Bytes(), new Bytes(), simple([1])].map(even);
   const glyf = new Bytes();
   const loca = new Bytes();
@@ -387,7 +387,9 @@ describe("the phantom points of gvar", () => {
 
   it("counts the points of simple and composite glyphs", () => {
     const tables = readTables(both);
-    expect([...readPointCounts(tables.get("glyf")!, tables.get("loca")!, 0, 7)]).toEqual(pointCounts);
+    const points = readPointCounts(tables.get("glyf")!, tables.get("loca")!, 0, 7);
+    expect([...points.counts]).toEqual(pointCounts);
+    expect([...points.metrics]).toEqual([-1, -1, 1, -1, -1, -1, -1]);
   });
 
   it("uses HVAR when the font has it, and gvar with the option advances gvar", () => {
@@ -408,6 +410,17 @@ describe("the phantom points of gvar", () => {
     expect(font.epoch).not.toMatch(/-gvar$/);
   });
 
+  it("gives a composite glyph the advance of its USE_MY_METRICS component with the option metrics component", () => {
+    // Glyph 2 is a composite of glyph 1, and its second component has the flag USE_MY_METRICS
+    const font = readFont(both, { instance: { wght: 900 }, metrics: "component" });
+    expect(glyphs(font)).toEqual([696, 696, 496, 590]);
+    expect(font.epoch).toMatch(/-metrics$/);
+    expect(glyphs(readFont(only, { instance: { wght: 900 }, metrics: "component" }))).toEqual([695, 695, 500, 860]);
+    const base = readFont(both, { metrics: "component" });
+    expect(base.advance(2)).toBe(base.advance(1));
+    expect(readFont(both, { instance: { wght: 900 } }).epoch).not.toMatch(/-metrics$/);
+  });
+
   it("applies the intermediate region and rounds the advance delta", () => {
     // At 0.25: A +23.75, o -5 - 8. At 0.125: A +11.875, o -2.5 - 4 = -6.5, and a half goes away from 0
     expect(glyphs(readFont(only, { instance: { wght: 500 } }))).toEqual([624, 590, 507, 635]);
@@ -421,9 +434,11 @@ describe("the phantom points of gvar", () => {
     // The contours: 0, 1, a composite, and 3. The point counts use the three forms of 255UInt16: 253 600, 255 263 and 254 510
     const contours = new Bytes().u16(0, 1, (-1) & 0xffff, 3);
     const points = new Bytes().u8(253, 0x02, 0x58, 255, 10, 254, 4, 5);
-    const components = new Bytes().u16(0x21, 1).u16(0, 0).u16(0x80, 1).u8(0, 0).u16(0, 0, 0, 0);
+    const components = new Bytes().u16(0x21, 1).u16(0, 0).u16(0x280, 1).u8(0, 0).u16(0, 0, 0, 0);
     const glyf = new Bytes().u16(0, 0, 4, 0).u32(contours.length, points.length, 0, 0, components.length, 0, 0).bytes(contours).bytes(points).bytes(components);
-    expect([...readTransformedPointCounts(new Reader(Uint8Array.from(glyf.data)), 4)]).toEqual([0, 600, 2, 778]);
+    const read = readTransformedPointCounts(new Reader(Uint8Array.from(glyf.data)), 4);
+    expect([...read.counts]).toEqual([0, 600, 2, 778]);
+    expect([...read.metrics]).toEqual([-1, -1, 1, -1]);
   });
 });
 

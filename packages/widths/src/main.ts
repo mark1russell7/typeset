@@ -132,6 +132,7 @@ async function main(): Promise<void> {
       // The model of the advances of the arm: the rounding of the deltas and the table that gives them
       deltas: { type: "string", default: "round" },
       advances: { type: "string", default: "auto" },
+      metrics: { type: "string", default: "own" },
     },
   });
   if (values.fonts === undefined) throw new Error("give --fonts <folder>");
@@ -142,7 +143,8 @@ async function main(): Promise<void> {
   const ids = fontSources.map((source) => source.id);
   const deltasMode = values.deltas === "exact" ? "exact" : "round";
   const advancesMode = values.advances === "gvar" ? "gvar" : "auto";
-  const read = (id: string, deltas: "round" | "exact" = deltasMode) => readFont(readFileSync(join(values.fonts!, fileName(id))), { instance: cssInstance(), deltas, advances: advancesMode });
+  const metricsMode = values.metrics === "component" ? "component" : "own";
+  const read = (id: string, deltas: "round" | "exact" = deltasMode) => readFont(readFileSync(join(values.fonts!, fileName(id))), { instance: cssInstance(), deltas, advances: advancesMode, metrics: metricsMode });
   const fonts = new Map<FontId, Font>(ids.map((id) => [id, read(id)]));
   const exactFonts = new Map<string, Font>([...ids, extraSource.id].map((id) => [id, read(id, "exact")]));
   const extra = read(extraSource.id);
@@ -222,6 +224,7 @@ async function main(): Promise<void> {
         models.gvarRound = readFont(bytes, { deltas: "round", advances: "gvar" });
         models.gvarExact = readFont(bytes, { deltas: "exact", advances: "gvar" });
       }
+      if (present.has("glyf")) models.componentRound = readFont(bytes, { deltas: "round", metrics: "component" });
       const base = models.hvarRound ?? models.gvarRound ?? readFont(bytes);
       const texts = tasks.filter(({ task }) => task.font === id).flatMap(({ task }) => task.samples.map((sample) => sample.text));
       const characters = [...probeCharacters(base, [probeLatin, ...texts]), " "];
@@ -244,16 +247,16 @@ async function main(): Promise<void> {
     for (const id of [...ids, extraSource.id]) {
       const file = join(values.woff2, `${id}.woff2`);
       if (!existsSync(file)) throw new Error(`the WOFF2 file ${file} is missing`);
-      const base = readFont(readFileSync(file), { decompress: (data) => brotliDecompressSync(data), instance: cssInstance(), deltas: deltasMode, advances: advancesMode });
+      const base = readFont(readFileSync(file), { decompress: (data) => brotliDecompressSync(data), instance: cssInstance(), deltas: deltasMode, advances: advancesMode, metrics: metricsMode });
       let mismatches = 0;
       let gvarMismatches = 0;
       for (const record of records.filter((r) => r.font === id)) {
         const sample = texts.get(record.sample)!;
         if (measureWidth(base.at(cssInstance(record.weight)), sample.text, record.size, { script: scriptTags[sample.script] }) !== record.tables) mismatches++;
       }
-      // The phantom points of gvar come from the transformed glyf table of WOFF2, so the check also compares them
-      const ttf = readFont(readFileSync(join(values.fonts, fileName(id))), { advances: "gvar" });
-      const woff = readFont(readFileSync(file), { decompress: (data) => brotliDecompressSync(data), advances: "gvar" });
+      // The phantom points of gvar and the flag USE_MY_METRICS come from the transformed glyf table of WOFF2, so the check compares them
+      const ttf = readFont(readFileSync(join(values.fonts, fileName(id))), { advances: "gvar", metrics: "component" });
+      const woff = readFont(readFileSync(file), { decompress: (data) => brotliDecompressSync(data), advances: "gvar", metrics: "component" });
       for (const weight of diagnosticWeights(ttf, advanceWeights)) {
         const [a, b] = [ttf.at(cssInstance(weight)), woff.at(cssInstance(weight))];
         for (let glyph = 0; glyph < a.numGlyphs; glyph++) if (a.advance(glyph) !== b.advance(glyph)) gvarMismatches++;
@@ -278,7 +281,7 @@ async function main(): Promise<void> {
     scale,
     devicePixelRatio,
     reference,
-    models: { deltas: deltasMode, advances: advancesMode },
+    models: { deltas: deltasMode, advances: advancesMode, metrics: metricsMode },
     platform: `${process.platform} ${release()} ${process.arch}`,
     chromium: version,
     fontKerning,
@@ -329,21 +332,21 @@ async function main(): Promise<void> {
     ...instances.map((p) => `| ${p.font} | ${p.requested} | ${JSON.stringify(p.model)} | ${p.found} | ${p.tied} | ${format(p.errorAtRequested)} | ${p.matches} |`),
     ``,
     `| group | n | DOM against canvas px | default against GSUB model px | no ligatures px | no kerning px | space-all px | worst no-ligature sample |`,
-    `|---|---|---|---|---|---|---|---|`,
+    `|---|---|---|---|---|---|---|---|---|`,
     ...Object.entries(features.summary).map(([group, f]) => `| ${group} | ${f.n} | ${format(f.domAgainstCanvas)} | ${f.shapedDefault === undefined ? "-" : format(f.shapedDefault)} | ${format(f.noLigatures)} | ${format(f.noKerning)} | ${format(f.spaceAll)} | ${f.worstNoLigatures === undefined ? "-" : `${f.worstNoLigatures.sample} at ${f.worstNoLigatures.size} px`} |`),
     ``,
     `Worst line error with the HVAR deltas not rounded: ${Object.entries(deltaErrors).map(([script, value]) => `${script} ${format(value)}`).join(", ")}.`,
     ``,
-    `The advances of single characters at ${advanceSize} px against each model, worst and mean error in font units. The model of this arm: deltas ${deltasMode}, advances ${advancesMode}.`,
+    `The advances of single characters at ${advanceSize} px against each model, worst and mean error in font units. The model of this arm: deltas ${deltasMode}, advances ${advancesMode}, metrics ${metricsMode}.`,
     ``,
-    `| font | weight | gvar against HVAR | HVAR round | HVAR exact | gvar round | gvar exact | best |`,
-    `|---|---|---|---|---|---|---|---|`,
+    `| font | weight | gvar against HVAR | HVAR round | HVAR exact | gvar round | gvar exact | component metrics | best |`,
+    `|---|---|---|---|---|---|---|---|---|`,
     ...advanceModels.map((row) => {
       const cell = (name: AdvanceModelName) => {
         const error = row.canvas[name];
         return error === undefined ? "-" : `${format(error.worst)} / ${format(error.mean)}`;
       };
-      return `| ${row.font} | ${row.weight} | ${row.gvarAgainstHvar === null ? "-" : format(row.gvarAgainstHvar)} | ${cell("hvarRound")} | ${cell("hvarExact")} | ${cell("gvarRound")} | ${cell("gvarExact")} | ${row.best ?? "-"} |`;
+      return `| ${row.font} | ${row.weight} | ${row.gvarAgainstHvar === null ? "-" : format(row.gvarAgainstHvar)} | ${cell("hvarRound")} | ${cell("hvarExact")} | ${cell("gvarRound")} | ${cell("gvarExact")} | ${cell("componentRound")} | ${row.best ?? "-"} |`;
     }),
   ];
   console.log(lines.join("\n"));

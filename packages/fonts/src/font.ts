@@ -4,7 +4,7 @@ import { readGposKerning, readKernTable, IGNORE_BASE, IGNORE_LIGATURES, IGNORE_M
 import { readTables, type Decompress, type TableMap } from "./sfnt.ts";
 import { defaultFeatures, readGlyphFilter, readSubstitutions, type GlyphFilter, type SubstitutionLookup } from "./substitution.ts";
 import { readAdvances, readCharacterMap, readGlyphClasses, readHeader } from "./tables.ts";
-import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts } from "./gvar.ts";
+import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts, type GlyphPoints } from "./gvar.ts";
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
 
 /** The options of `readFont`. */
@@ -26,6 +26,11 @@ export interface ReadOptions {
    * points of `gvar`. `gvar` uses the phantom points also when the font has `HVAR`. The epoch tells the two modes apart.
    */
   readonly advances?: "auto" | "gvar";
+  /**
+   * The advance of a composite glyph. `own` (the default) uses the advance of the glyph, as FreeType and CoreText do.
+   * `component` uses the advance of its component with the flag USE_MY_METRICS, as DirectWrite does.
+   */
+  readonly metrics?: "own" | "component";
 }
 
 /** The source of the advances of an instance: the default advances of `hmtx`, the deltas of `HVAR`, or the phantom points of `gvar`. */
@@ -79,9 +84,10 @@ export function readFont(bytes: Uint8Array, options: ReadOptions = {}): Font {
     glyphClass: readGlyphClasses(tables.get("GDEF")),
     filter: readGlyphFilter(tables.get("GDEF"), readGlyphClasses(tables.get("GDEF"))),
     axes: tables.has("fvar") ? readAxes(tables.get("fvar")!) : [],
-    pointCounts: lazy(() => pointCountsOf(tables, need("head"), header.numGlyphs)),
+    points: lazy(() => pointsOf(tables, need("head"), header.numGlyphs)),
   };
-  return build(parsed, options.instance ?? {}, { deltas: options.deltas ?? "round", advances: options.advances ?? "auto" });
+  const modes: Modes = { deltas: options.deltas ?? "round", advances: options.advances ?? "auto", metrics: options.metrics ?? "own" };
+  return build(parsed, options.instance ?? {}, modes);
 }
 
 /** This function gives a function that computes a value at its first call and then keeps it. */
@@ -98,10 +104,10 @@ function lazy<T>(compute: () => T): () => T {
 }
 
 /**
- * This function gives the count of points of each glyph, or `undefined` when the font has no `glyf` table. A WOFF2 file
- * keeps `glyf` in its transformed form, and its `loca` table is then empty.
+ * This function gives the points of each glyph, or `undefined` when the font has no `glyf` table. A WOFF2 file keeps
+ * `glyf` in its transformed form, and its `loca` table is then empty.
  */
-function pointCountsOf(tables: TableMap, head: Reader, numGlyphs: number): Uint32Array | undefined {
+function pointsOf(tables: TableMap, head: Reader, numGlyphs: number): GlyphPoints | undefined {
   const glyf = tables.get("glyf");
   const loca = tables.get("loca");
   if (glyf === undefined || loca === undefined) return undefined;
@@ -112,6 +118,7 @@ function pointCountsOf(tables: TableMap, head: Reader, numGlyphs: number): Uint3
 interface Modes {
   readonly deltas: "round" | "exact";
   readonly advances: "auto" | "gvar";
+  readonly metrics: "own" | "component";
 }
 
 /** The tables of a font that do not change with the instance. */
@@ -123,8 +130,8 @@ interface Parsed {
   readonly glyphClass: (glyph: number) => number;
   readonly filter: GlyphFilter;
   readonly axes: readonly Axis[];
-  /** The count of points of each glyph, for the phantom points of `gvar`. */
-  readonly pointCounts: () => Uint32Array | undefined;
+  /** The points of each glyph, for the phantom points of `gvar` and the flag USE_MY_METRICS. */
+  readonly points: () => GlyphPoints | undefined;
 }
 
 /** This function gives the font at one instance. */
@@ -136,9 +143,11 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
   const variable = coordinates.some((value) => value !== 0);
   const hvar = tables.get("HVAR");
   const gvar = tables.get("gvar");
-  const phantoms = gvar !== undefined && (modes.advances === "gvar" || hvar === undefined) && parsed.pointCounts() !== undefined;
+  const phantoms = gvar !== undefined && (modes.advances === "gvar" || hvar === undefined) && parsed.points() !== undefined;
   const advanceSource: AdvanceSource = !variable ? "hmtx" : phantoms ? "gvar" : hvar !== undefined ? "HVAR" : "hmtx";
-  const advances = advanceSource === "gvar" ? phantomAdvances(parsed.advances, gvarAdvanceDeltas(gvar!, parsed.pointCounts()!, coordinates, deltas)) : instanceAdvances(parsed.advances, advanceSource === "HVAR" ? hvar : undefined, coordinates, deltas);
+  const advances = advanceSource === "gvar" ? phantomAdvances(parsed.advances, gvarAdvanceDeltas(gvar!, parsed.points()!.counts, coordinates, deltas)) : instanceAdvances(parsed.advances, advanceSource === "HVAR" ? hvar : undefined, coordinates, deltas);
+  const metrics = modes.metrics === "component" ? parsed.points()?.metrics : undefined;
+  if (metrics !== undefined) componentAdvances(advances, metrics);
   const gdef = tables.get("GDEF");
   // The ItemVariationStore of GDEF 1.3 gives the deltas of the GPOS values
   const storeOffset = variable && gdef !== undefined && gdef.u16(2) >= 3 ? gdef.u32(14) : 0;
@@ -150,7 +159,7 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
   const substitutions = new Map<string, readonly SubstitutionLookup[]>();
   const hashed = [tables.get("cmap"), gdef, gpos, kern, tables.get("fvar"), tables.get("avar"), tables.get("HVAR"), gsub];
   return {
-    epoch: `${header.revision.toString(16).padStart(8, "0")}-${widthHash(header.unitsPerEm, coordinates, advances, hashed)}${deltas === "exact" ? "-exact" : ""}${advanceSource === "gvar" && hvar !== undefined ? "-gvar" : ""}`,
+    epoch: `${header.revision.toString(16).padStart(8, "0")}-${widthHash(header.unitsPerEm, coordinates, advances, hashed)}${deltas === "exact" ? "-exact" : ""}${advanceSource === "gvar" && hvar !== undefined ? "-gvar" : ""}${metrics !== undefined ? "-metrics" : ""}`,
     unitsPerEm: header.unitsPerEm,
     numGlyphs: header.numGlyphs,
     axes,
@@ -180,6 +189,19 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
     },
     at: (next) => build(parsed, next, modes),
   };
+}
+
+/**
+ * This function gives each composite glyph the advance of its component with the flag USE_MY_METRICS. A component can
+ * have that flag in its own components, so the function follows the chain. A chain of more than 8 steps stops.
+ */
+function componentAdvances(advances: Float64Array, metrics: Int32Array): void {
+  const own = Float64Array.from(advances);
+  for (let glyph = 0; glyph < metrics.length; glyph++) {
+    let source = glyph;
+    for (let step = 0; step < 8 && (metrics[source] ?? -1) >= 0; step++) source = metrics[source]!;
+    if (source !== glyph && source < own.length) advances[glyph] = own[source]!;
+  }
 }
 
 /** This function adds the advance delta of each glyph to its default advance. A negative sum becomes 0. */

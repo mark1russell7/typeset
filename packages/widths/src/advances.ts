@@ -1,7 +1,7 @@
 import { measureWidth, type Font } from "@typeset/fonts";
 
 /** The four models of the advances of an instance: the deltas of `HVAR` or the phantom points of `gvar`, rounded or exact. */
-export const advanceModelNames = ["hvarRound", "hvarExact", "gvarRound", "gvarExact"] as const;
+export const advanceModelNames = ["hvarRound", "hvarExact", "gvarRound", "gvarExact", "componentRound"] as const;
 
 /** The name of a model of the advances. */
 export type AdvanceModelName = (typeof advanceModelNames)[number];
