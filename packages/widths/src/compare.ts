@@ -56,7 +56,7 @@ export function recordsOf(task: FontTask, font: Font, canvas: readonly (readonly
     const missing = missingGlyphs(font, sample.text);
     const codePoints = [...sample.text].length;
     task.sizes.forEach((size, s) => {
-      const options = { script: scriptTags[sample.script] };
+      const options = { script: scriptTags[sample.script], shaping: "canvas" } as const;
       const tables = measureWidth(font, sample.text, size, options);
       const pixel = measureWidth(font, sample.text, size, { ...options, rounding: "pixel" });
       const measured = canvas[s]![i]!;
