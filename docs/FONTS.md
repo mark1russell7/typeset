@@ -21,6 +21,10 @@ A variable font has axes in `fvar`, for example the weight `wght`. Give the inst
 - `font.at(instance)` gives the same font at a different instance, with no new read of the file.
 - The epoch includes the coordinates of the instance, so each instance has a different epoch.
 - The option `deltas: "exact"` keeps the fraction of each `HVAR` delta. The epoch then ends with `-exact`.
+- A font with no `HVAR` table gets the advances of an instance from the phantom points of `gvar`. The advance delta is the x delta of the second phantom point minus the first.
+- The reader counts the points of each glyph from `glyf` and `loca`, or from the transformed `glyf` table of a WOFF2 file.
+- With `round`, the reader rounds the `gvar` advance delta to whole font units, and a half goes away from 0, as in HarfBuzz.
+- The option `advances: "gvar"` uses the phantom points also when the font has `HVAR`. The epoch then ends with `-gvar`. The field `advanceSource` of the font tells the source.
 - The option `kerning: false` of `measureWidth` gives the sum of the advances with no pair kerning.
 - Before the kerning, `measureWidth` applies the GSUB substitutions of the features `defaultFeatures`: `ccmp`, `locl`, `rlig`, `liga`, `clig`, `calt` and `rclt`.
 - A browser applies these features when the page does not change them. The option `features` gives another list, and `[]` applies no substitution.
@@ -75,6 +79,9 @@ The comparison has four arms. Each arm is one job of the workflow.
 - `features.summary[group].shapedDefault` compares the default DOM width with the default model, with the GSUB pass. The DOM width is the reference.
 - `features` is the DOM diagnostic of T1c. It measures the Latin lines, the kana lines and the lines of Source Sans 3 as DOM spans, in four feature settings. The settings are the default, no ligatures (`liga` and `calt` off), no kerning, and `text-spacing-trim: space-all`. Its `summary` compares each setting with the model that has the same features.
 - `exactDeltaErrors` gives the worst line error of each script for the model with the `HVAR` deltas not rounded.
+- `advanceModels` measures single characters and the space at 1000 px, for each font at the weights 400 and 700. It compares them with four models of the advances.
+- The four models are `HVAR` and `gvar`, each rounded and exact. The field `gvarAgainstHvar` gives the largest difference of the two exact models, in font units.
+- The options `--deltas` and `--advances` of `main.ts` select the model of an arm. `woff2GvarMismatches` compares the `gvar` advances of the WOFF2 and TrueType files.
 - `breakdown` gives the line errors of each font, weight and script, with the three worst samples and their texts.
 
 - `fractions.line` counts the line widths on the grids of 1, 1/2, 1/4 and 1/64 px. Its `histogram` has 64 bins of 1/64 px. A width that the browser rounds is on a coarse grid.

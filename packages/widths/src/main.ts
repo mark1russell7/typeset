@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 /**
  * The command `node src/main.ts --fonts <folder> [--woff2 <folder>] [--arm <name>] [--scale 1] [--reference exact]
- * [--per-cell 40] [--out font-widths.json] [--label <text>]`. It measures each text of the corpus with canvas `measureText`
+ * [--per-cell 40] [--deltas round] [--advances auto] [--out font-widths.json] [--label <text>]`. It measures each text of the corpus with canvas `measureText`
  * in headless Chromium and with the font tables, and writes the records and their summary. It starts Chromium, so only CI
  * starts this command.
  */
@@ -11,8 +11,9 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { brotliDecompressSync } from "node:zlib";
 import { fingerprint, fontSizes, generateCorpus, type FontId } from "@typeset/corpus";
-import { measureWidth, readFont, type Font } from "@typeset/fonts";
+import { measureWidth, readFont, readTables, type Font } from "@typeset/fonts";
 import { chromium, type Page } from "playwright";
+import { advanceModelRow, diagnosticWeights, type AdvanceModelName, type AdvanceModelRow } from "./advances.ts";
 import { checkBounds, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
 import { breakdownOf, exactDeltaErrors, featureSettings, substitutionTrace, summarizeFeatures, type FeatureGroup, type FeatureRecord, type FeatureSetting, type SubstitutionStep } from "./features.ts";
 import { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags } from "./sources.ts";
@@ -24,6 +25,12 @@ const probeSize = 200;
 
 /** The Latin characters that the probe adds when the font has them. */
 const probeLatin = "Hamburgefonstiv0123456789";
+
+/** The canvas size of the diagnostic of the advances, in px. At 1000 px, one font unit of a font of 1000 units per em is 1 px. */
+const advanceSize = 1000;
+
+/** The weights of the diagnostic of the advances. */
+const advanceWeights: readonly number[] = [400, 700];
 
 /** One font face of the page: its family and the ranges of its `wght` and `wdth` axes, so that the browser uses no synthetic bold. */
 interface Face {
@@ -122,6 +129,9 @@ async function main(): Promise<void> {
       "per-cell": { type: "string", default: "40" },
       out: { type: "string", default: "font-widths.json" },
       label: { type: "string", default: "" },
+      // The model of the advances of the arm: the rounding of the deltas and the table that gives them
+      deltas: { type: "string", default: "round" },
+      advances: { type: "string", default: "auto" },
     },
   });
   if (values.fonts === undefined) throw new Error("give --fonts <folder>");
@@ -130,7 +140,9 @@ async function main(): Promise<void> {
   const samples = generateCorpus({ seed: 1, perCell: Number(values["per-cell"]) });
   const latin = samples.filter((sample) => sample.script === "latin");
   const ids = fontSources.map((source) => source.id);
-  const read = (id: string, deltas: "round" | "exact" = "round") => readFont(readFileSync(join(values.fonts!, fileName(id))), { instance: cssInstance(), deltas });
+  const deltasMode = values.deltas === "exact" ? "exact" : "round";
+  const advancesMode = values.advances === "gvar" ? "gvar" : "auto";
+  const read = (id: string, deltas: "round" | "exact" = deltasMode) => readFont(readFileSync(join(values.fonts!, fileName(id))), { instance: cssInstance(), deltas, advances: advancesMode });
   const fonts = new Map<FontId, Font>(ids.map((id) => [id, read(id)]));
   const exactFonts = new Map<string, Font>([...ids, extraSource.id].map((id) => [id, read(id, "exact")]));
   const extra = read(extraSource.id);
@@ -145,6 +157,7 @@ async function main(): Promise<void> {
   const featureRecords: FeatureRecord[] = [];
   // The GSUB trace of the worst line of each font and weight with an error of more than 0.05 px
   const traces: { font: string; weight: number; script: string; sample: string; size: number; error: number; text: string; steps: SubstitutionStep[] }[] = [];
+  const advanceModels: AdvanceModelRow[] = [];
   let fontKerning = "";
   let devicePixelRatio = 0;
   try {
@@ -195,26 +208,59 @@ async function main(): Promise<void> {
       const [probe] = await canvasWidths(page, task.font, weight, [probeSize], characters);
       instances.push(probeInstance(task.font, font, weight, characters, probe!, probeSize, reference));
     }
+    // The diagnostic of the advances: each character alone at 1000 px, against the models of HVAR and gvar, rounded or exact
+    for (const id of [...ids, extraSource.id]) {
+      const bytes = readFileSync(join(values.fonts, fileName(id)));
+      const present = readTables(bytes);
+      const tables = { HVAR: present.has("HVAR"), gvar: present.has("gvar") };
+      const models: Partial<Record<AdvanceModelName, Font>> = {};
+      if (tables.HVAR) {
+        models.hvarRound = readFont(bytes, { deltas: "round" });
+        models.hvarExact = readFont(bytes, { deltas: "exact" });
+      }
+      if (tables.gvar) {
+        models.gvarRound = readFont(bytes, { deltas: "round", advances: "gvar" });
+        models.gvarExact = readFont(bytes, { deltas: "exact", advances: "gvar" });
+      }
+      const base = models.hvarRound ?? models.gvarRound ?? readFont(bytes);
+      const texts = tasks.filter(({ task }) => task.font === id).flatMap(({ task }) => task.samples.map((sample) => sample.text));
+      const characters = [...probeCharacters(base, [probeLatin, ...texts]), " "];
+      for (const weight of diagnosticWeights(base, advanceWeights)) {
+        const [canvas] = await canvasWidths(page, id, weight, [advanceSize], characters);
+        const atWeight = Object.fromEntries(Object.entries(models).map(([name, model]) => [name, model.at(cssInstance(weight))]));
+        advanceModels.push(advanceModelRow(id, weight, tables, atWeight, characters, canvas!, advanceSize));
+      }
+    }
   } finally {
     await browser.close();
   }
   const corpusRecords = records.filter((record) => record.font !== extraSource.id);
   // The WOFF2 files must give the same widths as the TrueType files, bit for bit
-  const woff2: Record<string, { epoch: string; mismatches: number }> = {};
+  const woff2: Record<string, { epoch: string; mismatches: number; gvarMismatches: number }> = {};
   let woff2Mismatches = 0;
+  let woff2GvarMismatches = 0;
   if (values.woff2 !== undefined) {
     const texts = new Map(samples.map((sample) => [sample.id, sample]));
     for (const id of [...ids, extraSource.id]) {
       const file = join(values.woff2, `${id}.woff2`);
       if (!existsSync(file)) throw new Error(`the WOFF2 file ${file} is missing`);
-      const base = readFont(readFileSync(file), { decompress: (data) => brotliDecompressSync(data), instance: cssInstance() });
+      const base = readFont(readFileSync(file), { decompress: (data) => brotliDecompressSync(data), instance: cssInstance(), deltas: deltasMode, advances: advancesMode });
       let mismatches = 0;
+      let gvarMismatches = 0;
       for (const record of records.filter((r) => r.font === id)) {
         const sample = texts.get(record.sample)!;
         if (measureWidth(base.at(cssInstance(record.weight)), sample.text, record.size, { script: scriptTags[sample.script] }) !== record.tables) mismatches++;
       }
-      woff2[id] = { epoch: base.epoch, mismatches };
+      // The phantom points of gvar come from the transformed glyf table of WOFF2, so the check also compares them
+      const ttf = readFont(readFileSync(join(values.fonts, fileName(id))), { advances: "gvar" });
+      const woff = readFont(readFileSync(file), { decompress: (data) => brotliDecompressSync(data), advances: "gvar" });
+      for (const weight of diagnosticWeights(ttf, advanceWeights)) {
+        const [a, b] = [ttf.at(cssInstance(weight)), woff.at(cssInstance(weight))];
+        for (let glyph = 0; glyph < a.numGlyphs; glyph++) if (a.advance(glyph) !== b.advance(glyph)) gvarMismatches++;
+      }
+      woff2[id] = { epoch: base.epoch, mismatches, gvarMismatches };
       woff2Mismatches += mismatches;
+      woff2GvarMismatches += gvarMismatches;
     }
   }
   const summary = summarize(corpusRecords);
@@ -232,6 +278,7 @@ async function main(): Promise<void> {
     scale,
     devicePixelRatio,
     reference,
+    models: { deltas: deltasMode, advances: advancesMode },
     platform: `${process.platform} ${release()} ${process.arch}`,
     chromium: version,
     fontKerning,
@@ -245,9 +292,11 @@ async function main(): Promise<void> {
     fractions,
     features,
     exactDeltaErrors: deltaErrors,
+    advanceModels,
     breakdown,
     substitutionTraces: traces,
     woff2Mismatches: values.woff2 === undefined ? null : woff2Mismatches,
+    woff2GvarMismatches: values.woff2 === undefined ? null : woff2GvarMismatches,
     woff2,
     outcomes,
     summary,
@@ -259,7 +308,7 @@ async function main(): Promise<void> {
   const lines = [
     `## Font widths (${values.arm}): tables against canvas measureText`,
     ``,
-    `Chromium ${version} on ${output.platform}, device scale ${scale} (devicePixelRatio ${devicePixelRatio}), reference ${reference}, fontKerning ${fontKerning}, ${records.length} widths, ${samples.length} samples, WOFF2 mismatches ${output.woff2Mismatches ?? "not checked"}.`,
+    `Chromium ${version} on ${output.platform}, device scale ${scale} (devicePixelRatio ${devicePixelRatio}), reference ${reference}, fontKerning ${fontKerning}, ${records.length} widths, ${samples.length} samples, WOFF2 mismatches ${output.woff2Mismatches ?? "not checked"}, WOFF2 gvar mismatches ${output.woff2GvarMismatches ?? "not checked"}.`,
     ``,
     `Line widths: ${line.n}. On the whole px grid ${line.whole}, on 1/2 ${line.half}, on 1/4 ${line.quarter}, on 1/64 ${line.sixtyFourth}.`,
     ``,
@@ -284,6 +333,18 @@ async function main(): Promise<void> {
     ...Object.entries(features.summary).map(([group, f]) => `| ${group} | ${f.n} | ${format(f.domAgainstCanvas)} | ${f.shapedDefault === undefined ? "-" : format(f.shapedDefault)} | ${format(f.noLigatures)} | ${format(f.noKerning)} | ${format(f.spaceAll)} | ${f.worstNoLigatures === undefined ? "-" : `${f.worstNoLigatures.sample} at ${f.worstNoLigatures.size} px`} |`),
     ``,
     `Worst line error with the HVAR deltas not rounded: ${Object.entries(deltaErrors).map(([script, value]) => `${script} ${format(value)}`).join(", ")}.`,
+    ``,
+    `The advances of single characters at ${advanceSize} px against each model, worst and mean error in font units. The model of this arm: deltas ${deltasMode}, advances ${advancesMode}.`,
+    ``,
+    `| font | weight | gvar against HVAR | HVAR round | HVAR exact | gvar round | gvar exact | best |`,
+    `|---|---|---|---|---|---|---|---|`,
+    ...advanceModels.map((row) => {
+      const cell = (name: AdvanceModelName) => {
+        const error = row.canvas[name];
+        return error === undefined ? "-" : `${format(error.worst)} / ${format(error.mean)}`;
+      };
+      return `| ${row.font} | ${row.weight} | ${row.gvarAgainstHvar === null ? "-" : format(row.gvarAgainstHvar)} | ${cell("hvarRound")} | ${cell("hvarExact")} | ${cell("gvarRound")} | ${cell("gvarExact")} | ${row.best ?? "-"} |`;
+    }),
   ];
   console.log(lines.join("\n"));
   const stepSummary = process.env["GITHUB_STEP_SUMMARY"];

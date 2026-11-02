@@ -131,7 +131,7 @@ export function readVariationStore(store: Reader, coordinates: readonly number[]
 }
 
 /** This function gives the scalar of one axis of a region, as the OpenType specification defines it. */
-function axisScalar(start: number, peak: number, end: number, value: number): number {
+export function axisScalar(start: number, peak: number, end: number, value: number): number {
   if (start > peak || peak > end) return 1;
   if (start < 0 && end > 0 && peak !== 0) return 1;
   if (peak === 0 || value === peak) return 1;
