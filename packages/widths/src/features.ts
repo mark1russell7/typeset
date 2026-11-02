@@ -27,8 +27,11 @@ export interface FeatureRecord {
   readonly size: number;
   readonly canvas: number;
   readonly dom: Readonly<Record<FeatureSetting, number>>;
-  /** The model widths: `kerning` is the exact model, and `noKerning` has no pair kerning. */
-  readonly model: { readonly kerning: number; readonly noKerning: number };
+  /**
+   * The model widths. `kerning` has the pair kerning and no GSUB, and `noKerning` has neither. `shaped` is the default
+   * model, with the GSUB features `defaultFeatures` and the kerning. A record of T1c before the GSUB pass has no `shaped`.
+   */
+  readonly model: { readonly kerning: number; readonly noKerning: number; readonly shaped?: number };
 }
 
 /** The worst errors of one group, in px. Each error compares a DOM setting with the model that has the same features. */
@@ -42,6 +45,8 @@ export interface FeatureSummary {
   readonly noKerning: number;
   /** The DOM width of `spaceAll` against the model with no kerning. */
   readonly spaceAll: number;
+  /** The default DOM width against the default model with the GSUB pass. It is absent when no record has `shaped`. */
+  readonly shapedDefault?: number;
   /** The sample and the size of the worst `noLigatures` error. */
   readonly worstNoLigatures?: { readonly sample: string; readonly size: number; readonly error: number };
 }
@@ -57,12 +62,14 @@ export function summarizeFeatures(records: readonly FeatureRecord[]): Partial<Re
     const list = records.filter((record) => record.group === group);
     const ligature = list.map((record) => record.dom.noLigatures - record.model.kerning);
     const index = ligature.reduce((best, value, i) => (Math.abs(value) > Math.abs(ligature[best]!) ? i : best), 0);
+    const shaped = list.flatMap((record) => (record.model.shaped === undefined ? [] : [record.dom.default - record.model.shaped]));
     result[group] = {
       n: list.length,
       domAgainstCanvas: worstOf(list.map((record) => record.dom.default - record.canvas)),
       noLigatures: worstOf(ligature),
       noKerning: worstOf(list.map((record) => record.dom.noKerning - record.model.noKerning)),
       spaceAll: worstOf(list.map((record) => record.dom.spaceAll - record.model.noKerning)),
+      ...(shaped.length === 0 ? {} : { shapedDefault: worstOf(shaped) }),
       ...(list.length === 0 ? {} : { worstNoLigatures: { sample: list[index]!.sample, size: list[index]!.size, error: ligature[index]! } }),
     };
   }

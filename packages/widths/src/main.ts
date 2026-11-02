@@ -172,7 +172,11 @@ async function main(): Promise<void> {
               size,
               canvas: canvas[s]![i]!,
               dom: Object.fromEntries([...dom].map(([setting, widths]) => [setting, widths[s]![c]!])) as Record<FeatureSetting, number>,
-              model: { kerning: measureWidth(font, sample.text, size, options), noKerning: measureWidth(font, sample.text, size, { ...options, kerning: false }) },
+              model: {
+                kerning: measureWidth(font, sample.text, size, { ...options, features: [] }),
+                noKerning: measureWidth(font, sample.text, size, { ...options, features: [], kerning: false }),
+                shaped: measureWidth(font, sample.text, size, options),
+              },
             });
           });
         });
@@ -265,9 +269,9 @@ async function main(): Promise<void> {
     `|---|---|---|---|---|---|---|`,
     ...instances.map((p) => `| ${p.font} | ${p.requested} | ${JSON.stringify(p.model)} | ${p.found} | ${p.tied} | ${format(p.errorAtRequested)} | ${p.matches} |`),
     ``,
-    `| group | n | DOM against canvas px | no ligatures px | no kerning px | space-all px | worst no-ligature sample |`,
-    `|---|---|---|---|---|---|---|`,
-    ...Object.entries(features.summary).map(([group, f]) => `| ${group} | ${f.n} | ${format(f.domAgainstCanvas)} | ${format(f.noLigatures)} | ${format(f.noKerning)} | ${format(f.spaceAll)} | ${f.worstNoLigatures === undefined ? "-" : `${f.worstNoLigatures.sample} at ${f.worstNoLigatures.size} px`} |`),
+    `| group | n | DOM against canvas px | default against GSUB model px | no ligatures px | no kerning px | space-all px | worst no-ligature sample |`,
+    `|---|---|---|---|---|---|---|---|`,
+    ...Object.entries(features.summary).map(([group, f]) => `| ${group} | ${f.n} | ${format(f.domAgainstCanvas)} | ${f.shapedDefault === undefined ? "-" : format(f.shapedDefault)} | ${format(f.noLigatures)} | ${format(f.noKerning)} | ${format(f.spaceAll)} | ${f.worstNoLigatures === undefined ? "-" : `${f.worstNoLigatures.sample} at ${f.worstNoLigatures.size} px`} |`),
     ``,
     `Worst line error with the HVAR deltas not rounded: ${Object.entries(deltaErrors).map(([script, value]) => `${script} ${format(value)}`).join(", ")}.`,
   ];

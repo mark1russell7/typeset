@@ -1,6 +1,6 @@
 import { brotliCompressSync, brotliDecompressSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { glyphAdvances, measureWidth, readFont, readTables } from "./index.ts";
+import { defaultFeatures, glyphAdvances, measureWidth, readFont, readTables } from "./index.ts";
 
 /** A writer of big-endian bytes for the test fonts. */
 class Bytes {
@@ -96,6 +96,42 @@ function gpos(variable: boolean): Bytes {
   return new Bytes().u32(0x00010000).u16(s, f, l).bytes(scriptList).bytes(featureList).bytes(lookupList);
 }
 
+/** This function builds a Lookup table with one subtable. */
+function lookup(type: number, flags: number, subtable: Bytes): Bytes {
+  return new Bytes().u16(type, flags, 1, 8).bytes(subtable);
+}
+
+function gsub(): Bytes {
+  // The features of latn: calt (lookup 1), ccmp (lookup 4), liga (lookup 0) and smcp (lookup 3).
+  // Lookup 0: a ligature "o o" to the glyph 6, IgnoreMarks.
+  const ligature = new Bytes().u16(1, 8, 1, 14).u16(1, 1, 3).u16(1, 4).u16(6, 2, 3);
+  // Lookup 1: a chained context of format 3. After "A", it applies the lookup 2 to "V".
+  const chain = new Bytes().u16(3, 1, 18, 1, 24, 0, 1, 0, 2).u16(1, 1, 1).u16(1, 1, 2);
+  // Lookup 2: a single substitution of format 1, "V" to "o" (delta +1). No feature uses it directly.
+  const single1 = new Bytes().u16(1, 6, 1).u16(1, 1, 2);
+  // Lookup 3: a single substitution of format 2, "A" to "T".
+  const single2 = new Bytes().u16(2, 8, 1, 6).u16(1, 1, 1);
+  // Lookup 4: an Extension to a multiple substitution, a space to two spaces.
+  const multiple = new Bytes().u16(1, 2).u32(8).u16(1, 8, 1, 14).u16(1, 1, 5).u16(2, 5, 5);
+  const lookups = [lookup(4, 0x8, ligature), lookup(6, 0, chain), lookup(1, 0, single1), lookup(1, 0, single2), lookup(7, 0, multiple)];
+  const lookupList = new Bytes().u16(lookups.length);
+  let at = 2 + lookups.length * 2;
+  for (const l of lookups) {
+    lookupList.u16(at);
+    at += l.length;
+  }
+  for (const l of lookups) lookupList.bytes(l);
+  const tags: [string, number][] = [["calt", 1], ["ccmp", 4], ["liga", 0], ["smcp", 3]];
+  const featureList = new Bytes().u16(tags.length);
+  tags.forEach(([tag], i) => featureList.tag(tag).u16(2 + tags.length * 6 + i * 6));
+  for (const [, index] of tags) featureList.u16(0, 1, index);
+  const scriptList = new Bytes().u16(1).tag("latn").u16(8).u16(4, 0).u16(0, 0xffff, 4, 0, 1, 2, 3);
+  const s = 10;
+  const f = s + scriptList.length;
+  const l = f + featureList.length;
+  return new Bytes().u32(0x00010000).u16(s, f, l).bytes(scriptList).bytes(featureList).bytes(lookupList);
+}
+
 // The variable font: the axis wght from 100 (the default) to 900. avar maps 0.5 to 0.25. HVAR adds at wght 900:
 // A +96, V +40, o -24, T +30
 const advanceDeltas = [0, 96, 40, -24, 0, 0, 30];
@@ -107,16 +143,16 @@ function variationTables(): [string, Bytes][] {
   return [["HVAR", hvar], ["avar", avar], ["fvar", fvar]];
 }
 
-function tableSet(variable = false): [string, Bytes][] {
+function tableSet(variable = false, substitutions = false): [string, Bytes][] {
   const hmtx = new Bytes();
   for (const a of advances) hmtx.u16(a, 0);
-  const tables: [string, Bytes][] = [["GDEF", gdef(variable)], ["GPOS", gpos(variable)], ["cmap", cmap()], ["head", head()], ["hhea", hhea()], ["hmtx", hmtx], ["maxp", new Bytes().u32(0x00005000).u16(advances.length)]];
+  const tables: [string, Bytes][] = [["GDEF", gdef(variable)], ["GPOS", gpos(variable)], ...(substitutions ? [["GSUB", gsub()] as [string, Bytes]] : []), ["cmap", cmap()], ["head", head()], ["hhea", hhea()], ["hmtx", hmtx], ["maxp", new Bytes().u32(0x00005000).u16(advances.length)]];
   return variable ? [...variationTables(), ...tables] : tables;
 }
 
 /** This function builds a TrueType file of the test tables. */
-function buildTtf(variable = false): Uint8Array {
-  const tables = tableSet(variable);
+function buildTtf(variable = false, substitutions = false): Uint8Array {
+  const tables = tableSet(variable, substitutions);
   const out = new Bytes().u32(0x00010000).u16(tables.length, 0, 0, 0);
   let offset = 12 + tables.length * 16;
   const bodies: Bytes[] = [];
@@ -305,5 +341,45 @@ describe("the rounding mode pixel", () => {
   it("rounds the advance to 1/64 px first, as FreeType does", () => {
     // A at 15.825 px is 9.495 px: 1/64 px gives 9.5, and then 10. A plain rounding gives 9
     expect(measureWidth(font, "A", 15.825, { rounding: "pixel" })).toBe(10);
+  });
+});
+
+describe("the GSUB substitutions", () => {
+  const font = readFont(buildTtf(false, true));
+  const plain = readFont(buildTtf());
+  const latn = { script: "latn" } as const;
+
+  it("makes a ligature, and skips a mark between its components", () => {
+    expect(glyphAdvances(font, "oo", latn).glyphs).toEqual([6]);
+    expect(measureWidth(font, "oo", 1000, latn)).toBe(560);
+    expect(glyphAdvances(font, "óo", latn).glyphs).toEqual([6, 4]);
+  });
+
+  it("applies a lookup of a chained context only after its backtrack glyph", () => {
+    expect(glyphAdvances(font, "AV", latn).glyphs).toEqual([1, 3]);
+    expect(glyphAdvances(font, "VV", latn).glyphs).toEqual([2, 2]);
+    // "A o" has no kerning pair, so the width is the sum of the advances
+    expect(measureWidth(font, "AV", 1000, latn)).toBe(600 + 520);
+  });
+
+  it("applies a multiple substitution through an Extension", () => {
+    expect(glyphAdvances(font, " ", latn).glyphs).toEqual([5, 5]);
+  });
+
+  it("applies only the features of the list", () => {
+    expect(measureWidth(font, "AV", 1000, { ...latn, features: [] })).toBe(600 + 580 - 80);
+    expect(measureWidth(font, "oo", 1000, { ...latn, features: ["calt"] })).toBe(1040);
+    expect(glyphAdvances(font, "A", { ...latn, features: ["smcp"] }).glyphs).toEqual([6]);
+    expect(glyphAdvances(font, "A", latn).glyphs).toEqual([1]);
+    expect(defaultFeatures).toContain("liga");
+  });
+
+  it("uses the script latn when the script of the text is not in the font", () => {
+    expect(glyphAdvances(font, "oo").glyphs).toEqual([6]);
+  });
+
+  it("gives a font with no GSUB the same widths, and a different epoch to a font with GSUB", () => {
+    expect(measureWidth(plain, "oo", 1000, latn)).toBe(1040);
+    expect(font.epoch).not.toBe(plain.epoch);
   });
 });

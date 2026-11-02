@@ -22,6 +22,9 @@ A variable font has axes in `fvar`, for example the weight `wght`. Give the inst
 - The epoch includes the coordinates of the instance, so each instance has a different epoch.
 - The option `deltas: "exact"` keeps the fraction of each `HVAR` delta. The epoch then ends with `-exact`.
 - The option `kerning: false` of `measureWidth` gives the sum of the advances with no pair kerning.
+- Before the kerning, `measureWidth` applies the GSUB substitutions of the features `defaultFeatures`: `ccmp`, `locl`, `rlig`, `liga`, `clig`, `calt` and `rclt`.
+- A browser applies these features when the page does not change them. The option `features` gives another list, and `[]` applies no substitution.
+- The GSUB pass reads the lookup types 1 to 8 and the lookup flags. It does not read the `FeatureVariations` table.
 
 A browser uses the CSS weight for the axis `wght`, not the default instance of the font. For `font-weight: 400`, give `{ wght: 400 }`.
 
@@ -67,6 +70,7 @@ The comparison has four arms. Each arm is one job of the workflow.
 
 ### The fields that examine an arm
 
+- `features.summary[group].shapedDefault` compares the default DOM width with the default model, with the GSUB pass. The DOM width is the reference.
 - `features` is the DOM diagnostic of T1c. It measures the Latin lines, the kana lines and the lines of Source Sans 3 as DOM spans, in four feature settings. The settings are the default, no ligatures (`liga` and `calt` off), no kerning, and `text-spacing-trim: space-all`. Its `summary` compares each setting with the model that has the same features.
 - `exactDeltaErrors` gives the worst line error of each script for the model with the `HVAR` deltas not rounded.
 - `breakdown` gives the line errors of each font, weight and script, with the three worst samples and their texts.

@@ -93,7 +93,7 @@ function pairSubtable(table: Reader, store: VariationStore | undefined): (first:
 }
 
 /** This function gives the tags of the scripts to try, in order, for a script tag, as HarfBuzz tries them. */
-function scriptTags(script: string): string[] {
+export function scriptTags(script: string): string[] {
   const tags = script === "deva" ? ["dev2", "deva"] : [script];
   return [...tags, "DFLT", "dflt", "latn"];
 }

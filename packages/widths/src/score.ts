@@ -1,6 +1,6 @@
 /**
  * The command `node src/score.ts <folder> [--out outcomes.json]`. It reads the file `font-widths.json` of each arm in the
- * folder. It gives the outcomes of the predictions `typeset-t1b-instancing-platforms` and `typeset-t1c-width-causes`.
+ * folder. It gives the outcomes of the predictions of T1b and T1c.
  * Each platform has its own bounds. An arm with no file makes its outcomes fail.
  */
 import { appendFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -93,7 +93,7 @@ export function score(files: ReadonlyMap<string, ArmFile>): Outcome[] {
 const desktopArms = ["macos-2", "windows-1"] as const;
 
 /** This function tells if a value of the DOM diagnostic is at most `limit` for each group, on each arm of a list. */
-function featureBound(files: ReadonlyMap<string, ArmFile>, arms: readonly string[], groups: readonly FeatureGroup[], key: "domAgainstCanvas" | "noLigatures" | "noKerning", limit: number): { holds: boolean; detail: string } {
+function featureBound(files: ReadonlyMap<string, ArmFile>, arms: readonly string[], groups: readonly FeatureGroup[], key: "domAgainstCanvas" | "noLigatures" | "noKerning" | "shapedDefault", limit: number): { holds: boolean; detail: string } {
   const parts: string[] = [];
   let holds = true;
   for (const arm of arms) {
@@ -127,6 +127,25 @@ export function scoreCauses(files: ReadonlyMap<string, ArmFile>): Outcome[] {
   ];
 }
 
+/** The scripts whose canvas line errors on Windows are at most 0.01 px after T1b. The GSUB pass must not change them. */
+const unchangedScripts: readonly ScriptId[] = ["greek", "cyrillic", "latin-extended", "hebrew", "hangul", "han"];
+
+/** This function gives the outcomes of the prediction `typeset-t1c-gsub-ligatures` from the files of the arms. */
+export function scoreGsub(files: ReadonlyMap<string, ArmFile>): Outcome[] {
+  const windows = files.get("windows-1")?.summary;
+  const lines = unchangedScripts.map((script) => [script, windows?.[script]?.line?.worstPx ?? Number.NaN] as const);
+  return [
+    { outcome: "specificLatinGsub", ...featureBound(files, desktopArms, ["latin"], "shapedDefault", 0.05) },
+    { outcome: "specificExtraGsubWindows", ...featureBound(files, ["windows-1"], ["extra-400", "extra-700"], "shapedDefault", 0.05) },
+    { outcome: "specificKanaMacDom", ...featureBound(files, ["macos-2"], ["kana"], "shapedDefault", 0.05) },
+    {
+      outcome: "specificNoRegression",
+      holds: windows !== undefined && lines.every(([, value]) => value <= 0.01),
+      detail: windows === undefined ? "windows-1: no file" : `windows-1: ${lines.map(([script, value]) => `${script} ${value.toFixed(4)}`).join(", ")}`,
+    },
+  ];
+}
+
 /** This function finds the file `font-widths.json` of each arm: in the folder itself, or in a subfolder for each artifact. */
 function readArms(folder: string): Map<string, ArmFile> {
   const files = new Map<string, ArmFile>();
@@ -144,7 +163,7 @@ function main(): void {
   const folder = positionals[0];
   if (folder === undefined) throw new Error("give the folder of the arm files");
   const files = readArms(folder);
-  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files) };
+  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files) };
   writeFileSync(values.out, JSON.stringify({ schema: "typeset-font-outcomes/2", arms: [...files.keys()].sort(), predictions }, null, 2) + "\n");
   const lines = [`Arms: ${[...files.keys()].sort().join(", ")}.`];
   for (const [id, outcomes] of Object.entries(predictions)) {

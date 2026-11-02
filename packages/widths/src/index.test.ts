@@ -15,6 +15,7 @@ import {
   exactDeltaErrors,
   score,
   scoreCauses,
+  scoreGsub,
   sourceUrl,
   summarizeFeatures,
   type FeatureRecord,
@@ -41,6 +42,7 @@ function weighted(wght = 400): Font {
     advance: () => 500 + wght - 400,
     glyphClass: () => 0,
     kerning: () => [],
+    substitutions: () => [],
   };
 }
 
@@ -178,7 +180,7 @@ describe("the DOM diagnostic", () => {
     size: 16,
     canvas: 100,
     dom: { default: 100 + domError, noLigatures: 100 + ligature, noKerning: 90 + kerning, spaceAll: 90 },
-    model: { kerning: 100, noKerning: 90 },
+    model: { kerning: 100, noKerning: 90, shaped: 100 + domError },
   });
 
   it("gives the worst error of each setting against the model with the same features", () => {
@@ -206,5 +208,26 @@ describe("the DOM diagnostic", () => {
     expect(scoreCauses(new Map([["macos-2", file("macos-2")], ["windows-1", file("windows-1")]])).every((outcome) => outcome.holds)).toBe(true);
     const outcomes = Object.fromEntries(scoreCauses(new Map([["windows-1", file("windows-1")]])).map((o) => [o.outcome, o.holds]));
     expect(outcomes).toEqual({ specificDomMatchesCanvas: false, specificLigatureLatin: false, specificLigatureExtraWindows: true, specificUnroundedDeltasMac: false, specificKanaKerning: false });
+  });
+});
+
+describe("the score of the GSUB pass", () => {
+  it("bounds the default DOM width against the GSUB model, and the canvas errors of six scripts on Windows", () => {
+    const record = (group: FeatureRecord["group"], shapedError: number): FeatureRecord => ({
+      group,
+      font: "f",
+      weight: 400,
+      sample: group,
+      size: 16,
+      canvas: 100,
+      dom: { default: 100, noLigatures: 100, noKerning: 100, spaceAll: 100 },
+      model: { kerning: 100, noKerning: 100, shaped: 100 + shapedError },
+    });
+    const summary = summarizeFeatures([record("latin", 0.03), record("kana", 0.2), record("extra-400", 0.01), record("extra-700", 0.01)]);
+    const cells = Object.fromEntries(["greek", "cyrillic", "latin-extended", "hebrew", "hangul", "han"].map((script) => [script, { line: { worstPx: 0.001 } as never }]));
+    const file = (arm: string): ArmFile => ({ arm, instances: [], fractions: { line: fractionsOf([]) }, woff2Mismatches: null, summary: cells, extraSummary: {}, features: { summary } });
+    const outcomes = Object.fromEntries(scoreGsub(new Map([["macos-2", file("macos-2")], ["windows-1", file("windows-1")]])).map((o) => [o.outcome, o.holds]));
+    expect(outcomes).toEqual({ specificLatinGsub: true, specificExtraGsubWindows: true, specificKanaMacDom: false, specificNoRegression: true });
+    expect(scoreGsub(new Map()).some((o) => o.holds)).toBe(false);
   });
 });

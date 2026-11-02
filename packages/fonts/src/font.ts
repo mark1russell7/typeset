@@ -2,6 +2,7 @@ import { fnv1a32 } from "@mark1russell7/rigor-generators";
 import type { Reader } from "./binary.ts";
 import { readGposKerning, readKernTable, IGNORE_BASE, IGNORE_LIGATURES, IGNORE_MARKS, type PairLookup } from "./kerning.ts";
 import { readTables, type Decompress, type TableMap } from "./sfnt.ts";
+import { defaultFeatures, readGlyphFilter, readSubstitutions, type GlyphFilter, type SubstitutionLookup } from "./substitution.ts";
 import { readAdvances, readCharacterMap, readGlyphClasses, readHeader } from "./tables.ts";
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
 
@@ -44,6 +45,8 @@ export interface Font {
   glyphClass(glyph: number): number;
   /** This function gives the pair lookups of the kerning for an OpenType script tag, for example `latn`. */
   kerning(script: string): readonly PairLookup[];
+  /** This function gives the GSUB lookups of a list of feature tags for an OpenType script tag, in the order of the lookup list. */
+  substitutions(script: string, features: readonly string[]): readonly SubstitutionLookup[];
   /** This function gives the same font at another instance. It uses the tables that are already read. */
   at(instance: Instance): Font;
 }
@@ -63,6 +66,7 @@ export function readFont(bytes: Uint8Array, options: ReadOptions = {}): Font {
     advances: readAdvances(need("hmtx"), header),
     characters: readCharacterMap(need("cmap")),
     glyphClass: readGlyphClasses(tables.get("GDEF")),
+    filter: readGlyphFilter(tables.get("GDEF"), readGlyphClasses(tables.get("GDEF"))),
     axes: tables.has("fvar") ? readAxes(tables.get("fvar")!) : [],
   };
   return build(parsed, options.instance ?? {}, options.deltas ?? "round");
@@ -75,6 +79,7 @@ interface Parsed {
   readonly advances: Uint16Array;
   readonly characters: Map<number, number>;
   readonly glyphClass: (glyph: number) => number;
+  readonly filter: GlyphFilter;
   readonly axes: readonly Axis[];
 }
 
@@ -91,8 +96,10 @@ function build(parsed: Parsed, requested: Instance, deltas: "round" | "exact"): 
   const store = storeOffset === 0 ? undefined : readVariationStore(gdef!.part(storeOffset), coordinates);
   const gpos = tables.get("GPOS");
   const kern = tables.get("kern");
+  const gsub = tables.get("GSUB");
   const lookups = new Map<string, readonly PairLookup[]>();
-  const hashed = [tables.get("cmap"), gdef, gpos, kern, tables.get("fvar"), tables.get("avar"), tables.get("HVAR")];
+  const substitutions = new Map<string, readonly SubstitutionLookup[]>();
+  const hashed = [tables.get("cmap"), gdef, gpos, kern, tables.get("fvar"), tables.get("avar"), tables.get("HVAR"), gsub];
   return {
     epoch: `${header.revision.toString(16).padStart(8, "0")}-${widthHash(header.unitsPerEm, coordinates, advances, hashed)}${deltas === "exact" ? "-exact" : ""}`,
     unitsPerEm: header.unitsPerEm,
@@ -109,6 +116,15 @@ function build(parsed: Parsed, requested: Instance, deltas: "round" | "exact"): 
         // HarfBuzz uses the kern table only when the font has no GPOS table
         found = gpos !== undefined ? readGposKerning(gpos, script, store) : kern !== undefined ? readKernTable(kern) : [];
         lookups.set(script, found);
+      }
+      return found;
+    },
+    substitutions(script, features) {
+      const key = `${script} ${features.join(",")}`;
+      let found = substitutions.get(key);
+      if (found === undefined) {
+        found = gsub === undefined ? [] : readSubstitutions(gsub, script, features, parsed.filter);
+        substitutions.set(key, found);
       }
       return found;
     },
@@ -143,6 +159,11 @@ export interface MeasureOptions {
   readonly rounding?: "exact" | "pixel";
   /** The pair kerning. When it is `false`, the width is the sum of the advances only. The default is `true`. */
   readonly kerning?: boolean;
+  /**
+   * The GSUB features to apply before the kerning. The default is `defaultFeatures`: the features that a browser applies
+   * when the page does not change them. An empty list applies no substitution.
+   */
+  readonly features?: readonly string[];
 }
 
 /** This function tells if a lookup with the flags `flags` skips a glyph of the GDEF class `glyphClass`. */
@@ -150,10 +171,14 @@ function skips(flags: number, glyphClass: number): boolean {
   return ((flags & IGNORE_MARKS) !== 0 && glyphClass === 3) || ((flags & IGNORE_BASE) !== 0 && glyphClass === 1) || ((flags & IGNORE_LIGATURES) !== 0 && glyphClass === 2);
 }
 
-/** This function gives the advances of the glyphs of a text in font units, after the pair kerning. The text is not shaped. */
+/**
+ * This function gives the glyphs of a text and their advances in font units. It applies the GSUB substitutions of the
+ * features, and then the pair kerning.
+ */
 export function glyphAdvances(font: Font, text: string, options: MeasureOptions = {}): { glyphs: number[]; advances: number[] } {
   const glyphs: number[] = [];
   for (const character of text) glyphs.push(font.glyph(character.codePointAt(0)!));
+  for (const lookup of font.substitutions(options.script ?? "DFLT", options.features ?? defaultFeatures)) lookup.apply(glyphs);
   const advances = glyphs.map((glyph) => font.advance(glyph));
   for (const lookup of options.kerning === false ? [] : font.kerning(options.script ?? "DFLT")) {
     const next = (from: number): number => {
@@ -178,8 +203,8 @@ export function glyphAdvances(font: Font, text: string, options: MeasureOptions 
 }
 
 /**
- * This function gives the width of a text in px at the size `size` in px. The width is the sum of the advances and of the
- * pair kerning, with no shaping.
+ * This function gives the width of a text in px at the size `size` in px. The width is the sum of the advances after the
+ * GSUB substitutions and the pair kerning.
  */
 export function measureWidth(font: Font, text: string, size: number, options: MeasureOptions = {}): number {
   const { glyphs, advances } = glyphAdvances(font, text, options);
