@@ -24,8 +24,8 @@ function components(glyph: Reader, at: number): { count: number; length: number 
 }
 
 /**
- * This function gives the count of points of each glyph, as `gvar` counts them: the points of the contours of a simple
- * glyph, or one point for each component of a composite glyph. The four phantom points are not in the count.
+ * This function gives the count of points of each glyph, as `gvar` counts them. A simple glyph has the points of its
+ * contours. A composite glyph has one point for each component. The four phantom points are not in the count.
  */
 export function readPointCounts(glyf: Reader, loca: Reader, indexToLocFormat: number, numGlyphs: number): Uint32Array {
   const counts = new Uint32Array(numGlyphs);

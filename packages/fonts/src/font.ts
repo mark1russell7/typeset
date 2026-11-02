@@ -182,7 +182,7 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
   };
 }
 
-/** This function adds the advance delta of each glyph to its default advance. An advance is never less than 0. */
+/** This function adds the advance delta of each glyph to its default advance. A negative sum becomes 0. */
 function phantomAdvances(advances: Uint16Array, deltas: Float64Array): Float64Array {
   return Float64Array.from(advances, (advance, glyph) => Math.max(0, advance + (deltas[glyph] ?? 0)));
 }
