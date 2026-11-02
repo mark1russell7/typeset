@@ -15,14 +15,14 @@ export interface EngineRules {
  * The rules of the text engines of Chromium, one row for each engine. The fonts runs of typeset#27 measured each row
  * against the canvas. A new engine is a new row.
  */
-export const engines = {
+export const engines: { readonly freetype: EngineRules; readonly coretext: EngineRules; readonly directwrite: EngineRules } = {
   /** FreeType, as Chromium on Linux uses it: rounded deltas, and each advance in whole px. */
   freetype: { deltas: "round", metrics: "own", rounding: "pixel" },
   /** CoreText on macOS: it keeps the fraction of the deltas. */
   coretext: { deltas: "exact", metrics: "own", rounding: "exact" },
   /** DirectWrite on Windows: a composite glyph has the advance of its USE_MY_METRICS component. */
   directwrite: { deltas: "round", metrics: "component", rounding: "exact" },
-} as const satisfies Record<string, EngineRules>;
+};
 
 /** The name of a text engine of the table `engines`. */
 export type EngineName = keyof typeof engines;
