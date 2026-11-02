@@ -22,7 +22,7 @@ Thus a concatenation adds two numbers, and an edit updates only the path from th
 
 ## Status
 
-T7 and T9 are done: the corpus generator (`packages/corpus`) and the bench (`packages/bench`). [docs/BENCH.md](docs/BENCH.md) tells how they work. T1, the font tables, is in progress: [docs/FONTS.md](docs/FONTS.md). [docs/ROADMAP.md](docs/ROADMAP.md) has the plan.
+T7, T9 and T1 are done: the corpus generator (`packages/corpus`), the bench (`packages/bench`) and the font tables (`packages/fonts`). [docs/BENCH.md](docs/BENCH.md) and [docs/FONTS.md](docs/FONTS.md) tell how they work. T1b, the variable fonts and the platforms, is in progress. [docs/ROADMAP.md](docs/ROADMAP.md) has the plan.
 
 ## License
 
