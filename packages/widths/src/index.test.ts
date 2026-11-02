@@ -11,8 +11,13 @@ import {
   probeCharacters,
   probeInstance,
   recordsOf,
+  breakdownOf,
+  exactDeltaErrors,
   score,
+  scoreCauses,
   sourceUrl,
+  summarizeFeatures,
+  type FeatureRecord,
   summarize,
   tasksOf,
   type ArmFile,
@@ -161,5 +166,45 @@ describe("score", () => {
       specificBoundMarks: false,
       specificWoff2SameTables: true,
     });
+  });
+});
+
+describe("the DOM diagnostic", () => {
+  const feature = (group: FeatureRecord["group"], domError: number, ligature: number, kerning: number): FeatureRecord => ({
+    group,
+    font: "f",
+    weight: 400,
+    sample: `${group}-${ligature}`,
+    size: 16,
+    canvas: 100,
+    dom: { default: 100 + domError, noLigatures: 100 + ligature, noKerning: 90 + kerning, spaceAll: 90 },
+    model: { kerning: 100, noKerning: 90 },
+  });
+
+  it("gives the worst error of each setting against the model with the same features", () => {
+    const summary = summarizeFeatures([feature("latin", 0.25, 0.5, 0), feature("latin", 0, -2.5, 0.125), feature("kana", 0, 0, 3.84)]);
+    expect(summary.latin).toMatchObject({ n: 2, domAgainstCanvas: 0.25, noLigatures: 2.5, noKerning: 0.125, spaceAll: 0, worstNoLigatures: { sample: "latin--2.5", error: -2.5 } });
+    expect(summary.kana?.noKerning).toBeCloseTo(3.84, 10);
+  });
+
+  it("gives the errors of the model with exact deltas, and a breakdown by font, weight and script", () => {
+    const base = { lengthClass: "line", font: "f", weight: 400, size: 16, codePoints: 40, missing: 0, canvas: 100, tables: 100, pixel: 100 } as const;
+    const records: WidthRecord[] = [
+      { ...base, sample: "a", script: "hebrew", error: 0.4, exactDeltas: 100.05 },
+      { ...base, sample: "b", script: "hebrew", error: -0.1, exactDeltas: 99.98 },
+      { ...base, sample: "c", script: "hangul", error: 0, missing: 1, exactDeltas: 120 },
+    ];
+    expect(exactDeltaErrors(records).hebrew).toBeCloseTo(0.05, 10);
+    expect(exactDeltaErrors(records).hangul).toBeUndefined();
+    const [row] = breakdownOf(records, new Map([["a", "text a"]]));
+    expect(row).toMatchObject({ font: "f", script: "hebrew", n: 2, worstPx: 0.4, meanPx: 0.25, exactShare: 0, worst: [{ sample: "a", text: "text a" }, { sample: "b" }] });
+  });
+
+  it("scores the causes on macOS and Windows, and fails an arm with no diagnostic", () => {
+    const summary = summarizeFeatures([feature("latin", 0, 0.2, 0), feature("kana", 0, 0, 0.05), feature("extra-400", 0, 0.3, 0), feature("extra-700", 0, 0.3, 0)]);
+    const file = (arm: string): ArmFile => ({ arm, instances: [], fractions: { line: fractionsOf([]) }, woff2Mismatches: null, summary: {}, extraSummary: {}, features: { summary }, exactDeltaErrors: { hangul: 0.05, hebrew: 0.02 } });
+    expect(scoreCauses(new Map([["macos-2", file("macos-2")], ["windows-1", file("windows-1")]])).every((outcome) => outcome.holds)).toBe(true);
+    const outcomes = Object.fromEntries(scoreCauses(new Map([["windows-1", file("windows-1")]])).map((o) => [o.outcome, o.holds]));
+    expect(outcomes).toEqual({ specificDomMatchesCanvas: false, specificLigatureLatin: false, specificLigatureExtraWindows: true, specificUnroundedDeltasMac: false, specificKanaKerning: false });
   });
 });

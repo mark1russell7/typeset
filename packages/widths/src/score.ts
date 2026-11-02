@@ -1,13 +1,14 @@
 /**
  * The command `node src/score.ts <folder> [--out outcomes.json]`. It reads the file `font-widths.json` of each arm in the
- * folder, and gives the outcomes of the prediction `typeset-t1b-instancing-platforms`. Each platform has its own bounds.
- * An arm with no file makes its outcomes fail.
+ * folder. It gives the outcomes of the predictions `typeset-t1b-instancing-platforms` and `typeset-t1c-width-causes`.
+ * Each platform has its own bounds. An arm with no file makes its outcomes fail.
  */
 import { appendFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import type { ScriptId } from "@typeset/corpus";
 import type { Cell, Fractions, InstanceProbe } from "./compare.ts";
+import type { FeatureGroup, FeatureSummary } from "./features.ts";
 
 /** The part of an arm file that the score uses. */
 export interface ArmFile {
@@ -17,6 +18,9 @@ export interface ArmFile {
   readonly woff2Mismatches: number | null;
   readonly summary: Partial<Record<ScriptId, { readonly line?: Cell }>>;
   readonly extraSummary: Record<string, { readonly line?: Cell }>;
+  /** The DOM diagnostic of T1c. An arm file of T1b has no such field. */
+  readonly features?: { readonly summary: Partial<Record<FeatureGroup, FeatureSummary>> };
+  readonly exactDeltaErrors?: Partial<Record<ScriptId, number>>;
 }
 
 /** The arms that the bounds use: the platforms with no rounding to whole px. */
@@ -85,6 +89,44 @@ export function score(files: ReadonlyMap<string, ArmFile>): Outcome[] {
   return outcomes;
 }
 
+/** The arms of macOS and Windows: the platforms that the T1c claims examine. */
+const desktopArms = ["macos-2", "windows-1"] as const;
+
+/** This function tells if a value of the DOM diagnostic is at most `limit` for each group, on each arm of a list. */
+function featureBound(files: ReadonlyMap<string, ArmFile>, arms: readonly string[], groups: readonly FeatureGroup[], key: "domAgainstCanvas" | "noLigatures" | "noKerning", limit: number): { holds: boolean; detail: string } {
+  const parts: string[] = [];
+  let holds = true;
+  for (const arm of arms) {
+    const summary = files.get(arm)?.features?.summary;
+    if (summary === undefined) {
+      holds = false;
+      parts.push(`${arm}: no features`);
+      continue;
+    }
+    const values = groups.map((group) => [group, summary[group]?.[key] ?? Number.NaN] as const);
+    if (!values.every(([, value]) => value <= limit)) holds = false;
+    parts.push(`${arm}: ${values.map(([group, value]) => `${group} ${value.toFixed(4)}`).join(", ")}`);
+  }
+  return { holds, detail: parts.join("; ") };
+}
+
+/** This function gives the outcomes of the prediction `typeset-t1c-width-causes` from the files of the arms. */
+export function scoreCauses(files: ReadonlyMap<string, ArmFile>): Outcome[] {
+  const mac = files.get("macos-2")?.exactDeltaErrors;
+  const deltas = (["hangul", "hebrew"] as const).map((script) => [script, mac?.[script] ?? Number.NaN] as const);
+  return [
+    { outcome: "specificDomMatchesCanvas", ...featureBound(files, desktopArms, ["latin", "kana", "extra-400", "extra-700"], "domAgainstCanvas", 1 / 64 + 0.001) },
+    { outcome: "specificLigatureLatin", ...featureBound(files, desktopArms, ["latin"], "noLigatures", 0.5) },
+    { outcome: "specificLigatureExtraWindows", ...featureBound(files, ["windows-1"], ["extra-400", "extra-700"], "noLigatures", 0.5) },
+    {
+      outcome: "specificUnroundedDeltasMac",
+      holds: mac !== undefined && deltas.every(([, value]) => value <= 0.1),
+      detail: mac === undefined ? "macos-2: no exactDeltaErrors" : `macos-2: ${deltas.map(([script, value]) => `${script} ${value.toFixed(4)}`).join(", ")}`,
+    },
+    { outcome: "specificKanaKerning", ...featureBound(files, desktopArms, ["kana"], "noKerning", 0.1) },
+  ];
+}
+
 /** This function finds the file `font-widths.json` of each arm: in the folder itself, or in a subfolder for each artifact. */
 function readArms(folder: string): Map<string, ArmFile> {
   const files = new Map<string, ArmFile>();
@@ -102,9 +144,12 @@ function main(): void {
   const folder = positionals[0];
   if (folder === undefined) throw new Error("give the folder of the arm files");
   const files = readArms(folder);
-  const outcomes = score(files);
-  writeFileSync(values.out, JSON.stringify({ schema: "typeset-font-outcomes/1", arms: [...files.keys()].sort(), outcomes }, null, 2) + "\n");
-  const lines = [`## Outcomes of typeset-t1b-instancing-platforms`, ``, `Arms: ${[...files.keys()].sort().join(", ")}.`, ``, `| outcome | holds | values |`, `|---|---|---|`, ...outcomes.map((o) => `| ${o.outcome} | ${o.holds} | ${o.detail} |`)];
+  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files) };
+  writeFileSync(values.out, JSON.stringify({ schema: "typeset-font-outcomes/2", arms: [...files.keys()].sort(), predictions }, null, 2) + "\n");
+  const lines = [`Arms: ${[...files.keys()].sort().join(", ")}.`];
+  for (const [id, outcomes] of Object.entries(predictions)) {
+    lines.push(``, `## Outcomes of ${id}`, ``, `| outcome | holds | values |`, `|---|---|---|`, ...outcomes.map((o) => `| ${o.outcome} | ${o.holds} | ${o.detail} |`));
+  }
   console.log(lines.join("\n"));
   const stepSummary = process.env["GITHUB_STEP_SUMMARY"];
   if (stepSummary !== undefined) appendFileSync(stepSummary, `${lines.join("\n")}\n`);

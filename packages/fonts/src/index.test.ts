@@ -261,6 +261,18 @@ describe("variable fonts", () => {
     expect(measureWidth(readFont(bytes, { instance: { wght: 300 } }), "To", 100)).toBeCloseTo((564 + 517 - 65) / 10, 10);
   });
 
+  it("keeps the fraction of each HVAR delta with the option deltas exact, and has another epoch", () => {
+    const exact = readFont(bytes, { instance: { wght: 500 }, deltas: "exact" });
+    expect(exact.advance(6)).toBe(567.5);
+    expect(exact.at({ wght: 300 }).advance(6)).toBe(563.75);
+    expect(exact.epoch).not.toBe(readFont(bytes, { instance: { wght: 500 } }).epoch);
+  });
+
+  it("leaves out the kerning with the option kerning false", () => {
+    const font = readFont(bytes, { instance: { wght: 500 } });
+    expect(measureWidth(font, "AV", 1000, { kerning: false })).toBe(624 + 590);
+  });
+
   it("clamps an instance to the range of the axis", () => {
     expect(readFont(bytes, { instance: { wght: 2000 } }).instance).toEqual({ wght: 900 });
   });

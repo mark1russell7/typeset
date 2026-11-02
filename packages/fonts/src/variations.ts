@@ -156,10 +156,11 @@ export function mapIndex(map: Reader, index: number): [outer: number, inner: num
 }
 
 /**
- * This function gives the advances of an instance. Each delta of `HVAR` is rounded to whole font units, as FreeType rounds
- * it: a half goes up. The advances stay as they are when the font has no `HVAR` table.
+ * This function gives the advances of an instance. With `round`, each delta of `HVAR` is rounded to whole font units, as
+ * FreeType rounds it: a half goes up. With `exact`, the delta keeps its fraction. The advances stay as they are when the
+ * font has no `HVAR` table.
  */
-export function instanceAdvances(advances: Uint16Array, hvar: Reader | undefined, coordinates: readonly number[]): Float64Array {
+export function instanceAdvances(advances: Uint16Array, hvar: Reader | undefined, coordinates: readonly number[], deltas: "round" | "exact" = "round"): Float64Array {
   const result = Float64Array.from(advances);
   if (hvar === undefined || coordinates.every((value) => value === 0)) return result;
   const store = readVariationStore(hvar.part(hvar.u32(4)), coordinates);
@@ -167,7 +168,8 @@ export function instanceAdvances(advances: Uint16Array, hvar: Reader | undefined
   const map = mapOffset === 0 ? undefined : hvar.part(mapOffset);
   for (let glyph = 0; glyph < result.length; glyph++) {
     const [outer, inner] = map === undefined ? [0, glyph] : mapIndex(map, glyph);
-    result[glyph] = advances[glyph]! + Math.round(store.delta(outer, inner));
+    const delta = store.delta(outer, inner);
+    result[glyph] = advances[glyph]! + (deltas === "round" ? Math.round(delta) : delta);
   }
   return result;
 }
