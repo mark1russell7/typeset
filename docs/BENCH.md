@@ -66,3 +66,4 @@ T9 replaced the local copies of the random numbers and the statistics with the r
 - The corpus has a new fingerprint at seed 1: `687b7e4b` in place of `545a41f6cbbb68ed`. The random source changed from xoshiro128** to mulberry32, and the seeds of the samples come from `deriveSeed`. Thus each text of the corpus changed.
 - `node src/rescore.ts <folder>` calculates the values of old records again. On the 5 records of the run 41446214122, 441 of 445 values are equal with `===`: each process median, each arm median, each spread and each A/A ratio.
 - The 4 values that differ are ends of the bootstrap intervals, because the random source of the bootstrap changed. The largest difference is 0.0016.
+- The bench run 41455318165 (5 jobs, 20 rounds) on the new corpus gives the A/A ratios 0.9973, 1.0056, 0.9987, 1.0022 and 1.0010. The floor is 0.0056 + 0.0082 = 0.0138. The limit 0.017 stays.
