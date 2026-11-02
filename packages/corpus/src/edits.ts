@@ -1,5 +1,5 @@
 import { generateText } from "./generate.ts";
-import { createRandom, hash32 } from "./random.ts";
+import { deriveSeed, random as createRandom } from "@mark1russell7/rigor-generators";
 import type { ScriptId } from "./scripts.ts";
 
 /**
@@ -64,7 +64,7 @@ function stepForward(text: string, at: number): number {
  * Each edit fits the text that the edits before it make.
  */
 export function generateEdits(spec: EditSpec): Edit[] {
-  const random = createRandom(hash32(spec.seed, "edits", spec.script));
+  const random = createRandom(deriveSeed(spec.seed, `edits/${spec.script}`));
   const edits: Edit[] = [];
   let text = spec.base;
   let cursor = snap(text, random.int(0, text.length));

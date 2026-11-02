@@ -1,29 +1,8 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { cases as corpusCases } from "./cases/corpus.ts";
-import { measure, median, medianWithInterval, quantile, relativeSpread, roundOrder, runBench } from "./index.ts";
-
-describe("stats", () => {
-  it("gives quantiles with interpolation", () => {
-    expect(median([3, 1, 2])).toBe(2);
-    expect(median([1, 2, 3, 4])).toBe(2.5);
-    expect(quantile([0, 10], 0.9)).toBe(9);
-    expect(() => median([])).toThrow(RangeError);
-  });
-
-  it("gives the relative spread", () => {
-    expect(relativeSpread([9, 10, 11])).toBeCloseTo(0.2);
-  });
-
-  it("gives the same bootstrap interval for the same seed, around the median", () => {
-    const ratios = [0.98, 1.01, 1.0, 1.03, 0.99, 1.02, 0.97];
-    const a = medianWithInterval(ratios);
-    expect(medianWithInterval(ratios)).toEqual(a);
-    expect(a.ratio).toBe(1.0);
-    expect(a.interval[0]).toBeLessThanOrEqual(a.ratio);
-    expect(a.interval[1]).toBeGreaterThanOrEqual(a.ratio);
-  });
-});
+import { measure, roundOrder, runBench } from "./index.ts";
+import { rescore } from "./rescore.ts";
 
 describe("roundOrder", () => {
   it("puts each arm at each position the same number of times over 2n rounds", () => {
@@ -72,6 +51,8 @@ describe("runBench", () => {
     expect(record.aa!.perRound).toHaveLength(2);
     expect(record.aa!.ratio).toBeGreaterThan(0);
     expect(record.environment.cpu.length).toBeGreaterThan(0);
+    // A record that this code wrote gives the same values when rescore calculates them again
+    expect(rescore(record).filter((c) => !c.equal)).toEqual([]);
   }, 60_000);
 
   it("fails closed on an unknown case, a duplicate arm or a bad A/A pair", () => {

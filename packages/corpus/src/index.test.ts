@@ -1,7 +1,7 @@
+import { random as createRandom } from "@mark1russell7/rigor-generators";
 import { describe, expect, it } from "vitest";
 import {
   applyEdits,
-  createRandom,
   fingerprint,
   fontsFor,
   generateCorpus,
@@ -18,7 +18,7 @@ import {
 } from "./index.ts";
 
 /** The fingerprint of the corpus at seed 1 with one sample per cell. A change of it is a change of every bench input. */
-const SEED_1_FINGERPRINT = "545a41f6cbbb68ed";
+const SEED_1_FINGERPRINT = "687b7e4b";
 
 function codePoints(text: string): number[] {
   return Array.from(text, (c) => c.codePointAt(0)!);
@@ -27,30 +27,6 @@ function codePoints(text: string): number[] {
 function hasLoneSurrogate(text: string): boolean {
   return /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(text);
 }
-
-describe("createRandom", () => {
-  it("gives the same sequence for the same seed", () => {
-    const a = createRandom(42);
-    const b = createRandom(42);
-    expect(Array.from({ length: 100 }, () => a.next())).toEqual(Array.from({ length: 100 }, () => b.next()));
-  });
-
-  it("gives numbers in [0, 1) with a mean near 0.5", () => {
-    const random = createRandom(7);
-    const values = Array.from({ length: 20000 }, () => random.next());
-    expect(Math.min(...values)).toBeGreaterThanOrEqual(0);
-    expect(Math.max(...values)).toBeLessThan(1);
-    const mean = values.reduce((s, v) => s + v, 0) / values.length;
-    expect(Math.abs(mean - 0.5)).toBeLessThan(0.01);
-  });
-
-  it("gives each integer of a range", () => {
-    const random = createRandom(3);
-    const seen = new Set(Array.from({ length: 1000 }, () => random.int(2, 6)));
-    expect([...seen].sort()).toEqual([2, 3, 4, 5, 6]);
-    expect(() => random.int(3, 2)).toThrow(RangeError);
-  });
-});
 
 describe("generateText", () => {
   for (const script of scriptIds) {
@@ -114,7 +90,7 @@ describe("generateCorpus", () => {
   it("corpus.fingerprint: has the recorded fingerprint at seed 1", () => {
     const value = fingerprint(generateCorpus({ seed: 1, perCell: 1 }));
     console.log(`corpus.fingerprint seed 1: ${value}`);
-    expect(value).toMatch(/^[0-9a-f]{16}$/);
+    expect(value).toMatch(/^[0-9a-f]{8}$/);
     expect(value).toBe(SEED_1_FINGERPRINT);
   });
 });

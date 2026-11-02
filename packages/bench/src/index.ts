@@ -10,5 +10,5 @@ export {
   type BenchEnvironment,
   type BenchRecord,
   type ProcessRecord,
+  type RatioEstimate,
 } from "./harness.ts";
-export { median, medianWithInterval, quantile, relativeSpread, type RatioEstimate } from "./stats.ts";

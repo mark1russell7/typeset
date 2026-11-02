@@ -1,5 +1,5 @@
 import { fontsFor, type FontId } from "./fonts.ts";
-import { createRandom, hash32, type Random } from "./random.ts";
+import { deriveSeed, fnv1a32, random as createRandom, type Random } from "@mark1russell7/rigor-generators";
 import { scriptIds, scripts, type CodePointRange, type ScriptId, type ScriptSpec } from "./scripts.ts";
 
 /** A class of text lengths, in code points. */
@@ -91,7 +91,7 @@ export function generateText(random: Random, script: ScriptId, codePoints: numbe
 
 /** This function gives the seed of the sample with an index in a cell of the corpus. */
 export function sampleSeed(corpusSeed: number, script: ScriptId, lengthClass: LengthClass, index: number): number {
-  return hash32(corpusSeed, script, lengthClass, index);
+  return deriveSeed(corpusSeed, `${script}/${lengthClass}/${index}`);
 }
 
 /** This function generates one sample. The sample depends only on its arguments, not on the other samples. */
@@ -121,27 +121,10 @@ export function generateCorpus(spec: CorpusSpec): Sample[] {
 }
 
 /**
- * This function gives a fingerprint of a list of samples: 16 hexadecimal digits.
+ * This function gives a fingerprint of a list of samples: 8 hexadecimal digits of FNV-1a.
  * Two corpora with the same fingerprint have the same identifiers, fonts, sizes and texts.
  */
 export function fingerprint(samples: readonly Sample[]): string {
-  let a = 0x811c9dc5;
-  let b = 0x01234567;
-  const add = (text: string): void => {
-    for (let i = 0; i < text.length; i++) {
-      const c = text.charCodeAt(i);
-      a = Math.imul(a ^ c, 0x01000193);
-      b = Math.imul(b ^ c, 0x5bd1e995);
-      b ^= b >>> 15;
-    }
-    a = Math.imul(a ^ 0x1f, 0x01000193);
-    b = Math.imul(b ^ 0x1f, 0x5bd1e995);
-  };
-  for (const sample of samples) {
-    add(sample.id);
-    add(sample.font);
-    add(String(sample.size));
-    add(sample.text);
-  }
-  return (a >>> 0).toString(16).padStart(8, "0") + (b >>> 0).toString(16).padStart(8, "0");
+  const lines = samples.map((sample) => [sample.id, sample.font, String(sample.size), sample.text].join("\u0000"));
+  return fnv1a32(lines.join("\u0001")).toString(16).padStart(8, "0");
 }
