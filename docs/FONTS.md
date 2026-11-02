@@ -170,3 +170,17 @@ The fonts run 41520081253 on the head of typeset#25 measures the default model w
 - Blink shapes the text of a canvas word by word, with each space alone. Thus the GSUB pass shapes each word of `shapingWords` alone.
 - The cause of the Source Sans 3 error is in the advances of the instance, not in GSUB or kerning. That cause is the next T1c step.
 - The GSUB pass does not correct Arabic and Devanagari. These scripts need the joining forms and the Indic shaper.
+
+## The result of the instance advances
+
+The fonts run 41527566935 measures single characters at 1000 px against each model of the advances. The fonts run 41541719153 on the head of typeset#27 measures the lines with the model of each arm.
+
+| Platform | The model that matches each character | Source Sans 3 lines, 400 and 700 |
+|---|---|---|
+| Linux | rounded `HVAR` deltas | 12.8 and 17.7 px. The whole-px rounding of Linux gives this error. |
+| macOS | exact `HVAR` deltas | 0.0008 and 0.0007 px, from 0.18 and 0.32 px |
+| Windows | rounded `HVAR` deltas and the component metrics | 0.0007 px, from 0.24 px |
+
+- The phantom points of `gvar` give the advances of `HVAR` in each of the 12 fonts. The worst difference is 0 font units.
+- The glyph `i` of Source Sans 3 is a composite glyph of `ı`. DirectWrite uses the advance of `ı`, 247 units at 400. The glyph `i` has 246 units.
+- The scripts of Windows and macOS have no regression. Each line error stays at 0.0014 px or less.
