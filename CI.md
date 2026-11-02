@@ -35,7 +35,7 @@ The job starts all the scripts, also after a failure. Then it fails with the nam
 | `run` | (empty) | A command after the scripts. |
 | `env` | `{}` | The environment variables of the job, as a JSON object. |
 | `working-directory` | `.` | The folder of `package.json`. |
-| `fetch-depth` | `2` | The commits of the checkout. `0` gets the whole history. With `2`, the checkout of a pull request has the parents of its merge commit, so `check:conventions` sees the change. |
+| `fetch-depth` | `2` | The commits of the checkout. `0` gets the whole history. With `2`, the checkout of a pull request has the parents of its merge commit. On a pull request of more than one commit, the job then deepens the checkout to the merge base, so `check:conventions` reads each commit of the change. |
 | `timeout-minutes` | `15` | The time limit of each job of the matrix. |
 | `changesets` | `true` | The changeset check on a pull request (refer to the next section). |
 | `changeset-ignore` | (empty) | More globs of files that need no changeset. |
@@ -64,6 +64,70 @@ jobs:
       os: '["ubuntu-latest", "windows-latest", "macos-latest"]'
       run: npm pack --dry-run
 ```
+
+### The check of the ruleset
+
+Each workflow of the merge gate has one summary job, with the name `<Name> OK`. The template has two: `ci-ok` (name `CI OK`) of `ci.yml` and `security-ok` (name `Security OK`) of `security.yml`. A summary job needs each other job of its file. It starts also after a failure (`if: always()`).
+
+A summary job passes only when each job passed. A job can be skipped only when the list `ALLOW_SKIP` of the summary job names it. For example, outside the template, the `if` of `presets` skips it. Each other skipped job fails the summary. An empty `needs` also fails it, because a job that did not start is not a pass.
+
+The ruleset names only the summary checks. Thus it does not change when a job is added. `gh pr merge --auto` merges only after the whole gate. A ruleset that names only some jobs lets `--auto` merge before the other jobs end.
+
+- Add each new job of the gate to `needs` of `ci-ok`.
+- `release.yml` uses `ci.yml` with `contents: read` only. A called job cannot get more permissions than its caller. Thus a gate job that needs more (the scans need `security-events: write`, a download of an artifact of another run needs `actions: read`) stays in its own workflow, with its own summary job.
+- A gate workflow must start on each pull request, with no `paths` filter. Otherwise its summary check does not start, and the ruleset blocks the pull request. To skip the work, use the action `changes` and an `if` on the other jobs ("A gate with paths").
+- Set the ruleset once with `node scripts/workflows/ruleset-ci-ok.ts <owner/repo> --apply`. Without `--apply`, it only prints the changes. It reads the checks of the newest of the last 5 pull requests into the default branch where "CI OK" passed. It adds each check with a name `<Name> OK` that passed there and that no ruleset names. It skips a repository where "CI OK" did not pass on any of the 5. A check that starts only on a push to `main` is not added, because it does not start on a pull request.
+- To make the summary checks the only checks of the ruleset, add `--only-summary`. Then the script also removes each check that started in the same workflow run as that "CI OK", because "CI OK" covers it. It deletes a ruleset with no rule left. Then a repository can join or split the jobs of its CI, and its ruleset stays correct.
+
+### A gate with paths
+
+A gate that is only about some files (a bench of the core, a corpus) starts on each pull request too. Two shared actions do the rest:
+
+- `changes` reads the files of the pull request and gives `match`. It has the patterns of `on.pull_request.paths`: `*` does not match `/`, `**` matches each part of a path, and `!` takes files out. Each event other than a pull request is a match.
+- `gate-summary` is the step of the summary job. It passes when each job passed. When `changes` gives `match: false`, a skipped gate job passes too. A failure, a cancel or another skip fails it.
+
+```yaml
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths: ["packages/core/src/**"]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@<commit> # main
+        with:
+          paths: |
+            packages/core/src/**
+            .github/workflows/bench.yml
+
+  bench:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm bench
+
+  bench-ok:
+    name: Bench OK
+    if: always()
+    needs: [changes, bench]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@<commit> # main
+        with:
+          needs: ${{ toJSON(needs) }}
+```
+
+A `push` filter can stay, because the ruleset reads only pull requests. With the patterns of the old filter, the gate runs on the same pull requests as before. `changes` also reads the old name of a moved file, so a move out of the gate paths starts the gate too. A pull request with 3000 files or more always starts the gate, because the API gives no more files. The conventions rule `gate-trigger` finds a pull request trigger with `paths` or `paths-ignore`. `actions-test.yml` of the template is an example.
 
 ## Release
 
@@ -118,7 +182,7 @@ Most repositories need no inputs. A repository with more release steps uses thes
 | `reusable-release-build.yml` | `node-version` | `26` | The Node.js version of the build. |
 | `reusable-release-build.yml` | `node-version-file` | (empty) | A file with the Node.js version, for example `.nvmrc`. It replaces `node-version`. |
 | `reusable-release-build.yml` | `build` | (empty) | The build command. Empty starts the `build` script. |
-| `reusable-release-build.yml` | `after-pack` | (empty) | A command after `pack.mjs` and `tags.mjs`, before the upload of the artifacts. |
+| `reusable-release-build.yml` | `after-pack` | (empty) | A command after `pack.ts` and `tags.ts`, before the upload of the artifacts. |
 | `npm-publish` | `new-packages` | `error` | `warning`: a package that is not on npm gives a warning, and the step does not fail. |
 | `npm-publish` | `node-version` | `26` | The Node.js version of npm. |
 | `reusable-release-tag.yml` | `published` | (empty) | The versions that the job `publish` published. |
@@ -138,7 +202,7 @@ Each entry of the plan of the tags has `name`, `version`, `tag`, `prerelease` an
 
 At most one entry sets `latest`. A prerelease does not become the latest release. When no entry sets `latest`, the job gives no `--latest` flag, the same as before.
 
-The `tags.mjs` of the template does not write these fields. The `tags.mjs` of a repository can write them. The command `after-pack` can also add them.
+The `tags.ts` of the template does not write these fields. The `tags.ts` of a repository can write them. The command `after-pack` can also add them.
 
 ### More jobs in `release.yml`
 
@@ -190,6 +254,7 @@ jobs:
 - A scheduled build uses the commit of `green-main`. The input `pending` goes to that action.
 - The inputs of `site-pages` go to the action: `site-pages-version`, `roadmap`, `base`, `packages`, `changesets`, `group`, `css`, `site-name` and `data-only`.
 - `site-pages: false` builds the site without the Releases page and the Status page.
+- Without `roadmap`, the Status page shows only the open pull requests and issues. The rule `roadmap-parses` of `@mark1russell7/conventions` thus needs `roadmap` in each call, or `site-pages: false`.
 - `deploy: false` builds and uploads the artifact, with no deploy.
 - `github-token: true` gives the build `GITHUB_TOKEN`, with the read permissions of the build job.
 - The workflow gets the actions of the same template commit as the workflow file. A second checkout gets them.
@@ -212,7 +277,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "23 5 * * 1"
+    - cron: "<minute> 5 * * 1" # the minute that the rule runner-budget gives
   workflow_dispatch:
 
 permissions: {}
@@ -260,8 +325,8 @@ uses: mark1russell7/template/.github/workflows/reusable-ci.yml@<full commit SHA>
 - Renovate reads the comment `# main` and moves the pin to the newest commit of `main` (the preset of `renovate/`). The manager `github-actions` does this since Renovate 43.84.0.
 - These updates come in one group, "template workflows and actions", with no wait. Renovate merges them when CI passes.
 - The group comes on Monday before 06:00 (New York time). A workflow change during a release makes the tag job fail with HTTP 403 (`RELEASING.md`).
-- Renovate does not change `release.yml`. The release session moves the pins of `release.yml` with `scripts/release/bump-pins.mjs` (`RELEASING.md`).
-- A change of the template that must not wait for Renovate goes out with `bump-pins.mjs --file <workflow>` (`RELEASING.md`).
+- Renovate does not change `release.yml`. The release session moves the pins of `release.yml` with `scripts/release/bump-pins.ts` (`RELEASING.md`).
+- A change of the template that must not wait for Renovate goes out with `bump-pins.ts --file <workflow>` (`RELEASING.md`).
 - Renovate also moves `CLAUDE_CODE_VERSION` of `reusable-ai-review.yml` to the newest version on npm. A person reviews and merges that pull request.
 
 ## The template and new repositories
