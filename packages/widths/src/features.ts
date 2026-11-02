@@ -1,4 +1,5 @@
 import type { ScriptId } from "@typeset/corpus";
+import { defaultFeatures, shapingWords, type Font } from "@typeset/fonts";
 import type { WidthRecord } from "./compare.ts";
 
 /**
@@ -27,8 +28,11 @@ export interface FeatureRecord {
   readonly size: number;
   readonly canvas: number;
   readonly dom: Readonly<Record<FeatureSetting, number>>;
-  /** The model widths: `kerning` is the exact model, and `noKerning` has no pair kerning. */
-  readonly model: { readonly kerning: number; readonly noKerning: number };
+  /**
+   * The model widths. `kerning` has the pair kerning and no GSUB, and `noKerning` has neither. `shaped` is the default
+   * model, with the GSUB features `defaultFeatures` and the kerning. A record of T1c before the GSUB pass has no `shaped`.
+   */
+  readonly model: { readonly kerning: number; readonly noKerning: number; readonly shaped?: number };
 }
 
 /** The worst errors of one group, in px. Each error compares a DOM setting with the model that has the same features. */
@@ -42,6 +46,8 @@ export interface FeatureSummary {
   readonly noKerning: number;
   /** The DOM width of `spaceAll` against the model with no kerning. */
   readonly spaceAll: number;
+  /** The default DOM width against the default model with the GSUB pass. It is absent when no record has `shaped`. */
+  readonly shapedDefault?: number;
   /** The sample and the size of the worst `noLigatures` error. */
   readonly worstNoLigatures?: { readonly sample: string; readonly size: number; readonly error: number };
 }
@@ -57,12 +63,14 @@ export function summarizeFeatures(records: readonly FeatureRecord[]): Partial<Re
     const list = records.filter((record) => record.group === group);
     const ligature = list.map((record) => record.dom.noLigatures - record.model.kerning);
     const index = ligature.reduce((best, value, i) => (Math.abs(value) > Math.abs(ligature[best]!) ? i : best), 0);
+    const shaped = list.flatMap((record) => (record.model.shaped === undefined ? [] : [record.dom.default - record.model.shaped]));
     result[group] = {
       n: list.length,
       domAgainstCanvas: worstOf(list.map((record) => record.dom.default - record.canvas)),
       noLigatures: worstOf(ligature),
       noKerning: worstOf(list.map((record) => record.dom.noKerning - record.model.noKerning)),
       spaceAll: worstOf(list.map((record) => record.dom.spaceAll - record.model.noKerning)),
+      ...(shaped.length === 0 ? {} : { shapedDefault: worstOf(shaped) }),
       ...(list.length === 0 ? {} : { worstNoLigatures: { sample: list[index]!.sample, size: list[index]!.size, error: ligature[index]! } }),
     };
   }
@@ -120,4 +128,46 @@ export function breakdownOf(records: readonly WidthRecord[], texts: ReadonlyMap<
       }),
     };
   });
+}
+
+/** One lookup of a trace that changed the glyphs of a text. */
+export interface SubstitutionStep {
+  readonly lookup: number;
+  readonly type: number;
+  readonly flags: number;
+  readonly features: readonly string[];
+  /** The glyph counts before and after the lookup. */
+  readonly glyphs: readonly [number, number];
+  /** The change of the sum of the advances, in font units. */
+  readonly advance: number;
+  /** The glyphs of the first change: up to 6 glyphs before and after the lookup, from the first changed position. */
+  readonly first: { readonly at: number; readonly before: readonly number[]; readonly after: readonly number[] };
+}
+
+/**
+ * This function applies the GSUB lookups of a text one at a time, as the model does: each lookup goes to each word of
+ * `shapingWords`. It gives each lookup that changes the glyphs.
+ */
+export function substitutionTrace(font: Font, text: string, script: string, features: readonly string[] = defaultFeatures): SubstitutionStep[] {
+  const words = shapingWords(text).map((word) => [...word].map((character) => font.glyph(character.codePointAt(0)!)));
+  const sum = (list: readonly number[]) => list.reduce((total, glyph) => total + font.advance(glyph), 0);
+  const steps: SubstitutionStep[] = [];
+  for (const lookup of font.substitutions(script, features)) {
+    const before = words.flat();
+    for (const word of words) lookup.apply(word);
+    const glyphs = words.flat();
+    let at = 0;
+    while (at < before.length && at < glyphs.length && before[at] === glyphs[at]) at++;
+    if (at === before.length && at === glyphs.length) continue;
+    steps.push({
+      lookup: lookup.index,
+      type: lookup.type,
+      flags: lookup.flags,
+      features: lookup.features,
+      glyphs: [before.length, glyphs.length],
+      advance: sum(glyphs) - sum(before),
+      first: { at, before: before.slice(at, at + 6), after: glyphs.slice(at, at + 6) },
+    });
+  }
+  return steps;
 }

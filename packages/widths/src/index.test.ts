@@ -15,6 +15,8 @@ import {
   exactDeltaErrors,
   score,
   scoreCauses,
+  scoreGsub,
+  substitutionTrace,
   sourceUrl,
   summarizeFeatures,
   type FeatureRecord,
@@ -41,6 +43,7 @@ function weighted(wght = 400): Font {
     advance: () => 500 + wght - 400,
     glyphClass: () => 0,
     kerning: () => [],
+    substitutions: () => [],
   };
 }
 
@@ -178,7 +181,7 @@ describe("the DOM diagnostic", () => {
     size: 16,
     canvas: 100,
     dom: { default: 100 + domError, noLigatures: 100 + ligature, noKerning: 90 + kerning, spaceAll: 90 },
-    model: { kerning: 100, noKerning: 90 },
+    model: { kerning: 100, noKerning: 90, shaped: 100 + domError },
   });
 
   it("gives the worst error of each setting against the model with the same features", () => {
@@ -206,5 +209,42 @@ describe("the DOM diagnostic", () => {
     expect(scoreCauses(new Map([["macos-2", file("macos-2")], ["windows-1", file("windows-1")]])).every((outcome) => outcome.holds)).toBe(true);
     const outcomes = Object.fromEntries(scoreCauses(new Map([["windows-1", file("windows-1")]])).map((o) => [o.outcome, o.holds]));
     expect(outcomes).toEqual({ specificDomMatchesCanvas: false, specificLigatureLatin: false, specificLigatureExtraWindows: true, specificUnroundedDeltasMac: false, specificKanaKerning: false });
+  });
+});
+
+describe("the score of the GSUB pass", () => {
+  it("bounds the default DOM width against the GSUB model, and the canvas errors of six scripts on Windows", () => {
+    const record = (group: FeatureRecord["group"], shapedError: number): FeatureRecord => ({
+      group,
+      font: "f",
+      weight: 400,
+      sample: group,
+      size: 16,
+      canvas: 100,
+      dom: { default: 100, noLigatures: 100, noKerning: 100, spaceAll: 100 },
+      model: { kerning: 100, noKerning: 100, shaped: 100 + shapedError },
+    });
+    const summary = summarizeFeatures([record("latin", 0.03), record("kana", 0.2), record("extra-400", 0.01), record("extra-700", 0.01)]);
+    const cells = Object.fromEntries(["greek", "cyrillic", "latin-extended", "hebrew", "hangul", "han"].map((script) => [script, { line: { worstPx: 0.001 } as never }]));
+    const file = (arm: string): ArmFile => ({ arm, instances: [], fractions: { line: fractionsOf([]) }, woff2Mismatches: null, summary: cells, extraSummary: {}, features: { summary } });
+    const outcomes = Object.fromEntries(scoreGsub(new Map([["macos-2", file("macos-2")], ["windows-1", file("windows-1")]])).map((o) => [o.outcome, o.holds]));
+    expect(outcomes).toEqual({ specificLatinGsub: true, specificExtraGsubWindows: true, specificKanaMacDom: false, specificNoRegression: true });
+    expect(scoreGsub(new Map()).some((o) => o.holds)).toBe(false);
+  });
+});
+
+describe("the GSUB trace", () => {
+  it("gives each lookup that changes the glyphs, with the change of the advances", () => {
+    // A fake font: the lookup 3 makes the ligature "fi" (glyph 1), the lookup 5 changes nothing
+    const font = {
+      ...ascii,
+      advance: (glyph: number) => (glyph === 1 ? 700 : 500),
+      substitutions: () => [
+        { index: 3, type: 4, flags: 0, features: ["liga"], apply: (glyphs: number[]) => void glyphs.splice(0, glyphs.length, ...(glyphs.join() === "102,105" ? [1] : glyphs)) },
+        { index: 5, type: 1, flags: 0, features: ["calt"], apply: () => {} },
+      ],
+    } as Font;
+    expect(substitutionTrace(font, "fi", "latn")).toEqual([{ lookup: 3, type: 4, flags: 0, features: ["liga"], glyphs: [2, 1], advance: -300, first: { at: 0, before: [102, 105], after: [1] } }]);
+    expect(substitutionTrace(font, "ab", "latn")).toEqual([]);
   });
 });
