@@ -10,6 +10,26 @@
 - A mark of `GDEF` has the advance 0, as in HarfBuzz. A lookup that ignores marks skips them.
 - `measureWidth` does not shape the text. Thus it does not make ligatures, the joined forms of Arabic or the conjuncts of Devanagari. T4 measures that error.
 
+## Instances of variable fonts
+
+A variable font has axes in `fvar`, for example the weight `wght`. Give the instance with the option `instance` of `readFont`, for example `{ wght: 400 }`.
+
+- The reader normalizes each coordinate to the 2.14 grid, then applies the segment maps of `avar`.
+- It adds the deltas of `HVAR` to the advances. It rounds each delta to whole font units, as FreeType does.
+- It adds the VariationIndex deltas of the `GPOS` kerning from the store of `GDEF`. These deltas are not rounded, as in HarfBuzz.
+- An axis that the instance does not give has its default value. A value outside the range of an axis is clamped.
+- `font.at(instance)` gives the same font at a different instance, with no new read of the file.
+- The epoch includes the coordinates of the instance, so each instance has a different epoch.
+
+A browser uses the CSS weight for the axis `wght`, not the default instance of the font. For `font-weight: 400`, give `{ wght: 400 }`.
+
+## The rounding mode
+
+`measureWidth` has the option `rounding`.
+
+- `exact` (the default) adds the advances with no rounding.
+- `pixel` rounds each advance to 1/64 px and then to whole px, and rounds each kerning value to whole px. This mode gives the canvas widths of Chromium on Linux at the device scale 1.
+
 ## The font epoch
 
 The epoch of a font is the revision of `head` and an FNV-1a hash of the data that gives the widths. This data is the units per em, the advances and the tables `cmap`, `GDEF`, `GPOS` and `kern`.
@@ -21,14 +41,33 @@ The epoch of a font is the revision of `head` and an FNV-1a hash of the data tha
 
 The workflow `fonts.yml` starts the comparison in CI, not on a local machine.
 
-1. `packages/widths/src/fetch.ts` downloads the 11 Noto fonts of the corpus from `google/fonts` at a pinned commit, and checks the SHA-256 of each file.
-2. `fontTools` makes a WOFF2 file of each font.
-3. `packages/widths/src/main.ts` measures each sample of the corpus (seed 1) with each font that covers its script, at each size from 10 px to 48 px.
-4. The command writes `font-widths.json`, with one record for each width and a summary for each script and each length class.
+The comparison has four arms. Each arm is one job of the workflow.
+
+| Arm | Runner | Device scale | Reference |
+|---|---|---|---|
+| `linux-1` | `ubuntu-latest` | 1 | `pixel`, only reported |
+| `linux-2` | `ubuntu-latest` | 2 | `exact` |
+| `macos-2` | `macos-latest` | 2 | `exact` |
+| `windows-1` | `windows-latest` | 1 | `exact` |
+
+1. `packages/widths/src/fetch.ts` downloads the 11 Noto fonts of the corpus and the extra font from `google/fonts` at a pinned commit. It checks the SHA-256 of each file.
+2. On the arm `linux-1`, `fontTools` makes a WOFF2 file of each font.
+3. `packages/widths/src/main.ts` measures each sample of the corpus (seed 1) with each font that covers its script, at each size from 10 px to 48 px. Each font uses the instance of the CSS weight 400.
+4. It also measures the Latin samples with the extra font, Source Sans 3, at the weights 400 and 700. The default weight of this font is 200, and the corpus does not use it.
+5. The command writes `font-widths.json` and uploads it as `font-widths-<arm>`.
+6. The job `report` reads the files of all the arms with `packages/widths/src/score.ts`. It writes the outcomes of the prediction `typeset-t1b-instancing-platforms` to `outcomes.json`.
 
 - The error is the table width minus the canvas width, in px. A record with a code point that the font has no glyph for is not in the numbers, because the canvas then uses a fallback font.
-- The bounds of the prediction `typeset-t1-font-tables` are in `packages/widths/src/compare.ts`.
+- Each record also has the width of the mode `pixel`.
+- The page loads each font with the ranges of its axes as the descriptors of the FontFace. Thus Chromium uses the axis `wght`, not a synthetic bold.
 - The field `woff2Mismatches` counts the widths of the WOFF2 files that are not equal to the widths of the TrueType files.
+- Each platform has its own bounds. The score does not average the platforms. An arm with no file makes its outcomes fail.
+
+### The fields that examine an arm
+
+- `fractions.line` counts the line widths on the grids of 1, 1/2, 1/4 and 1/64 px. Its `histogram` has 64 bins of 1/64 px. A width that the browser rounds is on a coarse grid.
+- `instances` has one probe for each font and weight. The probe measures single characters at 200 px on the canvas. It finds the weight of the model from 100 to 900, in steps of 25, that is nearest to them.
+- A probe holds when it finds the CSS weight and the model has that weight. The field `tied` counts the weights with the same error. Noto Sans Mono and Noto Emoji have advances that do not change with the weight, so they have ties.
 
 ## The result of T1
 
@@ -53,3 +92,4 @@ The scored run is [41488797104](https://github.com/mark1russell7/typeset/actions
 - Each canvas width of this run is a whole number of px. Chromium on Linux rounds each advance and each kerning value to a whole px when the device scale is 1. A model of this rounding gives the same width for 710 of 720 Greek lines and 636 of 720 Latin lines.
 - Noto Sans Hebrew, JP and KR are variable fonts. Their default instance is the weight 100. Chromium uses the weight 400, but the reader uses the default instance.
 - T1b adds the instances of variable fonts and a rounding mode. It also compares the widths on Linux at the device scale 2, on macOS and on Windows.
+- With the instance 400 and the mode `pixel`, the T1 canvas widths agree on 720 of 720 lines for Latin Extended, Greek and Cyrillic. They agree on 240 of 240 for Hebrew, Han and Hangul. The remaining Latin errors come from ligatures.
