@@ -68,6 +68,7 @@ describe("runBench", () => {
     expect(record.schema).toBe("typeset-bench/1");
     expect(record.processes).toHaveLength(6);
     expect(record.arms["join"]!.processes).toBe(2);
+    expect(record.arms["join"]!.processP90P10).toBeGreaterThanOrEqual(1);
     expect(record.aa!.perRound).toHaveLength(2);
     expect(record.aa!.ratio).toBeGreaterThan(0);
     expect(record.environment.cpu.length).toBeGreaterThan(0);
