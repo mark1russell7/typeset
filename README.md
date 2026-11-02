@@ -22,7 +22,7 @@ Thus a concatenation adds two numbers, and an edit updates only the path from th
 
 ## Status
 
-Not started. See [docs/ROADMAP.md](docs/ROADMAP.md).
+T7 is in progress: the corpus generator (`packages/corpus`) and the bench (`packages/bench`). [docs/BENCH.md](docs/BENCH.md) tells how they work. [docs/ROADMAP.md](docs/ROADMAP.md) has the plan.
 
 ## License
 
