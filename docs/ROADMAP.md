@@ -4,7 +4,7 @@ Each item has a prediction before its code: the claims, how each claim is measur
 
 | Id | Item | Priority | Status | Depends on |
 |---|---|---|---|---|
-| T1 | Font tables: read the glyph advances and the kerning pairs from a font file (TrueType, OpenType, WOFF2); a font epoch; a bench against canvas `measureText` on a corpus of fonts | P1 | next | |
+| T1 | Font tables: read the glyph advances and the kerning pairs from a font file (TrueType, OpenType, WOFF2); a font epoch; a bench against canvas `measureText` on a corpus of fonts | P1 | in progress | T9 |
 | T2 | The `Text` rope: the width monoid, concatenation, slice and edit with summary updates; property tests (the rope width is equal to the width of the flat string) | P1 | later | T1 |
 | T3 | Line breaking on the rope: greedy by prefix sums, Knuth-Plass total fit, balanced; the measures line count, raggedness and time | P1 | later | T2 |
 | T4 | Error bounds: the error of the fast path against a shaper (HarfBuzz) for each script and font, in 1/64 px; size scaling and hinting per font | P1 | later | T1 |
