@@ -116,3 +116,19 @@ The scored run is [41505142794](https://github.com/mark1russell7/typeset/actions
 - On Linux at the device scale 2, each of the 4560 line widths is on the grid of 1/4 px. Thus Chromium on Linux also rounds the advances at this scale. The mode `pixel` models only the scale 1.
 - On macOS and Windows, Greek, Cyrillic and Latin Extended agree to 0.001 px. Latin, kana and Source Sans 3 do not agree. T1c finds the causes. Ligatures are the first suspect for Latin.
 - The prediction `typeset-t1b-instancing-platforms` gives 4 hits of 11 outcomes.
+
+## The result of the T1c diagnostic
+
+The fonts run 41510044683 on the head of typeset#24 measured the causes. The prediction `typeset-t1c-width-causes` hit 5 of 7 outcomes.
+
+| Cause | macOS | Windows | Result |
+|---|---|---|---|
+| Latin with `liga` and `calt` off | 0.0153 px | 0.0153 px | Ligatures cause the Latin error of 2.689 px. |
+| `HVAR` deltas not rounded, hangul and hebrew | 0.0009 and 0.0010 px | (0.001 px before) | Chrome on macOS does not round the deltas. |
+| Source Sans 3 with `liga` and `calt` off, 400 and 700 | 0.17 and 0.32 px | 0.24 and 0.25 px | Ligatures cause most of the error. Approximately 0.3 px stays. |
+| Kana, DOM against canvas | 3.83 px | 3.83 px | The kana error is in the canvas, not in the DOM. |
+| Kana with kerning off | 0.26 px | 0.014 px | Kerning is not the cause of the kana error. |
+
+- On Windows, the default DOM width of kana is within 0.015 px of the model. The canvas adds the 3.84 px.
+- On Linux at the device scale 2, the DOM width is equal to the canvas width. The rounding at that scale causes the errors there.
+- The model of the ligatures, the unrounded deltas on macOS and the kana canvas are the next T1c steps. Each step has its own prediction.
