@@ -2,8 +2,8 @@
 #
 #   verify    The gates of ci.yml.
 #   build     reusable-release-build.yml: stops when the commit is not on main, builds and packs
-#             each published package (scripts/release/pack.mjs), and writes the plan of the git tags
-#             and the GitHub releases (scripts/release/tags.mjs).
+#             each published package (scripts/release/pack.ts), and writes the plan of the git tags
+#             and the GitHub releases (scripts/release/tags.ts).
 #   publish   The npm-publish action of the template: publishes each tarball whose version npm does
 #             not have. Only this job holds "id-token: write", and it runs no code of the
 #             repository: no checkout, no install.
@@ -30,7 +30,7 @@
 # dist-tag "next". The others get "latest".
 #
 # npm trusts a workflow only for a package that exists. The owner bootstraps a new package once:
-# scripts/release/npm-bootstrap.mjs (RELEASING.md tells the procedure). Without it, this workflow
+# scripts/release/npm-bootstrap.ts (RELEASING.md tells the procedure). Without it, this workflow
 # publishes the other packages and then fails with the names of the new ones.
 #
 # The git tag of a version is "v<version>" in a repository with one published package, else
@@ -61,7 +61,7 @@ jobs:
   build:
     name: Build and pack
     needs: verify
-    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@d06ff1b89c830dbe67617c777529ae2ef38c8e3e # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@319dcc44827c0b181fa30f3facaa3469b7ee6861 # main
     permissions:
       contents: read
 
@@ -86,14 +86,14 @@ jobs:
       # the pin. Renovate does not move it: the release session moves it at a quiet time, because a
       # workflow change between a version merge and its tag job makes GitHub refuse the tag (HTTP 403).
       - id: publish
-        uses: mark1russell7/template/.github/actions/npm-publish@d06ff1b89c830dbe67617c777529ae2ef38c8e3e # main
+        uses: mark1russell7/template/.github/actions/npm-publish@319dcc44827c0b181fa30f3facaa3469b7ee6861 # main
 
   tag:
     name: Git tag and GitHub release
     needs: [build, publish]
     # Also after a failed publish: each version that it published before the failure gets its tag.
     if: ${{ !cancelled() && needs.build.result == 'success' }}
-    uses: mark1russell7/template/.github/workflows/reusable-release-tag.yml@d06ff1b89c830dbe67617c777529ae2ef38c8e3e # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-tag.yml@319dcc44827c0b181fa30f3facaa3469b7ee6861 # main
     permissions:
       contents: write
     with:
