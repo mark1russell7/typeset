@@ -2,7 +2,9 @@ import { fonts, generateCorpus, scriptIds, type Sample } from "@typeset/corpus";
 import type { Font } from "@typeset/fonts";
 import { describe, expect, it } from "vitest";
 import {
+  advanceModelRow,
   checkBounds,
+  diagnosticWeights,
   cssInstance,
   extraSource,
   fontSources,
@@ -14,6 +16,7 @@ import {
   breakdownOf,
   exactDeltaErrors,
   score,
+  scoreAdvances,
   scoreCauses,
   scoreGsub,
   substitutionTrace,
@@ -22,6 +25,7 @@ import {
   type FeatureRecord,
   summarize,
   tasksOf,
+  type AdvanceModelRow,
   type ArmFile,
   type WidthRecord,
 } from "./index.ts";
@@ -38,6 +42,7 @@ function weighted(wght = 400): Font {
     axes: [{ tag: "wght", min: 100, default: 400, max: 900 }],
     instance: { wght },
     coordinates: [],
+    advanceSource: "hmtx",
     at: (instance) => weighted(instance["wght"] ?? 400),
     glyph: (codePoint) => (codePoint < 128 ? codePoint : 0),
     advance: () => 500 + wght - 400,
@@ -230,6 +235,57 @@ describe("the score of the GSUB pass", () => {
     const outcomes = Object.fromEntries(scoreGsub(new Map([["macos-2", file("macos-2")], ["windows-1", file("windows-1")]])).map((o) => [o.outcome, o.holds]));
     expect(outcomes).toEqual({ specificLatinGsub: true, specificExtraGsubWindows: true, specificKanaMacDom: false, specificNoRegression: true });
     expect(scoreGsub(new Map()).some((o) => o.holds)).toBe(false);
+  });
+});
+
+describe("the diagnostic of the advances", () => {
+  // Two models give 800 units for each character, and the exact gvar model gives 800.5. The canvas agrees with gvar
+  const round: Font = { ...weighted(700), coordinates: [0.5] };
+  const exact: Font = { ...round, advance: () => 800.5 };
+
+  it("gives the error of each model in font units, the best model and the difference of gvar and HVAR", () => {
+    const row = advanceModelRow("f", 700, { HVAR: true, gvar: true }, { hvarRound: round, hvarExact: round, gvarRound: round, gvarExact: exact }, ["a", "b"], [400.25, 400.25], 500);
+    expect(row.canvas.hvarRound).toEqual({ worst: 0.5, mean: -0.5, exactShare: 0 });
+    expect(row.canvas.gvarExact).toEqual({ worst: 0, mean: 0, exactShare: 1 });
+    expect(row.best).toBe("gvarExact");
+    expect(row.gvarAgainstHvar).toBe(0.5);
+    expect(row.defaultInstance).toBe(false);
+    expect(row.worst[0]).toEqual({ character: "a", canvas: 800.5, models: { hvarRound: 800, hvarExact: 800, gvarRound: 800, gvarExact: 800.5 } });
+  });
+
+  it("has no comparison of gvar and HVAR when the font has only one of the tables", () => {
+    const row = advanceModelRow("f", 700, { HVAR: false, gvar: true }, { gvarRound: round, gvarExact: exact }, ["a"], [800], 1000);
+    expect(row.gvarAgainstHvar).toBeNull();
+    expect(Object.keys(row.canvas)).toEqual(["gvarRound", "gvarExact"]);
+    expect(row.best).toBe("gvarRound");
+  });
+
+  it("keeps the weights that the axis covers", () => {
+    expect(diagnosticWeights(ascii, [400, 700, 1000])).toEqual([400, 700]);
+    expect(diagnosticWeights({ ...ascii, axes: [] }, [700])).toEqual([400]);
+  });
+});
+
+describe("the score of the instance advances", () => {
+  const row = (font: string, weight: number, gvarAgainstHvar: number | null, defaultInstance = false) => ({ font, weight, gvarAgainstHvar, defaultInstance }) as AdvanceModelRow;
+  const cells = Object.fromEntries(["latin", "greek", "cyrillic", "latin-extended", "hebrew", "hangul", "han"].map((script) => [script, { line: { worstPx: 0.001 } as never }]));
+  const file = (arm: string, extra: number, advanceModels: AdvanceModelRow[] = []): ArmFile => ({
+    arm,
+    instances: [],
+    fractions: { line: fractionsOf([]) },
+    woff2Mismatches: null,
+    summary: cells,
+    extraSummary: { "400": { line: { worstPx: extra } as never }, "700": { line: { worstPx: extra / 2 } as never } },
+    advanceModels,
+  });
+
+  it("counts the fonts where gvar matches HVAR away from the default instance, and bounds the extra font on each desktop arm", () => {
+    const rows = [row("a", 400, 0, true), row("a", 700, 0.2), row("b", 700, 0.4), row("c", 700, 3), row("d", 700, null), row("e", 400, 0, true)];
+    const files = new Map([["linux-1", file("linux-1", 1, rows)], ["windows-1", file("windows-1", 0.04)], ["macos-2", file("macos-2", 0.2)]]);
+    const outcomes = Object.fromEntries(scoreAdvances(files).map((o) => [o.outcome, o.holds]));
+    expect(outcomes).toEqual({ specificGvarMatchesHvar: true, specificExtraWindows: true, specificExtraMac: false, specificNoRegression: true });
+    const one = new Map([["linux-1", file("linux-1", 1, rows.slice(0, 3).filter((r) => r.font !== "b"))]]);
+    expect(scoreAdvances(one).every((o) => !o.holds)).toBe(true);
   });
 });
 

@@ -7,6 +7,7 @@ import { appendFileSync, existsSync, readdirSync, readFileSync, statSync, writeF
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import type { ScriptId } from "@typeset/corpus";
+import type { AdvanceModelRow } from "./advances.ts";
 import type { Cell, Fractions, InstanceProbe } from "./compare.ts";
 import type { FeatureGroup, FeatureSummary } from "./features.ts";
 
@@ -21,6 +22,8 @@ export interface ArmFile {
   /** The DOM diagnostic of T1c. An arm file of T1b has no such field. */
   readonly features?: { readonly summary: Partial<Record<FeatureGroup, FeatureSummary>> };
   readonly exactDeltaErrors?: Partial<Record<ScriptId, number>>;
+  /** The diagnostic of the advances of T1c. An older arm file has no such field. */
+  readonly advanceModels?: readonly AdvanceModelRow[];
 }
 
 /** The arms that the bounds use: the platforms with no rounding to whole px. */
@@ -146,6 +149,51 @@ export function scoreGsub(files: ReadonlyMap<string, ArmFile>): Outcome[] {
   ];
 }
 
+/**
+ * This function gives the worst line error of the extra font at each weight on one arm. The outcome holds when each
+ * error is at most `limit` px.
+ */
+function extraBound(files: ReadonlyMap<string, ArmFile>, arm: string, limit: number): { holds: boolean; detail: string } {
+  const file = files.get(arm);
+  if (file === undefined) return { holds: false, detail: `${arm}: no file` };
+  const values = ["400", "700"].map((weight) => [weight, file.extraSummary[weight]?.line?.worstPx ?? Number.NaN] as const);
+  return { holds: values.every(([, value]) => value <= limit), detail: `${arm}: ${values.map(([weight, value]) => `${weight} ${value.toFixed(4)}`).join(", ")}` };
+}
+
+/** This function gives the worst line error of each script on one arm. The outcome holds when each error is at most `limit` px. */
+function scriptBound(files: ReadonlyMap<string, ArmFile>, arm: string, scripts: readonly ScriptId[], limit: number): { holds: boolean; detail: string } {
+  const file = files.get(arm);
+  if (file === undefined) return { holds: false, detail: `${arm}: no file` };
+  const values = scripts.map((script) => [script, worst(file, script)] as const);
+  return { holds: values.every(([, value]) => value <= limit), detail: `${arm}: ${values.map(([script, value]) => `${script} ${value.toFixed(4)}`).join(", ")}` };
+}
+
+/**
+ * This function gives the outcomes of the prediction `typeset-t1c-instance-advances` from the files of the arms. The
+ * comparison of `gvar` and `HVAR` uses the fonts with both tables, at the weights that are not the default instance.
+ */
+export function scoreAdvances(files: ReadonlyMap<string, ArmFile>): Outcome[] {
+  const rows = files.get("linux-1")?.advanceModels ?? [];
+  const fonts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.defaultInstance || row.gvarAgainstHvar === null) continue;
+    fonts.set(row.font, Math.max(fonts.get(row.font) ?? 0, row.gvarAgainstHvar));
+  }
+  const matching = [...fonts].filter(([, value]) => value <= 0.5);
+  const windows = scriptBound(files, "windows-1", unchangedScripts, 0.01);
+  const mac = scriptBound(files, "macos-2", ["latin", "greek", "cyrillic"], 0.01);
+  return [
+    {
+      outcome: "specificGvarMatchesHvar",
+      holds: matching.length >= 2,
+      detail: rows.length === 0 ? "linux-1: no advanceModels" : `linux-1: ${[...fonts].map(([font, value]) => `${font} ${value.toFixed(4)}`).join(", ")}`,
+    },
+    { outcome: "specificExtraWindows", ...extraBound(files, "windows-1", 0.05) },
+    { outcome: "specificExtraMac", ...extraBound(files, "macos-2", 0.05) },
+    { outcome: "specificNoRegression", holds: windows.holds && mac.holds, detail: `${windows.detail}; ${mac.detail}` },
+  ];
+}
+
 /** This function finds the file `font-widths.json` of each arm: in the folder itself, or in a subfolder for each artifact. */
 function readArms(folder: string): Map<string, ArmFile> {
   const files = new Map<string, ArmFile>();
@@ -163,7 +211,7 @@ function main(): void {
   const folder = positionals[0];
   if (folder === undefined) throw new Error("give the folder of the arm files");
   const files = readArms(folder);
-  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files) };
+  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files) };
   writeFileSync(values.out, JSON.stringify({ schema: "typeset-font-outcomes/2", arms: [...files.keys()].sort(), predictions }, null, 2) + "\n");
   const lines = [`Arms: ${[...files.keys()].sort().join(", ")}.`];
   for (const [id, outcomes] of Object.entries(predictions)) {
