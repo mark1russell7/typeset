@@ -44,6 +44,12 @@ export function readGlyphFilter(gdef: Reader | undefined, glyphClass: (glyph: nu
 export interface SubstitutionLookup {
   /** The index of the lookup in the lookup list of GSUB. */
   readonly index: number;
+  /** The lookup type, from 1 to 8. The type of an Extension lookup is the type of its subtables. */
+  readonly type: number;
+  /** The lookup flags. */
+  readonly flags: number;
+  /** The tags of the features that use the lookup. */
+  readonly features: readonly string[];
   /** This function applies the lookup to all the glyphs of a text. It changes the array. */
   apply(glyphs: number[]): void;
 }
@@ -378,16 +384,29 @@ export function readSubstitutions(gsub: Reader, script: string, features: readon
   }
   if (langSys === undefined || features.length === 0) return [];
   const wanted = new Set(features);
-  const indices = new Set<number>();
+  const indices = new Map<number, string[]>();
   const add = (featureIndex: number, required: boolean) => {
     const record = 2 + featureIndex * 6;
-    if (featureIndex >= featureList.u16(0) || (!required && !wanted.has(featureList.tag(record)))) return;
+    if (featureIndex >= featureList.u16(0)) return;
+    const tag = featureList.tag(record);
+    if (!required && !wanted.has(tag)) return;
     const feature = featureList.part(featureList.u16(record + 4));
-    for (let k = 0; k < feature.u16(2); k++) indices.add(feature.u16(4 + k * 2));
+    for (let k = 0; k < feature.u16(2); k++) {
+      const index = feature.u16(4 + k * 2);
+      const tags = indices.get(index) ?? [];
+      if (!tags.includes(tag)) tags.push(tag);
+      indices.set(index, tags);
+    }
   };
   const required = langSys.u16(2);
   if (required !== 0xffff) add(required, true);
   for (let i = 0; i < langSys.u16(4); i++) add(langSys.u16(6 + i * 2), false);
   const table = new Gsub(gsub, filter);
-  return [...indices].sort((a, b) => a - b).map((index) => ({ index, apply: (glyphs: number[]) => table.applyAll(index, glyphs) }));
+  const result: SubstitutionLookup[] = [];
+  for (const [index, tags] of [...indices].sort(([a], [b]) => a - b)) {
+    const lookup = table.lookup(index);
+    if (lookup === undefined) continue;
+    result.push({ index, type: lookup.type, flags: lookup.flags, features: tags, apply: (glyphs: number[]) => table.applyAll(index, glyphs) });
+  }
+  return result;
 }

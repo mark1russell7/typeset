@@ -14,7 +14,7 @@ import { fingerprint, fontSizes, generateCorpus, type FontId } from "@typeset/co
 import { measureWidth, readFont, type Font } from "@typeset/fonts";
 import { chromium, type Page } from "playwright";
 import { checkBounds, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
-import { breakdownOf, exactDeltaErrors, featureSettings, summarizeFeatures, type FeatureGroup, type FeatureRecord, type FeatureSetting } from "./features.ts";
+import { breakdownOf, exactDeltaErrors, featureSettings, substitutionTrace, summarizeFeatures, type FeatureGroup, type FeatureRecord, type FeatureSetting, type SubstitutionStep } from "./features.ts";
 import { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags } from "./sources.ts";
 
 const origin = "https://typeset.test";
@@ -143,6 +143,8 @@ async function main(): Promise<void> {
   const records: WidthRecord[] = [];
   const instances: InstanceProbe[] = [];
   const featureRecords: FeatureRecord[] = [];
+  // The GSUB trace of the worst line of each font and weight with an error of more than 0.05 px
+  const traces: { font: string; weight: number; script: string; sample: string; size: number; error: number; text: string; steps: SubstitutionStep[] }[] = [];
   let fontKerning = "";
   let devicePixelRatio = 0;
   try {
@@ -154,7 +156,14 @@ async function main(): Promise<void> {
     for (const { task, font, exact } of tasks) {
       const weight = task.weight ?? 400;
       const canvas = await canvasWidths(page, task.font, weight, task.sizes, task.samples.map((sample) => sample.text));
-      records.push(...recordsOf(task, font, canvas, exact));
+      const taskRecords = recordsOf(task, font, canvas, exact);
+      records.push(...taskRecords);
+      const worst = taskRecords.filter((record) => record.lengthClass === "line" && record.missing === 0).sort((a, b) => Math.abs(b.error) - Math.abs(a.error))[0];
+      const worstSample = worst === undefined ? undefined : task.samples.find((sample) => sample.id === worst.sample);
+      if (worst !== undefined && worstSample !== undefined && Math.abs(worst.error) > 0.05) {
+        const script = scriptTags[worstSample.script];
+        traces.push({ font: task.font, weight, script, sample: worst.sample, size: worst.size, error: worst.error, text: worstSample.text, steps: substitutionTrace(font, worstSample.text, script) });
+      }
       // The DOM diagnostic: the lines of its groups with no missing glyph, in each feature setting
       const chosen = task.samples.map((sample, i) => [sample, i] as const).filter(([sample]) => groupOf(task.font, weight, sample.script, sample.lengthClass) !== undefined && missingGlyphCount(font, sample.text) === 0);
       if (chosen.length > 0) {
@@ -237,6 +246,7 @@ async function main(): Promise<void> {
     features,
     exactDeltaErrors: deltaErrors,
     breakdown,
+    substitutionTraces: traces,
     woff2Mismatches: values.woff2 === undefined ? null : woff2Mismatches,
     woff2,
     outcomes,

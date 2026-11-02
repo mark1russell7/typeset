@@ -16,6 +16,7 @@ import {
   score,
   scoreCauses,
   scoreGsub,
+  substitutionTrace,
   sourceUrl,
   summarizeFeatures,
   type FeatureRecord,
@@ -229,5 +230,21 @@ describe("the score of the GSUB pass", () => {
     const outcomes = Object.fromEntries(scoreGsub(new Map([["macos-2", file("macos-2")], ["windows-1", file("windows-1")]])).map((o) => [o.outcome, o.holds]));
     expect(outcomes).toEqual({ specificLatinGsub: true, specificExtraGsubWindows: true, specificKanaMacDom: false, specificNoRegression: true });
     expect(scoreGsub(new Map()).some((o) => o.holds)).toBe(false);
+  });
+});
+
+describe("the GSUB trace", () => {
+  it("gives each lookup that changes the glyphs, with the change of the advances", () => {
+    // A fake font: the lookup 3 makes the ligature "fi" (glyph 1), the lookup 5 changes nothing
+    const font = {
+      ...ascii,
+      advance: (glyph: number) => (glyph === 1 ? 700 : 500),
+      substitutions: () => [
+        { index: 3, type: 4, flags: 0, features: ["liga"], apply: (glyphs: number[]) => void glyphs.splice(0, glyphs.length, ...(glyphs.join() === "102,105" ? [1] : glyphs)) },
+        { index: 5, type: 1, flags: 0, features: ["calt"], apply: () => {} },
+      ],
+    } as Font;
+    expect(substitutionTrace(font, "fi", "latn")).toEqual([{ lookup: 3, type: 4, flags: 0, features: ["liga"], glyphs: [2, 1], advance: -300, first: { at: 0, before: [102, 105], after: [1] } }]);
+    expect(substitutionTrace(font, "ab", "latn")).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import type { ScriptId } from "@typeset/corpus";
+import { defaultFeatures, type Font } from "@typeset/fonts";
 import type { WidthRecord } from "./compare.ts";
 
 /**
@@ -127,4 +128,43 @@ export function breakdownOf(records: readonly WidthRecord[], texts: ReadonlyMap<
       }),
     };
   });
+}
+
+/** One lookup of a trace that changed the glyphs of a text. */
+export interface SubstitutionStep {
+  readonly lookup: number;
+  readonly type: number;
+  readonly flags: number;
+  readonly features: readonly string[];
+  /** The glyph counts before and after the lookup. */
+  readonly glyphs: readonly [number, number];
+  /** The change of the sum of the advances, in font units. */
+  readonly advance: number;
+  /** The glyphs of the first change: up to 6 glyphs before and after the lookup, from the first changed position. */
+  readonly first: { readonly at: number; readonly before: readonly number[]; readonly after: readonly number[] };
+}
+
+/** This function applies the GSUB lookups of a text one at a time, and gives each lookup that changes the glyphs. */
+export function substitutionTrace(font: Font, text: string, script: string, features: readonly string[] = defaultFeatures): SubstitutionStep[] {
+  const glyphs: number[] = [];
+  for (const character of text) glyphs.push(font.glyph(character.codePointAt(0)!));
+  const sum = (list: readonly number[]) => list.reduce((total, glyph) => total + font.advance(glyph), 0);
+  const steps: SubstitutionStep[] = [];
+  for (const lookup of font.substitutions(script, features)) {
+    const before = [...glyphs];
+    lookup.apply(glyphs);
+    let at = 0;
+    while (at < before.length && at < glyphs.length && before[at] === glyphs[at]) at++;
+    if (at === before.length && at === glyphs.length) continue;
+    steps.push({
+      lookup: lookup.index,
+      type: lookup.type,
+      flags: lookup.flags,
+      features: lookup.features,
+      glyphs: [before.length, glyphs.length],
+      advance: sum(glyphs) - sum(before),
+      first: { at, before: before.slice(at, at + 6), after: glyphs.slice(at, at + 6) },
+    });
+  }
+  return steps;
 }
