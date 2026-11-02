@@ -10,6 +10,7 @@ The package `@typeset/corpus` (`packages/corpus`) generates the text that the it
 - The fonts are Noto families with the SIL Open Font License. T1 downloads their files. The corpus has only their names and their scripts.
 - `generateEdits` makes a sequence of edits as a person makes them: typing, backspace, a paste, a deletion and a replacement. Each edit starts and ends on a code point boundary.
 - A sample depends only on its seed and its cell. Thus a corpus with fewer scripts is a subset of the full corpus.
+- The random numbers come from `@mark1russell7/rigor-generators` (`random`, `deriveSeed`), the home of this code in the fleet.
 - The test `corpus.fingerprint` records the fingerprint of the corpus at seed 1. A change of the fingerprint changes every input of the bench. Record such a change in the pull request.
 
 ## The bench
@@ -18,6 +19,7 @@ The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` st
 
 - Each round starts one fresh process for each arm. The order of the arms turns by one place each round, and it goes backward in each second turn. Thus each arm is at each position the same number of times.
 - A process does a warm-up, doubles its batch until a batch takes 5 ms, and then times 15 batches. Its value is the median time of one call.
+- The statistics come from `@mark1russell7/rigor-statistics` (`median`, `quantile`, `summarize`, `bootstrapMedian`).
 - Two arms with the same case make the A/A pair. Its ratio is the median over the rounds, with a 90 % bootstrap interval. This ratio is the noise floor of the bench.
 - The record (schema `typeset-bench/1`) has the CPU model, the Node version, the mode (`ci` or `local`), each process and the summary of each arm.
 - The bench fails when a process fails or when the record does not have all its processes.
@@ -56,3 +58,11 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 - Each claim of an item that says "faster" or "slower" compares two arms in one job.
 - A change of the ratio under 0.017 is "not a result". It is not a hit and not a miss.
 - Do not compare the times of two jobs. The runners have different CPU models.
+
+## The change to the rigor homes (T9)
+
+T9 replaced the local copies of the random numbers and the statistics with the rigor packages.
+
+- The corpus has a new fingerprint at seed 1: `687b7e4b` in place of `545a41f6cbbb68ed`. The random source changed from xoshiro128** to mulberry32, and the seeds of the samples come from `deriveSeed`. Thus each text of the corpus changed.
+- `node src/rescore.ts <folder>` calculates the values of old records again. On the 5 records of the run 41446214122, 441 of 445 values are equal with `===`: each process median, each arm median, each spread and each A/A ratio.
+- The 4 values that differ are ends of the bootstrap intervals, because the random source of the bootstrap changed. The largest difference is 0.0016.

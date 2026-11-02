@@ -205,6 +205,9 @@ importers:
 
   packages/bench:
     dependencies:
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@typeset/corpus':
         specifier: workspace:*
         version: link:../corpus
@@ -223,6 +226,10 @@ importers:
         version: 5.0.5(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15))
 
   packages/corpus:
+    dependencies:
+      '@mark1russell7/rigor-generators':
+        specifier: ^0.1.0
+        version: 0.1.0
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^1.0.2
@@ -439,6 +446,14 @@ packages:
     resolution: {integrity: sha512-R9pjuWNFqd/LSfOI8uY7w8E2Dri8UQFGLodBuV4d2E0pwzWM5ISVXWVhC7+aYgrR1GXSMzbyo5ZLWvqyQCwdIg==}
     engines: {node: '>=22'}
     hasBin: true
+
+  '@mark1russell7/rigor-generators@0.1.0':
+    resolution: {integrity: sha512-xhXvLzZQlDH6ysAbqEjbha6fs1GbvO9RflSXwYbA3QMryxu4zEikbxahEDQCIxVSis+2pfX/18PHU3+X+jJmPw==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-statistics@0.1.0':
+    resolution: {integrity: sha512-2sqsFf6BLwN3NVxLcu+QpOUE7o4HFUeNE0O5if+62rBITRpgGpRaMs6DwjkTzRYzxt7dOqBnMr56GaNMHXb6PA==}
+    engines: {node: '>=22'}
 
   '@mark1russell7/ste-lint@0.1.1':
     resolution: {integrity: sha512-NXRB3PimE1PfXT+SuGZAEXt35EdWAXQMd4Dyn6Ep+6Yzf7YBvpHN0+xo4vHpYhmg3CHNGuNvCmspLodXi8/JQg==}
@@ -1367,6 +1382,12 @@ snapshots:
   '@mark1russell7/conventions@0.13.0': {}
 
   '@mark1russell7/cue@1.1.0': {}
+
+  '@mark1russell7/rigor-generators@0.1.0': {}
+
+  '@mark1russell7/rigor-statistics@0.1.0':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.0
 
   '@mark1russell7/ste-lint@0.1.1':
     dependencies:

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { cpus, totalmem } from "node:os";
 import { fileURLToPath } from "node:url";
 import type { ChildOptions, ChildResult } from "./child.ts";
-import { median, medianWithInterval, quantile, relativeSpread, type RatioEstimate } from "./stats.ts";
+import { bootstrapMedian, median, quantile, summarize } from "@mark1russell7/rigor-statistics";
 
 /** An arm of the bench: a name and the case that it starts. Two arms with the same case make an A/A pair. */
 export interface Arm {
@@ -32,6 +32,13 @@ export interface ProcessRecord extends ChildResult {
   readonly arm: string;
   /** The median time of one call, in nanoseconds. */
   readonly medianNs: number;
+}
+
+/** The median of a list of ratios and its 90 % bootstrap interval. */
+export interface RatioEstimate {
+  readonly ratio: number;
+  /** The 5 % and the 95 % quantiles of the bootstrap medians. */
+  readonly interval: readonly [low: number, high: number];
 }
 
 /** The summary of one arm over all its processes. */
@@ -150,7 +157,8 @@ export function runBench(config: BenchConfig): BenchRecord {
   const arms: Record<string, ArmSummary> = {};
   for (const arm of config.arms) {
     const medians = processes.filter((p) => p.arm === arm.arm).map((p) => p.medianNs);
-    arms[arm.arm] = { processes: medians.length, medianNs: median(medians), processSpread: relativeSpread(medians), processP90P10: quantile(medians, 0.9) / quantile(medians, 0.1) };
+    const s = summarize(medians);
+    arms[arm.arm] = { processes: medians.length, medianNs: s.median, processSpread: (s.max - s.min) / s.median, processP90P10: quantile(medians, 0.9) / quantile(medians, 0.1) };
   }
   let aa: BenchRecord["aa"];
   if (config.aa !== undefined) {
@@ -160,7 +168,8 @@ export function runBench(config: BenchConfig): BenchRecord {
       const b = processes.find((p) => p.round === round && p.arm === second)!;
       return a.medianNs / b.medianNs;
     });
-    aa = { arms: config.aa, perRound, ...medianWithInterval(perRound) };
+    const interval = bootstrapMedian(perRound, { level: 0.9, runs: 2000, seed: 1 });
+    aa = { arms: config.aa, perRound, ratio: interval.estimate, interval: [interval.low, interval.high] };
   }
   return {
     schema: "typeset-bench/1",

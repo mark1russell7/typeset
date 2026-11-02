@@ -12,3 +12,4 @@ Each item has a prediction before its code: the claims, how each claim is measur
 | T6 | Shaper fallback for complex scripts, ligatures, bidi and emoji | P2 | later | T4 |
 | T7 | A text corpus generator (scripts, lengths, fonts, edit sequences) and the CI bench | P1 | done | |
 | T8 | An adapter for the `/text` measurer interface of `@mark1russell7/layout-contract` | P1 | later | T2 |
+| T9 | Use the rigor homes: `rigor-generators` for the random numbers of the corpus, `rigor-statistics` for the statistics of the bench | P1 | in progress | T7 |
