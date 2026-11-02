@@ -21,6 +21,10 @@ on:
         description: The id of the prediction that the run scores. A commit adds the prediction before the run.
         type: string
         default: ""
+      runs:
+        description: The count of bench jobs, each on its own runner. A limit needs 5 runs or more.
+        type: string
+        default: "1"
 
 permissions:
   contents: read
@@ -36,7 +40,13 @@ jobs:
       pull-requests: read
     outputs:
       match: ${{ steps.changes.outputs.match }}
+      runs: ${{ steps.runs.outputs.list }}
+    env:
+      RUNS: ${{ github.event_name == 'workflow_dispatch' && inputs.runs || '1' }}
     steps:
+      # The matrix of the bench jobs: [1, ..., RUNS]
+      - id: runs
+        run: echo "list=[$(seq -s, 1 "$RUNS")]" >> "$GITHUB_OUTPUT"
       - id: changes
         uses: mark1russell7/template/.github/actions/changes@e035fa69560ec82e176f1f7bdcb6760c8b15af54 # main
         with:
@@ -50,6 +60,12 @@ jobs:
     if: needs.changes.outputs.match == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # The runners are shared by all repositories of the account (the rule runner-budget)
+      max-parallel: 3
+      matrix:
+        run: ${{ fromJSON(needs.changes.outputs.runs) }}
     env:
       ROUNDS: ${{ github.event_name == 'workflow_dispatch' && inputs.rounds || '6' }}
       PREDICTION: ${{ inputs.prediction }}
@@ -68,7 +84,7 @@ jobs:
         run: pnpm bench --rounds "$ROUNDS" --out "$GITHUB_WORKSPACE/bench-records.json" --label "$PREDICTION"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: bench-records
+          name: bench-records-${{ matrix.run }}
           path: bench-records.json
           if-no-files-found: error
 

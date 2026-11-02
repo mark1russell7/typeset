@@ -28,5 +28,6 @@ Timing runs go to CI, not to a shared machine. The workflow `bench.yml` runs the
 
 - A pull request that changes the corpus, the bench or the workflow runs 6 rounds. The check `Bench OK` gives the result.
 - A run of `workflow_dispatch` runs 20 rounds by default. Give the identifier of its prediction in the input `prediction`.
-- Each run uploads its record as the artifact `bench-records`.
+- The input `runs` of `workflow_dispatch` gives the count of bench jobs. Each job has its own runner. At most 3 jobs run at the same time.
+- Each job uploads its record as the artifact `bench-records-<n>`.
 - The bench has no limit yet. A limit comes from 5 runs or more: the worst value plus the spread of the runs.
