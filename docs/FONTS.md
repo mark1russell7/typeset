@@ -144,3 +144,19 @@ The fonts run 41510044683 on the head of typeset#24 measured the causes. The pre
 - On Windows, the default DOM width of kana is within 0.015 px of the model. The canvas adds the 3.84 px.
 - On Linux at the device scale 2, the DOM width is equal to the canvas width. The rounding at that scale causes the errors there.
 - The model of the ligatures, the unrounded deltas on macOS and the kana canvas are the next T1c steps. Each step has its own prediction.
+
+## The result of the GSUB pass
+
+The fonts run 41520081253 on the head of typeset#25 measures the default model with the GSUB pass. The DOM width is the reference.
+
+| Group | macOS | Windows | Result |
+|---|---|---|---|
+| Latin, default features | 0.0153 px | 0.0153 px | The GSUB pass gives the default DOM width. |
+| Source Sans 3, 400 and 700 | 0.17 and 0.32 px | 0.24 and 0.25 px | No change. The error with kerning off is the same. |
+| Kana, default DOM | 0.26 px | 0.015 px | No change. The GSUB pass does not change the kana lines. |
+| Hangul, canvas lines | 0.46 px | 0.0014 px | No regression on Windows after the change to words. |
+
+- The first run gave hangul an error of 48 px. The `calt` lookup 30 of Noto Sans KR changes the space between Hangul syllables.
+- Blink shapes the text of a canvas word by word, with each space alone. Thus the GSUB pass shapes each word of `shapingWords` alone.
+- The cause of the Source Sans 3 error is in the advances of the instance, not in GSUB or kerning. That cause is the next T1c step.
+- The GSUB pass does not correct Arabic and Devanagari. These scripts need the joining forms and the Indic shaper.
