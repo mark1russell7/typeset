@@ -30,4 +30,22 @@ Timing runs go to CI, not to a shared machine. The workflow `bench.yml` runs the
 - A run of `workflow_dispatch` runs 20 rounds by default. Give the identifier of its prediction in the input `prediction`.
 - The input `runs` of `workflow_dispatch` gives the count of bench jobs. Each job has its own runner. At most 3 jobs run at the same time.
 - Each job uploads its record as the artifact `bench-records-<n>`.
-- The bench has no limit yet. A limit comes from 5 runs or more: the worst value plus the spread of the runs.
+- A limit comes from 5 runs or more: the worst value plus the spread of the runs.
+
+## The noise floor
+
+The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/41446214122) gave the first 5 records: 5 jobs of 20 rounds on `main` at `c642535`.
+
+| Job | CPU | A/A ratio | Spread of `corpus.generate` |
+|---|---|---|---|
+| 1 | AMD EPYC 9V74 | 1.0058 | 14.0 % |
+| 2 | AMD EPYC 9V74 | 0.9955 | 3.9 % |
+| 3 | AMD EPYC 9V45 | 0.9990 | 15.5 % |
+| 4 | AMD EPYC 7763 | 0.9998 | 3.2 % |
+| 5 | AMD EPYC 9V74 | 0.9955 | 1.9 % |
+
+- The largest distance of the A/A ratio from 1 is 0.0058. The spread of the 5 ratios is 0.0103.
+- Thus the noise floor of a ratio is 0.0058 + 0.0103 = 0.0161. Rounded toward the safe side, it is 0.017.
+- A budget for a ratio (for example "at most 5 % slower") can decide only when it is larger than 0.017. Else the verdict is "cannot decide".
+- The runners have different CPU models. The median of `corpus.generate` went from 2103 to 3544 us. Thus compare only ratios of one job, not times of different jobs.
+- The spread of the process medians (maximum minus minimum) follows the worst process. Two jobs had a spread over 10 %, but their A/A ratios stayed near 1.

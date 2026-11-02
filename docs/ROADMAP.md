@@ -10,5 +10,5 @@ Each item has a prediction before its code: the claims, how each claim is measur
 | T4 | Error bounds: the error of the fast path against a shaper (HarfBuzz) for each script and font, in 1/64 px; size scaling and hinting per font | P1 | later | T1 |
 | T5 | The bound fast path: width at most length × maximum advance of a declared character set, plus a margin per character | P2 | later | T1 |
 | T6 | Shaper fallback for complex scripts, ligatures, bidi and emoji | P2 | later | T4 |
-| T7 | A text corpus generator (scripts, lengths, fonts, edit sequences) and the CI bench | P1 | in progress | |
+| T7 | A text corpus generator (scripts, lengths, fonts, edit sequences) and the CI bench | P1 | done | |
 | T8 | An adapter for the `/text` measurer interface of `@mark1russell7/layout-contract` | P1 | later | T2 |
