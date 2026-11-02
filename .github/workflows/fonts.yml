@@ -53,12 +53,11 @@ jobs:
       matrix:
         include:
           # linux-1 rounds each advance to whole px, so it is the reference of the mode pixel. It also checks WOFF2.
-          # The model of each arm comes from advanceModels of run 41527566935: CoreText keeps the fraction of the
-          # HVAR deltas, and DirectWrite uses the advance of the USE_MY_METRICS component of a composite glyph.
-          - { arm: linux-1, os: ubuntu-latest, scale: "1", reference: pixel, woff2: true, deltas: round, metrics: own }
-          - { arm: linux-2, os: ubuntu-latest, scale: "2", reference: exact, woff2: false, deltas: round, metrics: own }
-          - { arm: macos-2, os: macos-latest, scale: "2", reference: exact, woff2: false, deltas: exact, metrics: own }
-          - { arm: windows-1, os: windows-latest, scale: "1", reference: exact, woff2: false, deltas: round, metrics: component }
+          # Each arm names its text engine. The table engines of @typeset/fonts gives the rules of each engine.
+          - { arm: linux-1, os: ubuntu-latest, scale: "1", reference: pixel, woff2: true, engine: freetype }
+          - { arm: linux-2, os: ubuntu-latest, scale: "2", reference: exact, woff2: false, engine: freetype }
+          - { arm: macos-2, os: macos-latest, scale: "2", reference: exact, woff2: false, engine: coretext }
+          - { arm: windows-1, os: windows-latest, scale: "1", reference: exact, woff2: false, engine: directwrite }
     defaults:
       run:
         shell: bash
@@ -68,8 +67,7 @@ jobs:
       ARM: ${{ matrix.arm }}
       SCALE: ${{ matrix.scale }}
       REFERENCE: ${{ matrix.reference }}
-      DELTAS: ${{ matrix.deltas }}
-      METRICS: ${{ matrix.metrics }}
+      ENGINE: ${{ matrix.engine }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -98,7 +96,7 @@ jobs:
       - name: Measure the widths
         run: >-
           node packages/widths/src/main.ts --fonts "$RUNNER_TEMP/fonts" ${WOFF2:-}
-          --arm "$ARM" --scale "$SCALE" --reference "$REFERENCE" --deltas "$DELTAS" --metrics "$METRICS"
+          --arm "$ARM" --scale "$SCALE" --reference "$REFERENCE" --engine "$ENGINE"
           --per-cell "$PER_CELL" --out "$GITHUB_WORKSPACE/font-widths.json" --label "$PREDICTION"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

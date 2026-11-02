@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   advanceModelRow,
   checkBounds,
+  engineRecords,
   diagnosticWeights,
   cssInstance,
   extraSource,
@@ -18,6 +19,7 @@ import {
   score,
   scoreAdvances,
   scoreCauses,
+  scoreEngines,
   scoreGsub,
   substitutionTrace,
   sourceUrl,
@@ -286,6 +288,27 @@ describe("the score of the instance advances", () => {
     expect(outcomes).toEqual({ specificGvarMatchesHvar: true, specificExtraWindows: true, specificExtraMac: false, specificNoRegression: true });
     const one = new Map([["linux-1", file("linux-1", 1, rows.slice(0, 3).filter((r) => r.font !== "b"))]]);
     expect(scoreAdvances(one).every((o) => !o.holds)).toBe(true);
+  });
+});
+
+describe("the model of the engine of an arm", () => {
+  const record = (tables: number, pixel: number, canvas: number) => ({ sample: "latin/line/0", script: "latin", lengthClass: "line", font: "a", weight: 400, size: 16, codePoints: 3, missing: 0, canvas, tables, error: tables - canvas, pixel }) as WidthRecord;
+
+  it("uses the width of the mode pixel for an engine that rounds each advance", () => {
+    const records = [record(30.4, 30, 30), record(12.2, 13, 13)];
+    expect(engineRecords(records, "pixel").map((r) => [r.tables, r.error])).toEqual([[30, 0], [13, 0]]);
+    expect(engineRecords(records, "exact")).toEqual(records);
+  });
+
+  it("bounds the scripts and the extra font of the engine model on each arm", () => {
+    const cells = (worst: number) => Object.fromEntries(["latin", "latin-extended", "greek", "cyrillic", "hebrew", "thai", "han", "hangul"].map((script) => [script, { line: { worstPx: worst } as never }]));
+    const extra = (worst: number) => ({ "400": { line: { worstPx: worst } as never }, "700": { line: { worstPx: worst } as never } });
+    const file = (arm: string, worst: number, extraWorst = 0): ArmFile => ({ arm, instances: [], fractions: { line: fractionsOf([]) }, woff2Mismatches: null, summary: {}, extraSummary: {}, engineSummary: cells(worst), engineExtraSummary: extra(extraWorst) });
+    const files = new Map([["linux-1", file("linux-1", 0)], ["linux-2", file("linux-2", 0.005)], ["macos-2", file("macos-2", 0.001)], ["windows-1", file("windows-1", 0.001, 0.2)]]);
+    expect(Object.fromEntries(scoreEngines(files).map((o) => [o.outcome, o.holds]))).toEqual({ specificEngineLinux: true, specificEngineOthers: false });
+    const { engineSummary: _, ...older } = file("linux-1", 0);
+    const old = new Map<string, ArmFile>([["linux-1", older], ["linux-2", file("linux-2", 0)]]);
+    expect(scoreEngines(old).every((o) => !o.holds)).toBe(true);
   });
 });
 

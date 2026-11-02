@@ -67,6 +67,14 @@ export function recordsOf(task: FontTask, font: Font, canvas: readonly (readonly
   return records;
 }
 
+/**
+ * This function gives the records of the model of an engine. With the rounding `pixel`, the table width of each record
+ * is its width in the mode `pixel`. With `exact`, the records do not change.
+ */
+export function engineRecords(records: readonly WidthRecord[], rounding: "exact" | "pixel"): WidthRecord[] {
+  return rounding === "exact" ? [...records] : records.map((record) => ({ ...record, tables: record.pixel, error: record.pixel - record.canvas }));
+}
+
 /** The errors of one script and one length class. A record with a missing glyph is not in the numbers, only in `excluded`. */
 export interface Cell {
   readonly n: number;

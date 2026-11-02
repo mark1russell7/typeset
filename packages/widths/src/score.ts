@@ -24,6 +24,9 @@ export interface ArmFile {
   readonly exactDeltaErrors?: Partial<Record<ScriptId, number>>;
   /** The diagnostic of the advances of T1c. An older arm file has no such field. */
   readonly advanceModels?: readonly AdvanceModelRow[];
+  /** The errors of the model of the engine of the arm. An older arm file has no such fields. */
+  readonly engineSummary?: Partial<Record<ScriptId, { readonly line?: Cell }>>;
+  readonly engineExtraSummary?: Record<string, { readonly line?: Cell }>;
 }
 
 /** The arms that the bounds use: the platforms with no rounding to whole px. */
@@ -194,6 +197,36 @@ export function scoreAdvances(files: ReadonlyMap<string, ArmFile>): Outcome[] {
   ];
 }
 
+/** The scripts that the prediction `typeset-t1c-engine-rules` bounds on each arm. */
+export const engineScripts: readonly ScriptId[] = ["latin", "latin-extended", "greek", "cyrillic", "hebrew", "thai", "han", "hangul"];
+
+/** This function examines the model of the engine on some arms. Each line error of the scripts and of the extra font is at most `limit` px. */
+function engineBound(files: ReadonlyMap<string, ArmFile>, arms: readonly string[], limit: number): { holds: boolean; detail: string } {
+  let holds = true;
+  const details = arms.map((arm) => {
+    const file = files.get(arm);
+    if (file?.engineSummary === undefined || file.engineExtraSummary === undefined) {
+      holds = false;
+      return `${arm}: no engineSummary`;
+    }
+    const values = [
+      ...engineScripts.map((script) => [script, file.engineSummary![script]?.line?.worstPx ?? Number.NaN] as const),
+      ...["400", "700"].map((weight) => [`extra ${weight}`, file.engineExtraSummary![weight]?.line?.worstPx ?? Number.NaN] as const),
+    ];
+    if (!values.every(([, value]) => value <= limit)) holds = false;
+    return `${arm}: ${values.map(([name, value]) => `${name} ${value.toFixed(4)}`).join(", ")}`;
+  });
+  return { holds, detail: details.join("; ") };
+}
+
+/** This function gives the outcomes of the prediction `typeset-t1c-engine-rules` from the files of the arms. */
+export function scoreEngines(files: ReadonlyMap<string, ArmFile>): Outcome[] {
+  return [
+    { outcome: "specificEngineLinux", ...engineBound(files, ["linux-1", "linux-2"], 0.01) },
+    { outcome: "specificEngineOthers", ...engineBound(files, ["macos-2", "windows-1"], 0.01) },
+  ];
+}
+
 /** This function finds the file `font-widths.json` of each arm: in the folder itself, or in a subfolder for each artifact. */
 function readArms(folder: string): Map<string, ArmFile> {
   const files = new Map<string, ArmFile>();
@@ -211,7 +244,7 @@ function main(): void {
   const folder = positionals[0];
   if (folder === undefined) throw new Error("give the folder of the arm files");
   const files = readArms(folder);
-  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files) };
+  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files), "typeset-t1c-engine-rules": scoreEngines(files) };
   writeFileSync(values.out, JSON.stringify({ schema: "typeset-font-outcomes/2", arms: [...files.keys()].sort(), predictions }, null, 2) + "\n");
   const lines = [`Arms: ${[...files.keys()].sort().join(", ")}.`];
   for (const [id, outcomes] of Object.entries(predictions)) {

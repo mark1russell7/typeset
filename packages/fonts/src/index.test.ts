@@ -2,7 +2,7 @@ import { brotliCompressSync, brotliDecompressSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { Reader } from "./binary.ts";
 import { readPointCounts, readTransformedPointCounts } from "./gvar.ts";
-import { defaultFeatures, glyphAdvances, measureWidth, readFont, readTables, shapingWords, type Font } from "./index.ts";
+import { defaultFeatures, engines, glyphAdvances, isEngineName, measureWidth, readFont, readTables, shapingWords, type Font } from "./index.ts";
 
 /** A writer of big-endian bytes for the test fonts. */
 class Bytes {
@@ -515,5 +515,24 @@ describe("the words of the GSUB pass", () => {
     } as unknown as Font;
     expect(glyphAdvances(font, "ab c").glyphs).toEqual([0x61, 0x62, 0x20, 0x63]);
     expect(seen).toEqual([[0x61, 0x62], [0x20], [0x63]]);
+  });
+});
+
+describe("the table of engines", () => {
+  const both = buildTtf(true, false, "both");
+
+  it("gives each engine the read options and the rounding of its row", () => {
+    const glyphs = (font: Font) => [1, 2, 3, 6].map((glyph) => font.advance(glyph));
+    expect(glyphs(readFont(both, { instance: { wght: 900 }, ...engines.freetype }))).toEqual(glyphs(readFont(both, { instance: { wght: 900 } })));
+    expect(glyphs(readFont(both, { instance: { wght: 900 }, ...engines.directwrite }))).toEqual([696, 696, 496, 590]);
+    expect(readFont(both, { instance: { wght: 900 }, ...engines.coretext }).epoch).toMatch(/-exact$/);
+    const font = readFont(both, { instance: { wght: 900 } });
+    expect(Number.isInteger(measureWidth(font, "AVo", 13, { rounding: engines.freetype.rounding }))).toBe(true);
+    expect(measureWidth(font, "AVo", 13, { rounding: engines.coretext.rounding })).toBe(measureWidth(font, "AVo", 13));
+  });
+
+  it("tells the names of the engines", () => {
+    expect(isEngineName("coretext")).toBe(true);
+    expect(isEngineName("toString")).toBe(false);
   });
 });
