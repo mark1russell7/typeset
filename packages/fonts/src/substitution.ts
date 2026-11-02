@@ -197,12 +197,12 @@ class Gsub {
         else this.applyAt(nested, glyphs, at, depth + 1);
         const delta = glyphs.length - before;
         if (delta > 0) {
-          for (let k = record.sequenceIndex + 1; k < positions.length; k++) positions[k]! += delta;
+          for (let k = record.sequenceIndex + 1; k < positions.length; k++) positions[k] = positions[k]! + delta;
           positions.splice(record.sequenceIndex + 1, 0, ...Array.from({ length: delta }, (_, k) => at + 1 + k));
         } else if (delta < 0) {
           // A ligature took the next input glyphs: remove their positions and move the others
           positions.splice(record.sequenceIndex + 1, Math.min(-delta, positions.length - record.sequenceIndex - 1));
-          for (let k = record.sequenceIndex + 1; k < positions.length; k++) positions[k]! += delta;
+          for (let k = record.sequenceIndex + 1; k < positions.length; k++) positions[k] = positions[k]! + delta;
         }
       }
     }
