@@ -360,7 +360,7 @@ class Gsub {
 
 /**
  * This function gives the lookups of the features `features` of GSUB for a script, in the order of the lookup list, as
- * HarfBuzz applies them. The required feature of the language system is included.
+ * HarfBuzz applies them. The lookups include the lookups of the necessary feature of the language system.
  */
 export function readSubstitutions(gsub: Reader, script: string, features: readonly string[], filter: GlyphFilter): SubstitutionLookup[] {
   const scripts = gsub.part(gsub.u16(4));
