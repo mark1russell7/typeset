@@ -20,6 +20,8 @@ A variable font has axes in `fvar`, for example the weight `wght`. Give the inst
 - An axis that the instance does not give has its default value. A value outside the range of an axis is clamped.
 - `font.at(instance)` gives the same font at a different instance, with no new read of the file.
 - The epoch includes the coordinates of the instance, so each instance has a different epoch.
+- The option `deltas: "exact"` keeps the fraction of each `HVAR` delta. The epoch then ends with `-exact`.
+- The option `kerning: false` of `measureWidth` gives the sum of the advances with no pair kerning.
 
 A browser uses the CSS weight for the axis `wght`, not the default instance of the font. For `font-weight: 400`, give `{ wght: 400 }`.
 
@@ -64,6 +66,10 @@ The comparison has four arms. Each arm is one job of the workflow.
 - Each platform has its own bounds. The score does not average the platforms. An arm with no file makes its outcomes fail.
 
 ### The fields that examine an arm
+
+- `features` is the DOM diagnostic of T1c. It measures the Latin lines, the kana lines and the lines of Source Sans 3 as DOM spans, in four feature settings. The settings are the default, no ligatures (`liga` and `calt` off), no kerning, and `text-spacing-trim: space-all`. Its `summary` compares each setting with the model that has the same features.
+- `exactDeltaErrors` gives the worst line error of each script for the model with the `HVAR` deltas not rounded.
+- `breakdown` gives the line errors of each font, weight and script, with the three worst samples and their texts.
 
 - `fractions.line` counts the line widths on the grids of 1, 1/2, 1/4 and 1/64 px. Its `histogram` has 64 bins of 1/64 px. A width that the browser rounds is on a coarse grid.
 - `instances` has one probe for each font and weight. The probe measures single characters at 200 px on the canvas. It finds the weight of the model from 100 to 900, in steps of 25, that is nearest to them.

@@ -21,6 +21,8 @@ export interface WidthRecord {
   readonly error: number;
   /** The table width in the rounding mode `pixel`. */
   readonly pixel: number;
+  /** The table width with the `HVAR` deltas not rounded, when the comparison computes it. */
+  readonly exactDeltas?: number;
 }
 
 /** The widths to get for one font: the texts and the sizes. */
@@ -44,8 +46,11 @@ export function missingGlyphs(font: Font, text: string): number {
   return missing;
 }
 
-/** This function gives the records of one task from the canvas widths. `canvas[s][i]` is the width of the sample `i` at the size `s`. */
-export function recordsOf(task: FontTask, font: Font, canvas: readonly (readonly number[])[]): WidthRecord[] {
+/**
+ * This function gives the records of one task from the canvas widths. `canvas[s][i]` is the width of the sample `i` at the
+ * size `s`. The font `exactDeltas`, when it is given, is the same instance with the `HVAR` deltas not rounded.
+ */
+export function recordsOf(task: FontTask, font: Font, canvas: readonly (readonly number[])[], exactDeltas?: Font): WidthRecord[] {
   const records: WidthRecord[] = [];
   task.samples.forEach((sample, i) => {
     const missing = missingGlyphs(font, sample.text);
@@ -55,7 +60,8 @@ export function recordsOf(task: FontTask, font: Font, canvas: readonly (readonly
       const tables = measureWidth(font, sample.text, size, options);
       const pixel = measureWidth(font, sample.text, size, { ...options, rounding: "pixel" });
       const measured = canvas[s]![i]!;
-      records.push({ sample: sample.id, script: sample.script, lengthClass: sample.lengthClass, font: task.font, weight: task.weight ?? 400, size, codePoints, missing, canvas: measured, tables, error: tables - measured, pixel });
+      const record = { sample: sample.id, script: sample.script, lengthClass: sample.lengthClass, font: task.font, weight: task.weight ?? 400, size, codePoints, missing, canvas: measured, tables, error: tables - measured, pixel };
+      records.push(exactDeltas === undefined ? record : { ...record, exactDeltas: measureWidth(exactDeltas, sample.text, size, options) });
     });
   });
   return records;

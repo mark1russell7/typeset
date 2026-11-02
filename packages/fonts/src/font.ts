@@ -14,6 +14,11 @@ export interface ReadOptions {
    * default value. A browser uses the CSS weight, so a page with the weight `normal` needs `{ wght: 400 }`.
    */
   readonly instance?: Instance;
+  /**
+   * The rounding of the `HVAR` deltas. `round` (the default) rounds each delta to whole font units, as FreeType does.
+   * `exact` keeps the fraction. The epoch tells the two modes apart.
+   */
+  readonly deltas?: "round" | "exact";
 }
 
 /** The measured tables of one font file. */
@@ -60,7 +65,7 @@ export function readFont(bytes: Uint8Array, options: ReadOptions = {}): Font {
     glyphClass: readGlyphClasses(tables.get("GDEF")),
     axes: tables.has("fvar") ? readAxes(tables.get("fvar")!) : [],
   };
-  return build(parsed, options.instance ?? {});
+  return build(parsed, options.instance ?? {}, options.deltas ?? "round");
 }
 
 /** The tables of a font that do not change with the instance. */
@@ -74,12 +79,12 @@ interface Parsed {
 }
 
 /** This function gives the font at one instance. */
-function build(parsed: Parsed, requested: Instance): Font {
+function build(parsed: Parsed, requested: Instance, deltas: "round" | "exact"): Font {
   const { tables, header, characters, glyphClass, axes } = parsed;
   const instance = Object.fromEntries(axes.map((axis) => [axis.tag, Math.min(axis.max, Math.max(axis.min, requested[axis.tag] ?? axis.default))]));
   const coordinates = normalize(axes, tables.get("avar"), instance);
   const variable = coordinates.some((value) => value !== 0);
-  const advances = instanceAdvances(parsed.advances, variable ? tables.get("HVAR") : undefined, coordinates);
+  const advances = instanceAdvances(parsed.advances, variable ? tables.get("HVAR") : undefined, coordinates, deltas);
   const gdef = tables.get("GDEF");
   // The ItemVariationStore of GDEF 1.3 gives the deltas of the GPOS values
   const storeOffset = variable && gdef !== undefined && gdef.u16(2) >= 3 ? gdef.u32(14) : 0;
@@ -89,7 +94,7 @@ function build(parsed: Parsed, requested: Instance): Font {
   const lookups = new Map<string, readonly PairLookup[]>();
   const hashed = [tables.get("cmap"), gdef, gpos, kern, tables.get("fvar"), tables.get("avar"), tables.get("HVAR")];
   return {
-    epoch: `${header.revision.toString(16).padStart(8, "0")}-${widthHash(header.unitsPerEm, coordinates, advances, hashed)}`,
+    epoch: `${header.revision.toString(16).padStart(8, "0")}-${widthHash(header.unitsPerEm, coordinates, advances, hashed)}${deltas === "exact" ? "-exact" : ""}`,
     unitsPerEm: header.unitsPerEm,
     numGlyphs: header.numGlyphs,
     axes,
@@ -107,7 +112,7 @@ function build(parsed: Parsed, requested: Instance): Font {
       }
       return found;
     },
-    at: (next) => build(parsed, next),
+    at: (next) => build(parsed, next, deltas),
   };
 }
 
@@ -136,6 +141,8 @@ export interface MeasureOptions {
    * 1/64 px and then to a whole px, and each kerning value to a whole px. Chromium on Linux does this at the device scale 1.
    */
   readonly rounding?: "exact" | "pixel";
+  /** The pair kerning. When it is `false`, the width is the sum of the advances only. The default is `true`. */
+  readonly kerning?: boolean;
 }
 
 /** This function tells if a lookup with the flags `flags` skips a glyph of the GDEF class `glyphClass`. */
@@ -148,7 +155,7 @@ export function glyphAdvances(font: Font, text: string, options: MeasureOptions 
   const glyphs: number[] = [];
   for (const character of text) glyphs.push(font.glyph(character.codePointAt(0)!));
   const advances = glyphs.map((glyph) => font.advance(glyph));
-  for (const lookup of font.kerning(options.script ?? "DFLT")) {
+  for (const lookup of options.kerning === false ? [] : font.kerning(options.script ?? "DFLT")) {
     const next = (from: number): number => {
       for (let j = from; j < glyphs.length; j++) if (!skips(lookup.flags, font.glyphClass(glyphs[j]!))) return j;
       return -1;

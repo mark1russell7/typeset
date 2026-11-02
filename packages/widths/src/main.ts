@@ -13,7 +13,8 @@ import { brotliDecompressSync } from "node:zlib";
 import { fingerprint, fontSizes, generateCorpus, type FontId } from "@typeset/corpus";
 import { measureWidth, readFont, type Font } from "@typeset/fonts";
 import { chromium, type Page } from "playwright";
-import { checkBounds, fractionsOf, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
+import { checkBounds, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
+import { breakdownOf, exactDeltaErrors, featureSettings, summarizeFeatures, type FeatureGroup, type FeatureRecord, type FeatureSetting } from "./features.ts";
 import { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags } from "./sources.ts";
 
 const origin = "https://typeset.test";
@@ -75,6 +76,37 @@ async function canvasWidths(page: Page, font: string, weight: number, sizes: rea
   }, { family: `typeset-${font}`, weight, sizes: [...sizes], texts: [...texts] });
 }
 
+/** This function gives the DOM widths of the texts at each size, as `widths[size][text]`, with the CSS of one feature setting. */
+async function domWidths(page: Page, font: string, weight: number, sizes: readonly number[], texts: readonly string[], css: string): Promise<number[][]> {
+  return page.evaluate(({ family, weight, sizes, texts, css }) => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const spans = sizes.map((size) =>
+      texts.map((text) => {
+        const line = document.createElement("div");
+        const span = document.createElement("span");
+        span.style.cssText = `font: ${weight} ${size}px "${family}"; white-space: pre; ${css}`;
+        span.textContent = text;
+        line.appendChild(span);
+        root.appendChild(line);
+        return span;
+      }),
+    );
+    const widths = spans.map((row) => row.map((span) => span.getBoundingClientRect().width));
+    root.remove();
+    return widths;
+  }, { family: `typeset-${font}`, weight, sizes: [...sizes], texts: [...texts], css });
+}
+
+/** This function gives the group of the DOM diagnostic of a task and a sample, or nothing when the diagnostic leaves it out. */
+function groupOf(font: string, weight: number, script: string, lengthClass: string): FeatureGroup | undefined {
+  if (lengthClass !== "line") return undefined;
+  if (font === extraSource.id) return weight === 700 ? "extra-700" : "extra-400";
+  if (script === "latin") return "latin";
+  if (script === "kana") return "kana";
+  return undefined;
+}
+
 function format(value: number, digits = 3): string {
   return Number.isNaN(value) ? "-" : value.toFixed(digits);
 }
@@ -98,17 +130,19 @@ async function main(): Promise<void> {
   const samples = generateCorpus({ seed: 1, perCell: Number(values["per-cell"]) });
   const latin = samples.filter((sample) => sample.script === "latin");
   const ids = fontSources.map((source) => source.id);
-  const read = (id: string, weight = 400) => readFont(readFileSync(join(values.fonts!, fileName(id))), { instance: cssInstance(weight) });
+  const read = (id: string, deltas: "round" | "exact" = "round") => readFont(readFileSync(join(values.fonts!, fileName(id))), { instance: cssInstance(), deltas });
   const fonts = new Map<FontId, Font>(ids.map((id) => [id, read(id)]));
+  const exactFonts = new Map<string, Font>([...ids, extraSource.id].map((id) => [id, read(id, "exact")]));
   const extra = read(extraSource.id);
-  const tasks: { task: FontTask; font: Font }[] = [
-    ...tasksOf(samples, ids, fontSizes).filter((task) => task.samples.length > 0).map((task) => ({ task, font: fonts.get(task.font as FontId)! })),
-    ...extraWeights.map((weight) => ({ task: { font: extraSource.id, weight, samples: latin, sizes: fontSizes }, font: extra.at(cssInstance(weight)) })),
+  const tasks: { task: FontTask; font: Font; exact: Font }[] = [
+    ...tasksOf(samples, ids, fontSizes).filter((task) => task.samples.length > 0).map((task) => ({ task, font: fonts.get(task.font as FontId)!, exact: exactFonts.get(task.font)! })),
+    ...extraWeights.map((weight) => ({ task: { font: extraSource.id, weight, samples: latin, sizes: fontSizes }, font: extra.at(cssInstance(weight)), exact: exactFonts.get(extraSource.id)!.at(cssInstance(weight)) })),
   ];
   const browser = await chromium.launch();
   const version = browser.version();
   const records: WidthRecord[] = [];
   const instances: InstanceProbe[] = [];
+  const featureRecords: FeatureRecord[] = [];
   let fontKerning = "";
   let devicePixelRatio = 0;
   try {
@@ -117,10 +151,32 @@ async function main(): Promise<void> {
     await loadFaces(page, values.fonts, [...ids.map((id) => faceOf(id, fonts.get(id)!)), faceOf(extraSource.id, extra)]);
     fontKerning = await page.evaluate(() => document.querySelector("canvas")!.getContext("2d")!.fontKerning);
     devicePixelRatio = await page.evaluate(() => window.devicePixelRatio);
-    for (const { task, font } of tasks) {
+    for (const { task, font, exact } of tasks) {
       const weight = task.weight ?? 400;
       const canvas = await canvasWidths(page, task.font, weight, task.sizes, task.samples.map((sample) => sample.text));
-      records.push(...recordsOf(task, font, canvas));
+      records.push(...recordsOf(task, font, canvas, exact));
+      // The DOM diagnostic: the lines of its groups with no missing glyph, in each feature setting
+      const chosen = task.samples.map((sample, i) => [sample, i] as const).filter(([sample]) => groupOf(task.font, weight, sample.script, sample.lengthClass) !== undefined && missingGlyphCount(font, sample.text) === 0);
+      if (chosen.length > 0) {
+        const texts = chosen.map(([sample]) => sample.text);
+        const dom = new Map<FeatureSetting, number[][]>();
+        for (const setting of Object.keys(featureSettings) as FeatureSetting[]) dom.set(setting, await domWidths(page, task.font, weight, task.sizes, texts, featureSettings[setting]));
+        chosen.forEach(([sample, i], c) => {
+          const options = { script: scriptTags[sample.script] };
+          task.sizes.forEach((size, s) => {
+            featureRecords.push({
+              group: groupOf(task.font, weight, sample.script, sample.lengthClass)!,
+              font: task.font,
+              weight,
+              sample: sample.id,
+              size,
+              canvas: canvas[s]![i]!,
+              dom: Object.fromEntries([...dom].map(([setting, widths]) => [setting, widths[s]![c]!])) as Record<FeatureSetting, number>,
+              model: { kerning: measureWidth(font, sample.text, size, options), noKerning: measureWidth(font, sample.text, size, { ...options, kerning: false }) },
+            });
+          });
+        });
+      }
       // The instance probe: each character alone at 200 px, against the model at each weight
       const characters = probeCharacters(font, [probeLatin, ...task.samples.map((sample) => sample.text)]);
       const [probe] = await canvasWidths(page, task.font, weight, [probeSize], characters);
@@ -151,10 +207,13 @@ async function main(): Promise<void> {
   const summary = summarize(corpusRecords);
   const outcomes = checkBounds(summary);
   const extraSummary = Object.fromEntries(extraWeights.map((weight) => [weight, summarize(records.filter((r) => r.font === extraSource.id && r.weight === weight))["latin"] ?? {}]));
+  const features = { settings: featureSettings, summary: summarizeFeatures(featureRecords), records: featureRecords };
+  const deltaErrors = exactDeltaErrors(records.filter((record) => record.font !== extraSource.id));
+  const breakdown = breakdownOf(records, new Map(samples.map((sample) => [sample.id, sample.text])));
   const lineWidths = corpusRecords.filter((record) => record.lengthClass === "line" && record.missing === 0).map((record) => record.canvas);
   const fractions = { line: fractionsOf(lineWidths), all: fractionsOf(records.map((record) => record.canvas)) };
   const output = {
-    schema: "typeset-font-widths/2",
+    schema: "typeset-font-widths/3",
     label: values.label,
     arm: values.arm,
     scale,
@@ -171,6 +230,9 @@ async function main(): Promise<void> {
     },
     instances,
     fractions,
+    features,
+    exactDeltaErrors: deltaErrors,
+    breakdown,
     woff2Mismatches: values.woff2 === undefined ? null : woff2Mismatches,
     woff2,
     outcomes,
@@ -202,6 +264,12 @@ async function main(): Promise<void> {
     `| font | weight | model instance | probe found | tied | error at the weight px | matches |`,
     `|---|---|---|---|---|---|---|`,
     ...instances.map((p) => `| ${p.font} | ${p.requested} | ${JSON.stringify(p.model)} | ${p.found} | ${p.tied} | ${format(p.errorAtRequested)} | ${p.matches} |`),
+    ``,
+    `| group | n | DOM against canvas px | no ligatures px | no kerning px | space-all px | worst no-ligature sample |`,
+    `|---|---|---|---|---|---|---|`,
+    ...Object.entries(features.summary).map(([group, f]) => `| ${group} | ${f.n} | ${format(f.domAgainstCanvas)} | ${format(f.noLigatures)} | ${format(f.noKerning)} | ${format(f.spaceAll)} | ${f.worstNoLigatures === undefined ? "-" : `${f.worstNoLigatures.sample} at ${f.worstNoLigatures.size} px`} |`),
+    ``,
+    `Worst line error with the HVAR deltas not rounded: ${Object.entries(deltaErrors).map(([script, value]) => `${script} ${format(value)}`).join(", ")}.`,
   ];
   console.log(lines.join("\n"));
   const stepSummary = process.env["GITHUB_STEP_SUMMARY"];
