@@ -172,13 +172,38 @@ function skips(flags: number, glyphClass: number): boolean {
 }
 
 /**
+ * This function divides a text into the words that the GSUB pass shapes one at a time. Each space and each tab is a word
+ * alone. Blink shapes the text of a canvas in the same words, so no GSUB context goes across a space.
+ */
+export function shapingWords(text: string): string[] {
+  const words: string[] = [];
+  let word = "";
+  for (const character of text) {
+    if (character !== " " && character !== "	") {
+      word += character;
+      continue;
+    }
+    if (word !== "") words.push(word);
+    words.push(character);
+    word = "";
+  }
+  if (word !== "") words.push(word);
+  return words;
+}
+
+/**
  * This function gives the glyphs of a text and their advances in font units. It applies the GSUB substitutions of the
- * features, and then the pair kerning.
+ * features to each word of `shapingWords`, and then the pair kerning to all the text.
  */
 export function glyphAdvances(font: Font, text: string, options: MeasureOptions = {}): { glyphs: number[]; advances: number[] } {
+  const lookups = font.substitutions(options.script ?? "DFLT", options.features ?? defaultFeatures);
   const glyphs: number[] = [];
-  for (const character of text) glyphs.push(font.glyph(character.codePointAt(0)!));
-  for (const lookup of font.substitutions(options.script ?? "DFLT", options.features ?? defaultFeatures)) lookup.apply(glyphs);
+  for (const word of shapingWords(text)) {
+    const wordGlyphs: number[] = [];
+    for (const character of word) wordGlyphs.push(font.glyph(character.codePointAt(0)!));
+    for (const lookup of lookups) lookup.apply(wordGlyphs);
+    glyphs.push(...wordGlyphs);
+  }
   const advances = glyphs.map((glyph) => font.advance(glyph));
   for (const lookup of options.kerning === false ? [] : font.kerning(options.script ?? "DFLT")) {
     const next = (from: number): number => {

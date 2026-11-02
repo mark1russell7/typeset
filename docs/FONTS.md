@@ -25,6 +25,8 @@ A variable font has axes in `fvar`, for example the weight `wght`. Give the inst
 - Before the kerning, `measureWidth` applies the GSUB substitutions of the features `defaultFeatures`: `ccmp`, `locl`, `rlig`, `liga`, `clig`, `calt` and `rclt`.
 - A browser applies these features when the page does not change them. The option `features` gives another list, and `[]` applies no substitution.
 - The GSUB pass reads the lookup types 1 to 8 and the lookup flags. It does not read the `FeatureVariations` table.
+- The GSUB pass shapes each word alone, and each space and each tab alone. Blink shapes the text of a canvas in the same words.
+- Thus a GSUB context does not go across a space. Noto Sans KR has a `calt` context on the space. The browser does not apply it.
 
 A browser uses the CSS weight for the axis `wght`, not the default instance of the font. For `font-weight: 400`, give `{ wght: 400 }`.
 

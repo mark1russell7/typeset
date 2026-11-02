@@ -1,5 +1,5 @@
 import type { ScriptId } from "@typeset/corpus";
-import { defaultFeatures, type Font } from "@typeset/fonts";
+import { defaultFeatures, shapingWords, type Font } from "@typeset/fonts";
 import type { WidthRecord } from "./compare.ts";
 
 /**
@@ -144,15 +144,18 @@ export interface SubstitutionStep {
   readonly first: { readonly at: number; readonly before: readonly number[]; readonly after: readonly number[] };
 }
 
-/** This function applies the GSUB lookups of a text one at a time, and gives each lookup that changes the glyphs. */
+/**
+ * This function applies the GSUB lookups of a text one at a time, as the model does: each lookup goes to each word of
+ * `shapingWords`. It gives each lookup that changes the glyphs.
+ */
 export function substitutionTrace(font: Font, text: string, script: string, features: readonly string[] = defaultFeatures): SubstitutionStep[] {
-  const glyphs: number[] = [];
-  for (const character of text) glyphs.push(font.glyph(character.codePointAt(0)!));
+  const words = shapingWords(text).map((word) => [...word].map((character) => font.glyph(character.codePointAt(0)!)));
   const sum = (list: readonly number[]) => list.reduce((total, glyph) => total + font.advance(glyph), 0);
   const steps: SubstitutionStep[] = [];
   for (const lookup of font.substitutions(script, features)) {
-    const before = [...glyphs];
-    lookup.apply(glyphs);
+    const before = words.flat();
+    for (const word of words) lookup.apply(word);
+    const glyphs = words.flat();
     let at = 0;
     while (at < before.length && at < glyphs.length && before[at] === glyphs[at]) at++;
     if (at === before.length && at === glyphs.length) continue;

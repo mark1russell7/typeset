@@ -1,6 +1,6 @@
 import { brotliCompressSync, brotliDecompressSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { defaultFeatures, glyphAdvances, measureWidth, readFont, readTables } from "./index.ts";
+import { defaultFeatures, glyphAdvances, measureWidth, readFont, readTables, shapingWords, type Font } from "./index.ts";
 
 /** A writer of big-endian bytes for the test fonts. */
 class Bytes {
@@ -381,5 +381,26 @@ describe("the GSUB substitutions", () => {
   it("gives a font with no GSUB the same widths, and a different epoch to a font with GSUB", () => {
     expect(measureWidth(plain, "oo", 1000, latn)).toBe(1040);
     expect(font.epoch).not.toBe(plain.epoch);
+  });
+});
+
+describe("the words of the GSUB pass", () => {
+  it("makes each space and each tab a word alone", () => {
+    expect(shapingWords("ab  c	d")).toEqual(["ab", " ", " ", "c", "	", "d"]);
+    expect(shapingWords(" ")).toEqual([" "]);
+    expect(shapingWords("")).toEqual([]);
+  });
+
+  it("applies the lookups to each word, so that no context goes across a space", () => {
+    const seen: number[][] = [];
+    const font = {
+      glyph: (codePoint: number) => codePoint,
+      advance: () => 500,
+      glyphClass: () => 0,
+      kerning: () => [],
+      substitutions: () => [{ index: 0, type: 6, flags: 0, features: ["calt"], apply: (glyphs: number[]) => void seen.push([...glyphs]) }],
+    } as unknown as Font;
+    expect(glyphAdvances(font, "ab c").glyphs).toEqual([0x61, 0x62, 0x20, 0x63]);
+    expect(seen).toEqual([[0x61, 0x62], [0x20], [0x63]]);
   });
 });
