@@ -16,7 +16,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: security-${{ github.ref }}
+  group: security-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
