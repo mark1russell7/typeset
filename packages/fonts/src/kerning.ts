@@ -1,7 +1,8 @@
 import type { Reader } from "./binary.ts";
 import { classOf, coverageIndex } from "./tables.ts";
+import type { VariationStore } from "./variations.ts";
 
-/** The change of the advances of two glyphs, in font units. */
+/** The change of the advances of two glyphs, in font units. A variable font can give a value that is not a whole number. */
 export interface PairValue {
   readonly first: number;
   readonly second: number;
@@ -32,14 +33,22 @@ function valueSize(format: number): number {
   return size * 2;
 }
 
-/** This function gives the XAdvance of a ValueRecord at `offset`, or 0 when the format has none. */
-function xAdvance(table: Reader, offset: number, format: number): number {
-  if ((format & 0x4) === 0) return 0;
-  return table.i16(offset + valueSize(format & 0x3));
+/**
+ * This function gives the XAdvance of a ValueRecord at `offset`, or 0 when the format has none. The offset of a device table
+ * is relative to `parent`. A VariationIndex table adds its delta from `store`, not rounded, as HarfBuzz adds it. A device
+ * table of hinting deltas adds nothing, because the shaper of the browser does not set a ppem.
+ */
+function xAdvance(table: Reader, offset: number, format: number, parent: Reader, store: VariationStore | undefined): number {
+  let value = (format & 0x4) === 0 ? 0 : table.i16(offset + valueSize(format & 0x3));
+  if ((format & 0x40) !== 0 && store !== undefined) {
+    const device = table.u16(offset + valueSize(format & 0x3f));
+    if (device !== 0 && parent.u16(device + 4) === 0x8000) value += store.delta(parent.u16(device), parent.u16(device + 2));
+  }
+  return value;
 }
 
 /** This function makes the pair function of one PairPos subtable. */
-function pairSubtable(table: Reader): (first: number, second: number) => PairValue | undefined {
+function pairSubtable(table: Reader, store: VariationStore | undefined): (first: number, second: number) => PairValue | undefined {
   const format = table.u16(0);
   const coverage = table.part(table.u16(2));
   const format1 = table.u16(4);
@@ -61,7 +70,7 @@ function pairSubtable(table: Reader): (first: number, second: number) => PairVal
         const glyph = set.u16(at);
         if (second < glyph) high = middle - 1;
         else if (second > glyph) low = middle + 1;
-        else return { first: xAdvance(set, at + 2, format1), second: xAdvance(set, at + 2 + size1, format2), skipSecond };
+        else return { first: xAdvance(set, at + 2, format1, set, store), second: xAdvance(set, at + 2 + size1, format2, set, store), skipSecond };
       }
       return undefined;
     };
@@ -77,7 +86,7 @@ function pairSubtable(table: Reader): (first: number, second: number) => PairVal
       const class2 = classOf(classes2, second);
       if (class1 >= count1 || class2 >= count2) return undefined;
       const at = 16 + (class1 * count2 + class2) * (size1 + size2);
-      return { first: xAdvance(table, at, format1), second: xAdvance(table, at + size1, format2), skipSecond };
+      return { first: xAdvance(table, at, format1, table, store), second: xAdvance(table, at + size1, format2, table, store), skipSecond };
     };
   }
   throw new Error(`the PairPos format ${format} is unknown`);
@@ -89,8 +98,11 @@ function scriptTags(script: string): string[] {
   return [...tags, "DFLT", "dflt", "latn"];
 }
 
-/** This function gives the pair lookups of the feature `kern` of GPOS for a script, in the order of the lookup list. */
-export function readGposKerning(gpos: Reader, script: string): PairLookup[] {
+/**
+ * This function gives the pair lookups of the feature `kern` of GPOS for a script, in the order of the lookup list. The
+ * store gives the deltas of a variable font at its instance.
+ */
+export function readGposKerning(gpos: Reader, script: string, store?: VariationStore): PairLookup[] {
   const scripts = gpos.part(gpos.u16(4));
   const features = gpos.part(gpos.u16(6));
   const lookups = gpos.part(gpos.u16(8));
@@ -125,7 +137,7 @@ export function readGposKerning(gpos: Reader, script: string): PairLookup[] {
         subtype = subtable.u16(2);
         subtable = subtable.part(subtable.u32(4));
       }
-      if (subtype === 2) subtables.push(pairSubtable(subtable));
+      if (subtype === 2) subtables.push(pairSubtable(subtable, store));
     }
     if (subtables.length === 0) return [];
     return [{

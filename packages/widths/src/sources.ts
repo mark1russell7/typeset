@@ -4,15 +4,15 @@ import type { FontId, ScriptId } from "@typeset/corpus";
 export const fontsCommit = "6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec";
 
 /** The source of one font file of the corpus. */
-export interface FontSource {
-  readonly id: FontId;
+export interface FontSource<Id extends string = FontId> {
+  readonly id: Id;
   /** The path of the file in `google/fonts`. */
   readonly path: string;
   /** The SHA-256 of the file, in hexadecimal. The fetch fails when the file has a different hash. */
   readonly sha256: string;
 }
 
-/** The sources of the 11 fonts of the corpus. Each font is a variable font, and the width uses its default instance. */
+/** The sources of the 11 fonts of the corpus. Each font is a variable font. The widths use the instance of `cssInstance`. */
 export const fontSources: readonly FontSource[] = [
   { id: "noto-sans", path: "ofl/notosans/NotoSans[wdth,wght].ttf", sha256: "bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d" },
   { id: "noto-serif", path: "ofl/notoserif/NotoSerif[wdth,wght].ttf", sha256: "4d8e6761424656867019081a1a01336f3cb086982682698714054fc33f782713" },
@@ -27,13 +27,31 @@ export const fontSources: readonly FontSource[] = [
   { id: "noto-emoji", path: "ofl/notoemoji/NotoEmoji[wght].ttf", sha256: "de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551" },
 ];
 
+/**
+ * A variable font that the corpus does not use. It examines the instances: its default weight is 200, not 400, and it has
+ * `avar`, `HVAR` and kerning with VariationIndex deltas. The comparison measures it on the Latin samples at two weights.
+ */
+export const extraSource: FontSource<"source-sans-3"> = {
+  id: "source-sans-3",
+  path: "ofl/sourcesans3/SourceSans3[wght].ttf",
+  sha256: "042fe2cc0b933e328410d7acbd0aa6a1873dca5aef81875f4bc214b08825c7b9",
+};
+
+/** The weights of the extra font in the comparison. */
+export const extraWeights: readonly number[] = [400, 700];
+
+/** The instance that a browser uses for the CSS weight `weight` and the CSS width `normal`. */
+export function cssInstance(weight = 400): { wght: number; wdth: number } {
+  return { wght: weight, wdth: 100 };
+}
+
 /** This function gives the download URL of a font source at the pinned commit. */
-export function sourceUrl(source: FontSource): string {
+export function sourceUrl(source: Pick<FontSource<string>, "path">): string {
   return `https://raw.githubusercontent.com/google/fonts/${fontsCommit}/${source.path.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 /** This function gives the local file name of a font source: its identifier with the extension `.ttf`. */
-export function fileName(id: FontId): string {
+export function fileName(id: string): string {
   return `${id}.ttf`;
 }
 

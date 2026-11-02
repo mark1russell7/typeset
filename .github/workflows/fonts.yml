@@ -1,7 +1,8 @@
 name: Fonts
 
-# The widths of the font tables against canvas measureText in headless Chromium, on the corpus.
-# The job downloads the pinned Noto fonts, makes a WOFF2 file of each with fontTools, and uploads font-widths.json.
+# The widths of the font tables against canvas measureText in headless Chromium, on the corpus, on four arms:
+# Linux at the device scale 1 and 2, macOS at the scale 2 and Windows at the scale 1. Each arm downloads the pinned
+# fonts and uploads font-widths-<arm>. The arm linux-1 also checks the WOFF2 files. The report job scores the outcomes.
 
 on:
   pull_request:
@@ -41,13 +42,30 @@ jobs:
             .github/workflows/fonts.yml
 
   widths:
+    name: Widths (${{ matrix.arm }})
     needs: changes
     if: needs.changes.outputs.match == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          # linux-1 rounds each advance to whole px, so it is the reference of the mode pixel. It also checks WOFF2.
+          - { arm: linux-1, os: ubuntu-latest, scale: "1", reference: pixel, woff2: true }
+          - { arm: linux-2, os: ubuntu-latest, scale: "2", reference: exact, woff2: false }
+          - { arm: macos-2, os: macos-latest, scale: "2", reference: exact, woff2: false }
+          - { arm: windows-1, os: windows-latest, scale: "1", reference: exact, woff2: false }
+    defaults:
+      run:
+        shell: bash
     env:
       PER_CELL: ${{ github.event_name == 'workflow_dispatch' && inputs.per-cell || '40' }}
       PREDICTION: ${{ inputs.prediction }}
+      ARM: ${{ matrix.arm }}
+      SCALE: ${{ matrix.scale }}
+      REFERENCE: ${{ matrix.reference }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,6 +79,7 @@ jobs:
       - name: Download the fonts
         run: node packages/widths/src/fetch.ts "$RUNNER_TEMP/fonts"
       - name: Make the WOFF2 files
+        if: matrix.woff2
         run: |
           python3 -m venv "$RUNNER_TEMP/venv"
           "$RUNNER_TEMP/venv/bin/pip" install --quiet "fonttools==4.68.0" "brotli==1.2.1"
@@ -69,22 +88,49 @@ jobs:
             name="$(basename "$file" .ttf)"
             "$RUNNER_TEMP/venv/bin/python" -m fontTools.ttLib.woff2 compress -o "$RUNNER_TEMP/woff2/$name.woff2" "$file"
           done
+          echo "WOFF2=--woff2=$RUNNER_TEMP/woff2" >> "$GITHUB_ENV"
       - name: Install Chromium
         run: pnpm --filter @typeset/widths exec playwright install --with-deps chromium
       - name: Measure the widths
         run: >-
-          node packages/widths/src/main.ts --fonts "$RUNNER_TEMP/fonts" --woff2 "$RUNNER_TEMP/woff2"
+          node packages/widths/src/main.ts --fonts "$RUNNER_TEMP/fonts" ${WOFF2:-}
+          --arm "$ARM" --scale "$SCALE" --reference "$REFERENCE"
           --per-cell "$PER_CELL" --out "$GITHUB_WORKSPACE/font-widths.json" --label "$PREDICTION"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: font-widths
+          name: font-widths-${{ matrix.arm }}
           path: font-widths.json
+          if-no-files-found: error
+
+  # The outcomes of the prediction, from the files of all the arms. An arm that failed makes its outcomes fail, not this job.
+  report:
+    needs: [changes, widths]
+    if: always() && needs.changes.outputs.match == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: font-widths-*
+          path: arms
+      - name: Score the outcomes
+        run: node packages/widths/src/score.ts arms --out outcomes.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: font-outcomes
+          path: outcomes.json
           if-no-files-found: error
 
   fonts-ok:
     name: Fonts OK
     if: always()
-    needs: [changes, widths]
+    needs: [changes, widths, report]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
