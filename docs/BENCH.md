@@ -48,4 +48,11 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 - Thus the noise floor of a ratio is 0.0058 + 0.0103 = 0.0161. Rounded toward the safe side, it is 0.017.
 - A budget for a ratio (for example "at most 5 % slower") can decide only when it is larger than 0.017. Else the verdict is "cannot decide".
 - The runners have different CPU models. The median of `corpus.generate` went from 2103 to 3544 us. Thus compare only ratios of one job, not times of different jobs.
-- The spread of the process medians (maximum minus minimum) follows the worst process. Two jobs had a spread over 10 %, but their A/A ratios stayed near 1.
+- The spread of the process medians (maximum minus minimum) follows the worst process, and it grows with the count of processes. Two jobs had a spread over 10 %, but their A/A ratios stayed near 1.
+- A spread claim uses the field `processP90P10`: the 90th percentile of the process medians divided by the 10th percentile. In the 5 jobs, it was 1.0365, 1.0293, 1.0348, 1.0093 and 1.0177 for `corpus.generate`, and at most 1.0513 for `corpus.edits`.
+
+## The rule for a claim of speed
+
+- Each claim of an item that says "faster" or "slower" compares two arms in one job.
+- A change of the ratio under 0.017 is "not a result". It is not a hit and not a miss.
+- Do not compare the times of two jobs. The runners have different CPU models.

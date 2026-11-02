@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { cpus, totalmem } from "node:os";
 import { fileURLToPath } from "node:url";
 import type { ChildOptions, ChildResult } from "./child.ts";
-import { median, medianWithInterval, relativeSpread, type RatioEstimate } from "./stats.ts";
+import { median, medianWithInterval, quantile, relativeSpread, type RatioEstimate } from "./stats.ts";
 
 /** An arm of the bench: a name and the case that it starts. Two arms with the same case make an A/A pair. */
 export interface Arm {
@@ -39,8 +39,10 @@ export interface ArmSummary {
   readonly processes: number;
   /** The median of the process medians, in nanoseconds. */
   readonly medianNs: number;
-  /** (maximum - minimum) / median of the process medians. */
+  /** (maximum - minimum) / median of the process medians. The worst process decides it, so it grows with the count of processes. */
   readonly processSpread: number;
+  /** The 90th percentile / the 10th percentile of the process medians. A spread claim uses this value. */
+  readonly processP90P10: number;
 }
 
 /** The machine and the run that made a record. A claim needs it to compare two records. */
@@ -148,7 +150,7 @@ export function runBench(config: BenchConfig): BenchRecord {
   const arms: Record<string, ArmSummary> = {};
   for (const arm of config.arms) {
     const medians = processes.filter((p) => p.arm === arm.arm).map((p) => p.medianNs);
-    arms[arm.arm] = { processes: medians.length, medianNs: median(medians), processSpread: relativeSpread(medians) };
+    arms[arm.arm] = { processes: medians.length, medianNs: median(medians), processSpread: relativeSpread(medians), processP90P10: quantile(medians, 0.9) / quantile(medians, 0.1) };
   }
   let aa: BenchRecord["aa"];
   if (config.aa !== undefined) {

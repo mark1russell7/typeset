@@ -52,9 +52,9 @@ if (summary !== undefined && summary !== "") {
     "",
     `CPU: ${record.environment.cpu}, Node ${record.environment.node}`,
     "",
-    "| Arm | Median (us) | Process spread | Processes |",
-    "|---|---|---|---|",
-    ...Object.entries(record.arms).map(([arm, s]) => `| ${arm} | ${(s.medianNs / 1e3).toFixed(1)} | ${(s.processSpread * 100).toFixed(1)} % | ${s.processes} |`),
+    "| Arm | Median (us) | Process spread | p90 / p10 | Processes |",
+    "|---|---|---|---|---|",
+    ...Object.entries(record.arms).map(([arm, s]) => `| ${arm} | ${(s.medianNs / 1e3).toFixed(1)} | ${(s.processSpread * 100).toFixed(1)} % | ${s.processP90P10.toFixed(4)} | ${s.processes} |`),
   ];
   if (record.aa !== undefined) lines.push("", `A/A: ${record.aa.ratio.toFixed(4)}, 90 % interval [${record.aa.interval.map((x) => x.toFixed(4)).join(", ")}]`);
   appendFileSync(summary, `${lines.join("\n")}\n`);
