@@ -29,3 +29,27 @@ The workflow `fonts.yml` starts the comparison in CI, not on a local machine.
 - The error is the table width minus the canvas width, in px. A record with a code point that the font has no glyph for is not in the numbers, because the canvas then uses a fallback font.
 - The bounds of the prediction `typeset-t1-font-tables` are in `packages/widths/src/compare.ts`.
 - The field `woff2Mismatches` counts the widths of the WOFF2 files that are not equal to the widths of the TrueType files.
+
+## The result of T1
+
+The scored run is [41488797104](https://github.com/mark1russell7/typeset/actions/runs/41488797104), on `main`. It gives 20160 widths of 1920 samples in headless Chromium 156 on Linux, at a device scale of 1.
+
+| Script | Worst error of the line class, in px | Bound |
+|---|---|---|
+| latin | 31.6 | 0.5 |
+| greek | 32.0 | 0.5 |
+| cyrillic | 30.4 | 0.5 |
+| hebrew | 107.1 | 0.5 |
+| latin-extended | 31.6 | 1.0 |
+| han | 21.9 | 0.1 |
+| kana | 31.9 | 0.1 |
+| hangul | 29.9 | 0.1 |
+| arabic | 604.3 | more than 2 |
+| devanagari | 26.4 | more than 2 |
+| thai | 11.0 | no bound |
+
+- The WOFF2 widths are equal to the TrueType widths. The count of mismatches is 0.
+- The bounds for Latin, Greek, Cyrillic, Hebrew, the marks and CJK do not hold. The prediction gives 4 hits of 7 outcomes.
+- Each canvas width of this run is a whole number of px. Chromium on Linux rounds each advance and each kerning value to a whole px when the device scale is 1. A model of this rounding gives the same width for 710 of 720 Greek lines and 636 of 720 Latin lines.
+- Noto Sans Hebrew, JP and KR are variable fonts. Their default instance is the weight 100. Chromium uses the weight 400, but the reader uses the default instance.
+- T1b adds the instances of variable fonts and a rounding mode. It also compares the widths on Linux at the device scale 2, on macOS and on Windows.
