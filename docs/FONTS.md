@@ -345,7 +345,8 @@ The file `harfbuzz-bounds.json` (schema `typeset-harfbuzz-bounds/1`) has these f
 - `worst` is the error with the largest absolute value, with its sign. `p99` is the 0.99 quantile of the absolute errors.
 - Each statistic has a 95 % percentile bootstrap interval of `rigor-statistics`, with 2000 runs. A seed of `rigor-generators` comes from the name of the cell.
 - `glyphMatch`: for the tier `model`, the share of the canvas words that have the glyphs of HarfBuzz, for each script and each font. Each share has its Wilson interval.
-- `checks`: the results of the reference check and of the scaling check.
+- `checks`: the results of the reference check, of the scaling check and of `engineRowsEqual`.
+- `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f decides the rule.
 - `knownOpen`: the scripts with an open error. Latin Extended is open (T1e). No test gates on it.
 
 ### The reference check
@@ -361,4 +362,8 @@ The workflow `fonts.yml` runs the test on the arm `linux-1` only, after the test
 
 ### The result
 
+The committed record is `packages/widths/data/harfbuzz-bounds.json`, with one line for each cell. The check `engineRowsEqual` tells if the 3 engine rows give the same statistics. The command `pnpm --filter @typeset/widths bounds-table` writes this table from the record. Each value is the worst error over the fonts, the weights, the sizes and the engine rows, with its 95 % interval, in 1/64 px.
+
+<!-- bounds-table:start -->
 The record of the first CI run follows in this pull request.
+<!-- bounds-table:end -->

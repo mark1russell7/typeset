@@ -6,7 +6,7 @@ import { engines, measureWidth, readFont, type EngineName, type Font } from "@ma
 import { glyphAdvances, readTables } from "@mark1russell7/typeset/fonts/inspect";
 import { fingerprint, fonts as corpusFonts, fontsFor, generateCorpus, scriptIds, type Sample, type ScriptId } from "@typeset/corpus";
 import { afterAll, describe, expect, it } from "vitest";
-import { boundSizes, bootstrapRuns, boundStatistics, hmtxAdvances, knownOpen, tierNames, tiers, worstSigned, type BoundStatistics, type TierName } from "./bounds.ts";
+import { boundSizes, boundsTable, tableMarks, withTable, type RecordCell, bootstrapRuns, boundStatistics, hmtxAdvances, knownOpen, tierNames, tiers, worstSigned, type BoundStatistics, type TierName } from "./bounds.ts";
 import { missingGlyphs } from "./compare.ts";
 import { harfbuzzScript, harfbuzzVersion, openReferenceFont, referenceUnits } from "./harfbuzz.ts";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
@@ -227,6 +227,15 @@ describe.skipIf(folder === undefined)("the error of the fast path against HarfBu
       const interval = wilson(matched, words);
       scripts[script] = { words, matched, rate: words === 0 ? 0 : matched / words, low: interval.low, high: interval.high };
     }
+    // A dimension stays in the record. This check shows when the engine rows carry no information, and a later change shows.
+    const byCase = new Map<string, string[]>();
+    for (const cell of cells) {
+      const key = [cell.script, cell.font, cell.weight, cell.size, cell.tier].join("|");
+      const statistics = JSON.stringify({ ...cell, engine: undefined });
+      byCase.set(key, [...(byCase.get(key) ?? []), statistics]);
+    }
+    const unequal = [...byCase.entries()].filter(([, rows]) => new Set(rows).size > 1).map(([key]) => key);
+    checks["engineRowsEqual"] = { equal: unequal.length === 0, cases: byCase.size, unequal: unequal.length, examples: unequal.slice(0, 5) };
     const widths = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { devDependencies: Record<string, string> };
     const record = {
       schema: "typeset-harfbuzz-bounds/1",
@@ -250,6 +259,35 @@ describe.skipIf(folder === undefined)("the error of the fast path against HarfBu
     };
     // Each fraction keeps 4 decimals: 1/10 000 of 1/64 px is far below each error of the record
     const rounded = (_: string, value: unknown) => (typeof value === "number" && !Number.isInteger(value) ? Math.round(value * 1e4) / 1e4 : value);
-    writeFileSync(out, JSON.stringify(record, rounded) + "\n");
+    // Each cell gets its own line, so a diff of the committed record shows each cell that changes
+    const cellLines = cells.map((cell) => JSON.stringify(cell, rounded)).join(",\n");
+    writeFileSync(out, JSON.stringify({ ...record, cells: "CELLS" }, rounded).replace('"cells":"CELLS"', () => `"cells":[\n${cellLines}\n]`) + "\n");
+  });
+});
+
+describe("the table of the record", () => {
+  const cell = (script: string, tier: RecordCell["tier"], size: number, engine: string, estimate: number): RecordCell => ({
+    script,
+    font: "f",
+    weight: 400,
+    size,
+    tier,
+    engine,
+    n: 40,
+    worst: { estimate, low: estimate - 1, high: estimate + 1 },
+    p99: { estimate: Math.abs(estimate), low: 0, high: Math.abs(estimate) + 1 },
+  });
+
+  it("gives the worst error of each script and tier, with its interval, its size and its engine row", () => {
+    const table = boundsTable([cell("latin", "advances", 16, "freetype", 3), cell("latin", "advances", 96, "coretext", -40.04), cell("latin", "model", 8, "freetype", 0)]);
+    expect(table.split("\n")[0]).toBe("| Script | `advances` | `kerned` | `model` |");
+    expect(table).toContain("| latin | -40.0 [-41.0, -39.0] at 96 px, coretext | no data | 0.0 [-1.0, 1.0] at 8 px, freetype |");
+    expect(boundsTable([cell("latin-extended", "model", 8, "freetype", 1)])).toContain("| latin-extended (open: T1e) |");
+  });
+
+  it("puts the table between the marks, and refuses a document with no marks", () => {
+    const document = `a\n${tableMarks.start}\nold\n${tableMarks.end}\nb\n`;
+    expect(withTable(document, "new")).toBe(`a\n${tableMarks.start}\nnew\n${tableMarks.end}\nb\n`);
+    expect(() => withTable("a", "new")).toThrow();
   });
 });

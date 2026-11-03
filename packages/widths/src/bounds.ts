@@ -86,3 +86,49 @@ export function hmtxAdvances(tables: ReturnType<typeof readTables>): (glyph: num
   const longMetrics = hhea.u16(34);
   return (glyph) => hmtx.u16(4 * Math.min(glyph, longMetrics - 1));
 }
+
+/** One cell of the record, as `harfbuzz-bounds.json` writes it. */
+export interface RecordCell extends BoundStatistics {
+  readonly script: string;
+  readonly font: string;
+  readonly weight: number;
+  readonly size: number;
+  readonly tier: TierName;
+  readonly engine: string;
+}
+
+/** The marks in `docs/FONTS.md` between which `scripts/bounds-table.ts` writes the table. */
+export const tableMarks = { start: "<!-- bounds-table:start -->", end: "<!-- bounds-table:end -->" } as const;
+
+const format = (value: number): string => (Math.round(value * 10) / 10).toFixed(1);
+
+/**
+ * This function gives a Markdown table of the record. Each row is a script, and each column is a tier. Each value is the
+ * worst error over the fonts, the weights, the sizes and the engine rows, with its 95 % interval, in 1/64 px.
+ */
+export function boundsTable(cells: readonly RecordCell[]): string {
+  const scripts = [...new Set(cells.map((cell) => cell.script))].sort();
+  const rows = scripts.map((script) => {
+    const values = tierNames.map((tier) => {
+      let worst: RecordCell | undefined;
+      for (const cell of cells) {
+        if (cell.script !== script || cell.tier !== tier || cell.worst === null) continue;
+        if (worst?.worst === undefined || worst.worst === null || Math.abs(cell.worst.estimate) > Math.abs(worst.worst.estimate)) worst = cell;
+      }
+      if (worst?.worst === undefined || worst.worst === null) return "no data";
+      const { estimate, low, high } = worst.worst;
+      return `${format(estimate)} [${format(low)}, ${format(high)}] at ${worst.size} px, ${worst.engine}`;
+    });
+    const open = knownOpen[script] === undefined ? "" : ` (open: ${knownOpen[script]})`;
+    return `| ${script}${open} | ${values.join(" | ")} |`;
+  });
+  return [`| Script | ${tierNames.map((tier) => `\`${tier}\``).join(" | ")} |`, `|---|${tierNames.map(() => "---").join("|")}|`, ...rows].join("\n");
+}
+
+/** This function puts the table between the marks of a document. It throws an error when the document has no marks. */
+export function withTable(document: string, table: string): string {
+  const start = document.indexOf(tableMarks.start);
+  const end = document.indexOf(tableMarks.end);
+  if (start < 0 || end < start) throw new Error(`the document has no marks ${tableMarks.start} and ${tableMarks.end}`);
+  return `${document.slice(0, start + tableMarks.start.length)}\n${table}\n${document.slice(end)}`;
+}
