@@ -26,12 +26,12 @@ export interface ReferenceFont {
   readonly unitsPerEm: number;
   /** The axes of the font, as the tags of `fvar`. */
   readonly axes: readonly string[];
-  /** This function shapes the text as one HarfBuzz buffer at the scale of the units per em. */
-  shape(text: string, script: string): Shaped;
+  /** This function shapes the text as one HarfBuzz buffer at the scale `scale`. The default scale is the units per em. */
+  shape(text: string, script: string, scale?: number): Shaped;
   /** This function shapes each word of `canvasWords` alone, as Blink does for a canvas, and gives the words in order. */
-  shapeWords(text: string, script: string): { readonly word: string; readonly shaped: Shaped }[];
+  shapeWords(text: string, script: string, scale?: number): { readonly word: string; readonly shaped: Shaped }[];
   /** This function shapes each segment of `canvasSegments` alone, as Blink shapes each bidi run of a canvas. */
-  shapeSegments(text: string, script: string): Shaped[];
+  shapeSegments(text: string, script: string, scale?: number): Shaped[];
   /** This function gives the advance of a glyph from `hb_font_get_glyph_h_advance` at the scale `scale`, with no shaping. */
   glyphAdvance(glyph: number, scale: number): number;
 }
@@ -59,8 +59,8 @@ export function openReferenceFont(bytes: Uint8Array, instance: Readonly<Record<s
     .map(([tag, value]) => new Variation(tag, value));
   if (variations.length > 0) font.setVariations(variations);
   const buffer = new Buffer();
-  const shapeText = (text: string, script: string): Shaped => {
-    font.setScale(upem, upem);
+  const shapeText = (text: string, script: string, scale: number = upem): Shaped => {
+    font.setScale(scale, scale);
     buffer.reset();
     buffer.addText(text);
     buffer.setScript(harfbuzzScript(script));
@@ -80,8 +80,8 @@ export function openReferenceFont(bytes: Uint8Array, instance: Readonly<Record<s
     unitsPerEm: upem,
     axes,
     shape: shapeText,
-    shapeWords: (text, script) => canvasWords(text).map((word) => ({ word, shaped: shapeText(word, script) })),
-    shapeSegments: (text, script) => canvasSegments(text).map((segment) => shapeText(segment, script)),
+    shapeWords: (text, script, scale) => canvasWords(text).map((word) => ({ word, shaped: shapeText(word, script, scale) })),
+    shapeSegments: (text, script, scale) => canvasSegments(text).map((segment) => shapeText(segment, script, scale)),
     glyphAdvance(glyph, scale) {
       font.setScale(scale, scale);
       const advance = font.glyphHAdvance(glyph);

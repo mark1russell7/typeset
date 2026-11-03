@@ -145,10 +145,10 @@ export function withTable(document: string, table: string): string {
   return `${document.slice(0, start + tableMarks.start.length)}\n${table}\n${document.slice(end)}`;
 }
 
-/** The glyphs of one word: the advance of each glyph after the shaping, and its advance before the kerning, in font units. */
+/** The glyphs of one word or segment: the advance of each glyph before the kerning, and its kerning, in px. */
 export interface RuledWord {
-  readonly advances: readonly number[];
   readonly bases: readonly number[];
+  readonly kernings: readonly number[];
 }
 
 /** The fields of an engine row that change a width: the rounding of each advance and the sum. */
@@ -157,44 +157,35 @@ export interface WidthRule {
   readonly sum: "exact" | "float32";
 }
 
+/** This function rounds a value to the nearest whole number, and a half goes away from 0, as `roundf` does. */
+const roundHalfAway = (value: number): number => Math.sign(value) * Math.round(Math.abs(value));
+
 /**
  * This function gives the width in px of the words `words` under the rule `rule`, as `measureWidth` applies the rule.
- * The test applies it to the advances of HarfBuzz, so the model and HarfBuzz get the same rounding. Each word is a word of
- * `canvasWords`. The sum `float32` of `measureWidth` adds the segments of `canvasSegments`. A word with two bidi levels
- * has two segments, and then the sum has one step less in single precision.
+ * The test applies it to the HarfBuzz reference of each size, so the model and HarfBuzz get the same rule. Under the sum
+ * `float32`, each item of `words` is a segment of `canvasSegments`, as `measureWidth` adds them.
  */
-export function ruledWidth(words: readonly RuledWord[], size: number, unitsPerEm: number, rule: WidthRule): number {
+export function ruledWidth(words: readonly RuledWord[], rule: WidthRule): number {
+  let px = 0;
   if (rule.rounding === "pixel") {
-    const scale = size / unitsPerEm;
-    let px = 0;
-    for (const { advances, bases } of words) {
-      advances.forEach((advance, i) => {
-        const base = bases[i]!;
-        px += Math.round(Math.round(base * scale * 64) / 64) + Math.round((advance - base) * scale);
-      });
-    }
+    // FreeType gives the advance in 26.6 fixed point, Skia rounds it to whole px, and the kerning is rounded alone
+    for (const { bases, kernings } of words) bases.forEach((base, i) => (px += Math.round(Math.round(base * 64) / 64) + Math.round(kernings[i]!)));
     return px;
   }
   if (rule.sum === "float32") {
-    const xScale = Math.trunc(Math.fround(size) * 65536);
-    const multiplier = Math.floor((xScale * 65536) / unitsPerEm);
-    const pxPerUnit = size / unitsPerEm;
-    let total = 0;
-    for (const { advances, bases } of words) {
+    // Skia gives each advance in single precision, Blink cuts it to 1/65536 px, and HarfBuzz adds the kerning in 1/65536 px
+    for (const { bases, kernings } of words) {
       let units = 0;
-      advances.forEach((advance, i) => {
-        const base = bases[i]!;
-        // The kerning has a whole part, which HarfBuzz scales with em_mult, and the fraction of a variation delta, which it scales exactly
-        const kerning = advance - base;
-        const whole = Math.round(kerning);
-        const fraction = Math.fround(Math.fround(Math.fround(kerning - whole) * xScale) / unitsPerEm);
-        units += Math.trunc(Math.fround(base * pxPerUnit) * 65536) + Math.floor((whole * multiplier + 32768) / 65536) + Math.sign(fraction) * Math.round(Math.abs(fraction));
-      });
-      total = Math.fround(total + Math.fround(units / 65536));
+      bases.forEach((base, i) => (units += Math.trunc(Math.fround(base) * 65536) + roundHalfAway(kernings[i]! * 65536)));
+      px = Math.fround(px + Math.fround(units / 65536));
     }
-    return total;
+    return px;
   }
-  let units = 0;
-  for (const { advances } of words) for (const advance of advances) units += advance;
-  return (units * size) / unitsPerEm;
+  for (const { bases, kernings } of words) bases.forEach((base, i) => (px += base + kernings[i]!));
+  return px;
+}
+
+/** This function gives the scale of HarfBuzz in Blink at the size `size` in px: the size in single precision times 65536, cut. */
+export function blinkScale(size: number): number {
+  return Math.trunc(Math.fround(size) * 65536);
 }

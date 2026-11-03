@@ -6,9 +6,9 @@ import { engines, measureWidth, readFont, type EngineName, type Font } from "@ma
 import { canvasSegments, canvasWords, glyphAdvances, readTables } from "@mark1russell7/typeset/fonts/inspect";
 import { fingerprint, fonts as corpusFonts, fontsFor, generateCorpus, scriptIds, type Sample, type ScriptId } from "@typeset/corpus";
 import { afterAll, describe, expect, it } from "vitest";
-import { boundSizes, boundsTable, tableMarks, withTable, type RecordCell, ruledWidth, type RuledWord, type WidthRule, bootstrapRuns, boundStatistics, hmtxAdvances, knownOpen, tierNames, tiers, worstSigned, type BoundStatistics, type TierName } from "./bounds.ts";
+import { boundSizes, boundsTable, tableMarks, withTable, type RecordCell, blinkScale, ruledWidth, type RuledWord, type WidthRule, bootstrapRuns, boundStatistics, hmtxAdvances, knownOpen, tierNames, tiers, worstSigned, type BoundStatistics, type TierName } from "./bounds.ts";
 import { missingGlyphs } from "./compare.ts";
-import { harfbuzzScript, harfbuzzVersion, openReferenceFont } from "./harfbuzz.ts";
+import { harfbuzzScript, harfbuzzVersion, openReferenceFont, type Shaped } from "./harfbuzz.ts";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
 
 // The test needs the pinned font files in the folder `TYPESET_FONTS`. `fetch.ts` downloads them. A font with no file is skipped.
@@ -55,6 +55,10 @@ interface BoundCell extends BoundStatistics {
   readonly missing: number;
   /** The rounding effect: HarfBuzz under the rule of the row minus HarfBuzz with no rounding. */
   readonly rounding: BoundStatistics;
+  /** The reference of the cell: HarfBuzz at the scale of Blink for the size. */
+  readonly reference: "size-scale";
+  /** The largest difference of the upem reference and the size-scale reference in font units, and the count of samples over the bound. */
+  readonly referencePrecision: { readonly largest: number; readonly overBound: number };
 }
 
 /** The glyph match of the tier `model` for one script, font and weight: the canvas words with the glyphs of HarfBuzz. */
@@ -91,6 +95,15 @@ const replicaDifference: Partial<Record<EngineName, number>> = {};
 const noteReplica = (engine: EngineName, difference: number): void => {
   replicaDifference[engine] = Math.max(replicaDifference[engine] ?? 0, difference);
 };
+/** The size-scale reference of one sample: its words in px, and the check of the upem reference against it. */
+interface SizeReference {
+  readonly words: readonly RuledWord[];
+  /** The upem width minus the size-scale width, in font units. */
+  readonly difference: number;
+  /** The bound of the difference: 0.5 unit for each kerned glyph, and the rounding of the size scale for each glyph. */
+  readonly bound: number;
+}
+const exactRule: WidthRule = { rounding: "exact", sum: "exact" };
 const disagreements: { rule: string; sample: string; font: string; word: string; model: readonly number[]; harfbuzz: readonly number[] }[] = [];
 
 /** This function measures the line samples of one script with one font at one weight, and adds the cells and the glyph match. */
@@ -100,42 +113,77 @@ function measure(script: ScriptId, id: string, weight: number, samples: readonly
   const reference = openReferenceFont(bytes, cssInstance(weight));
   const models = Object.fromEntries(engineNames.map((engine) => [engine, readFont(bytes, { instance: cssInstance(weight), deltas: engines[engine].deltas, metrics: engines[engine].metrics })])) as Record<EngineName, Font>;
   const missing = samples.filter((sample) => missingGlyphs(models.freetype, sample.text) > 0).length;
-  // The shaping of HarfBuzz in font units does not depend on the size, so one shaping serves the sweep
-  const baseOf = new Map<number, number>();
-  const base = (glyph: number): number => {
-    if (!baseOf.has(glyph)) baseOf.set(glyph, reference.glyphAdvance(glyph, reference.unitsPerEm));
-    return baseOf.get(glyph)!;
-  };
-  const ruled = (shaped: { readonly glyphs: readonly number[]; readonly advances: readonly number[] }): RuledWord => ({ advances: shaped.advances, bases: shaped.glyphs.map(base) });
   // measureWidth shapes each bidi segment alone under the sum float32, as Blink does, and each canvas word under the other rules
   const bySegment = (rule: WidthRule): boolean => rule.sum === "float32" && rule.rounding !== "pixel";
-  const referenceWords: RuledWord[][] = samples.map((sample) => reference.shapeWords(sample.text, tag).map(({ shaped }) => ruled(shaped)));
-  const referenceSegments: RuledWord[][] = samples.map((sample) => reference.shapeSegments(sample.text, tag).map(ruled));
-  const exactRule: WidthRule = { rounding: "exact", sum: "exact" };
+  const upem = reference.unitsPerEm;
+  // The reference of each size: HarfBuzz at the scale of Blink, so each position is in 1/65536 px
+  const references = new Map<number, { words: SizeReference[]; segments: SizeReference[] }>();
+  for (const size of boundSizes) {
+    const scale = blinkScale(size);
+    const baseOf = new Map<number, number>();
+    const base = (glyph: number): number => {
+      if (!baseOf.has(glyph)) baseOf.set(glyph, reference.glyphAdvance(glyph, scale));
+      return baseOf.get(glyph)!;
+    };
+    const atSize = (shaped: readonly Shaped[], atUpem: readonly Shaped[]): SizeReference => {
+      const words = shaped.map(({ glyphs, advances }) => ({ bases: glyphs.map((glyph) => base(glyph) / 65536), kernings: advances.map((advance, i) => (advance - base(glyphs[i]!)) / 65536) }));
+      const glyphs = shaped.reduce((total, { glyphs }) => total + glyphs.length, 0);
+      const kerned = words.reduce((total, { kernings }) => total + kernings.filter((kerning) => kerning !== 0).length, 0);
+      const upemUnits = atUpem.reduce((total, { advances }) => total + advances.reduce((sum, advance) => sum + advance, 0), 0);
+      const sizeUnits = (ruledWidth(words, exactRule) * upem) / size;
+      // Each position of the size scale is rounded to 1/65536 px, so the bound also has that rounding for each glyph
+      return { words, difference: upemUnits - sizeUnits, bound: 0.5 * kerned + (glyphs * upem) / scale };
+    };
+    references.set(size, {
+      words: samples.map((sample) => atSize(reference.shapeWords(sample.text, tag, scale).map(({ shaped }) => shaped), reference.shapeWords(sample.text, tag).map(({ shaped }) => shaped))),
+      segments: samples.map((sample) => atSize(reference.shapeSegments(sample.text, tag, scale), reference.shapeSegments(sample.text, tag))),
+    });
+  }
   for (const tier of tierNames) {
     for (const engine of engineNames) {
       const { rounding, sum } = engines[engine];
+      const rule: WidthRule = { rounding, sum };
       const options = { ...tiers[tier], script: tag, shaping: "canvas", rounding, sum } as const;
-      // The advances of the model for each word, so the replica check applies ruledWidth to the model too
-      const modelWords: RuledWord[][] = samples.map((sample) =>
-        (bySegment({ rounding, sum }) ? canvasSegments(sample.text) : canvasWords(sample.text)).map((word) => {
+      // The advances of the model for each word, in font units, so the replica check applies ruledWidth to the model too
+      const modelWords = samples.map((sample) =>
+        (bySegment(rule) ? canvasSegments(sample.text) : canvasWords(sample.text)).map((word) => {
           const { glyphs, advances } = glyphAdvances(models[engine], word, options);
-          return { advances, bases: glyphs.map((glyph) => models[engine].advance(glyph)) };
+          return { glyphs, advances };
         }),
       );
-      const shapedReference = bySegment({ rounding, sum }) ? referenceSegments : referenceWords;
       for (const size of boundSizes) {
-        const widths = samples.map((_, i) => ruledWidth(shapedReference[i]!, size, reference.unitsPerEm, { rounding, sum }));
+        const shaped = bySegment(rule) ? references.get(size)!.segments : references.get(size)!.words;
+        const pxPerUnit = size / models[engine].unitsPerEm;
+        const widths = shaped.map(({ words }) => ruledWidth(words, rule));
         const errors = samples.map((sample, i) => {
           const model = measureWidth(models[engine], sample.text, size, options);
-          const replica = ruledWidth(modelWords[i]!, size, models[engine].unitsPerEm, { rounding, sum });
-          noteReplica(engine, Math.abs(replica - model) * 64);
+          const own = modelWords[i]!.map(({ glyphs, advances }) => ({
+            bases: glyphs.map((glyph) => models[engine].advance(glyph) * pxPerUnit),
+            kernings: glyphs.map((glyph, j) => (advances[j]! - models[engine].advance(glyph)) * pxPerUnit),
+          }));
+          noteReplica(engine, Math.abs(ruledWidth(own, rule) - model) * 64);
           return (model - widths[i]!) * 64;
         });
-        const effects = samples.map((_, i) => (widths[i]! - ruledWidth(shapedReference[i]!, size, reference.unitsPerEm, exactRule)) * 64);
+        const effects = shaped.map(({ words }, i) => (widths[i]! - ruledWidth(words, exactRule)) * 64);
         const label = `${script}/${id}/${weight}/${size}/${tier}/${engine}`;
         const statistics = boundStatistics(errors, label);
-        cells.push({ script, font: id, weight, size, tier, engine, missing, ...statistics, rounding: boundStatistics(effects, `${script}/${id}/${weight}/${size}/${engine}/rounding`) });
+        const precision = {
+          largest: Math.max(...shaped.map(({ difference }) => Math.abs(difference))),
+          overBound: shaped.filter(({ difference, bound }) => Math.abs(difference) > bound).length,
+        };
+        cells.push({
+          script,
+          font: id,
+          weight,
+          size,
+          tier,
+          engine,
+          reference: "size-scale",
+          missing,
+          ...statistics,
+          rounding: boundStatistics(effects, `${script}/${id}/${weight}/${size}/${engine}/rounding`),
+          referencePrecision: precision,
+        });
       }
     }
   }
@@ -338,21 +386,27 @@ describe("the table of the record", () => {
 });
 
 describe("ruledWidth", () => {
-  const words = [{ advances: [600, 550], bases: [600, 580] }, { advances: [250], bases: [250] }];
+  // At 16 px and 1000 units per em: the advances 600, 580 and 250 units, and the kerning -30 units on the second glyph
+  const words = [{ bases: [9.6, 9.28], kernings: [0, -0.48] }, { bases: [4], kernings: [0] }];
 
-  it("adds the advances with no rounding under the exact rule", () => {
-    expect(ruledWidth(words, 16, 1000, { rounding: "exact", sum: "exact" })).toBeCloseTo((1400 * 16) / 1000, 12);
+  it("adds the advances and the kerning with no rounding under the exact rule", () => {
+    expect(ruledWidth(words, { rounding: "exact", sum: "exact" })).toBeCloseTo(22.4, 12);
   });
 
   it("rounds the advance and the kerning of each glyph to whole px under the rule pixel", () => {
     // 9.6 px to 10, 9.28 px to 9 with the kerning -0.48 px to 0, and 4 px
-    expect(ruledWidth(words, 16, 1000, { rounding: "pixel", sum: "exact" })).toBe(23);
-    expect(ruledWidth(words, 16, 1000, { rounding: "pixel", sum: "float32" })).toBe(23);
+    expect(ruledWidth(words, { rounding: "pixel", sum: "exact" })).toBe(23);
+    expect(ruledWidth(words, { rounding: "pixel", sum: "float32" })).toBe(23);
   });
 
   it("adds each word in 1/65536 px and the words in single precision under the sum float32", () => {
-    const width = ruledWidth(words, 15.333, 1000, { rounding: "exact", sum: "float32" });
+    const width = ruledWidth(words, { rounding: "exact", sum: "float32" });
     expect(Math.fround(width)).toBe(width);
-    expect(Math.abs(width - (1400 * 15.333) / 1000)).toBeLessThan(0.001);
+    expect(Math.abs(width - 22.4)).toBeLessThan(0.0001);
+  });
+
+  it("gives the scale of HarfBuzz in Blink", () => {
+    expect(blinkScale(16)).toBe(16 * 65536);
+    expect(blinkScale(15.333)).toBe(Math.trunc(Math.fround(15.333) * 65536));
   });
 });
