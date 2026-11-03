@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@typeset/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "description": "The GitHub Pages site of typeset: the font tables measure text in your browser, against canvas measureText, with the error per script, font and platform.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "snapshot": "node scripts/snapshot.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@typeset/corpus": "workspace:*",
+    "@typeset/fonts": "workspace:*",
+    "@typeset/widths": "workspace:*"
+  },
+  "devDependencies": {
+    "@mark1russell7/cue": "^1.0.2",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.3"
+  }
+}
