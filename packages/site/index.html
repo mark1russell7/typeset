@@ -142,7 +142,8 @@
           <li><strong>The model</strong> reads <code>hmtx</code>, <code>HVAR</code>, <code>GSUB</code> and <code>GPOS</code> of the font file. It adds the advances and the kerning of each canvas word.</li>
           <li><strong>The reference</strong> is <code>measureText</code> of a canvas, with the same file loaded as a <code>FontFace</code>.</li>
           <li><strong>An engine model</strong> is a row of rules for one text engine: the rounding of the variable-font deltas, the metrics of composite glyphs and the rounding of each advance.</li>
-          <li><strong>A shaped script</strong> (Arabic, Devanagari, Thai) needs joining forms or clusters. The model does not do this yet, so these errors are large.</li>
+          <li><strong>Arabic</strong> needs joining forms. The model applies them by the joining type of each letter, as HarfBuzz does.</li>
+          <li><strong>Devanagari</strong> needs the Indic shaper, with its clusters and reordering. The model does not do this yet, so its errors are large.</li>
           <li>The fonts come from <code>google/fonts</code> at a pinned commit. Read <a href="https://github.com/mark1russell7/typeset/blob/main/docs/FONTS.md">docs/FONTS.md</a> for the measurements.</li>
         </ul>
       </section>
