@@ -83,7 +83,10 @@ The comparison has four arms. Each arm is one job of the workflow.
 - `exactDeltaErrors` gives the worst line error of each script for the model with the `HVAR` deltas not rounded.
 - `advanceModels` measures single characters and the space at 1000 px, for each font at the weights 400 and 700. It compares them with four models of the advances.
 - The models are `HVAR` and `gvar`, each rounded and exact, and `componentRound`: rounded `HVAR` with `metrics: "component"`. The field `gvarAgainstHvar` gives the largest difference of the two exact models, in font units.
-- The options `--deltas`, `--advances` and `--metrics` of `main.ts` select the model of an arm. `fonts.yml` gives them for each arm.
+- The option `--engine` of `main.ts` selects the text engine of an arm: `freetype`, `coretext` or `directwrite`. `fonts.yml` gives it for each arm.
+- The table `engines` of `@typeset/fonts` gives the rules of each engine: the rounding of the deltas, the metrics of a composite glyph and the rounding of each advance.
+- A caller spreads one row of `engines` into the options of `readFont` and of `measureWidth`. A new engine is a new row.
+- `engineSummary` and `engineExtraSummary` give the line errors of the model of the engine of the arm. `summary` stays the model with no rounding.
 - `woff2GvarMismatches` compares the advances of the WOFF2 and TrueType files with `gvar` and the component metrics.
 - `breakdown` gives the line errors of each font, weight and script, with the three worst samples and their texts.
 

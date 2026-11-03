@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 /**
  * The command `node src/main.ts --fonts <folder> [--woff2 <folder>] [--arm <name>] [--scale 1] [--reference exact]
- * [--per-cell 40] [--deltas round] [--advances auto] [--out font-widths.json] [--label <text>]`. It measures each text of the corpus with canvas `measureText`
+ * [--per-cell 40] [--engine freetype] [--advances auto] [--out font-widths.json] [--label <text>]`. It measures each text of the corpus with canvas `measureText`
  * in headless Chromium and with the font tables, and writes the records and their summary. It starts Chromium, so only CI
  * starts this command.
  */
@@ -11,10 +11,10 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { brotliDecompressSync } from "node:zlib";
 import { fingerprint, fontSizes, generateCorpus, type FontId } from "@typeset/corpus";
-import { measureWidth, readFont, readTables, type Font } from "@typeset/fonts";
+import { engines, isEngineName, measureWidth, readFont, readTables, type Font } from "@typeset/fonts";
 import { chromium, type Page } from "playwright";
 import { advanceModelRow, diagnosticWeights, type AdvanceModelName, type AdvanceModelRow } from "./advances.ts";
-import { checkBounds, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
+import { checkBounds, engineRecords, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
 import { breakdownOf, exactDeltaErrors, featureSettings, substitutionTrace, summarizeFeatures, type FeatureGroup, type FeatureRecord, type FeatureSetting, type SubstitutionStep } from "./features.ts";
 import { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags } from "./sources.ts";
 
@@ -129,10 +129,9 @@ async function main(): Promise<void> {
       "per-cell": { type: "string", default: "40" },
       out: { type: "string", default: "font-widths.json" },
       label: { type: "string", default: "" },
-      // The model of the advances of the arm: the rounding of the deltas and the table that gives them
-      deltas: { type: "string", default: "round" },
+      // The text engine of the arm gives its rules, and the option advances gives the table of the advances
+      engine: { type: "string", default: "freetype" },
       advances: { type: "string", default: "auto" },
-      metrics: { type: "string", default: "own" },
     },
   });
   if (values.fonts === undefined) throw new Error("give --fonts <folder>");
@@ -141,9 +140,10 @@ async function main(): Promise<void> {
   const samples = generateCorpus({ seed: 1, perCell: Number(values["per-cell"]) });
   const latin = samples.filter((sample) => sample.script === "latin");
   const ids = fontSources.map((source) => source.id);
-  const deltasMode = values.deltas === "exact" ? "exact" : "round";
+  if (!isEngineName(values.engine)) throw new Error(`give --engine ${Object.keys(engines).join(", ")}`);
+  const engine = values.engine;
+  const { deltas: deltasMode, metrics: metricsMode, rounding: engineRounding } = engines[engine];
   const advancesMode = values.advances === "gvar" ? "gvar" : "auto";
-  const metricsMode = values.metrics === "component" ? "component" : "own";
   const read = (id: string, deltas: "round" | "exact" = deltasMode) => readFont(readFileSync(join(values.fonts!, fileName(id))), { instance: cssInstance(), deltas, advances: advancesMode, metrics: metricsMode });
   const fonts = new Map<FontId, Font>(ids.map((id) => [id, read(id)]));
   const exactFonts = new Map<string, Font>([...ids, extraSource.id].map((id) => [id, read(id, "exact")]));
@@ -269,6 +269,9 @@ async function main(): Promise<void> {
   const summary = summarize(corpusRecords);
   const outcomes = checkBounds(summary);
   const extraSummary = Object.fromEntries(extraWeights.map((weight) => [weight, summarize(records.filter((r) => r.font === extraSource.id && r.weight === weight))["latin"] ?? {}]));
+  // The errors of the model of the engine of this arm, with the rounding of its row
+  const engineSummary = summarize(engineRecords(corpusRecords, engineRounding));
+  const engineExtraSummary = Object.fromEntries(extraWeights.map((weight) => [weight, summarize(engineRecords(records.filter((r) => r.font === extraSource.id && r.weight === weight), engineRounding))["latin"] ?? {}]));
   const features = { settings: featureSettings, summary: summarizeFeatures(featureRecords), records: featureRecords };
   const deltaErrors = exactDeltaErrors(records.filter((record) => record.font !== extraSource.id));
   const breakdown = breakdownOf(records, new Map(samples.map((sample) => [sample.id, sample.text])));
@@ -281,7 +284,7 @@ async function main(): Promise<void> {
     scale,
     devicePixelRatio,
     reference,
-    models: { deltas: deltasMode, advances: advancesMode, metrics: metricsMode },
+    models: { engine, deltas: deltasMode, advances: advancesMode, metrics: metricsMode, rounding: engineRounding },
     platform: `${process.platform} ${release()} ${process.arch}`,
     chromium: version,
     fontKerning,
@@ -304,6 +307,8 @@ async function main(): Promise<void> {
     outcomes,
     summary,
     extraSummary,
+    engineSummary,
+    engineExtraSummary,
     records,
   };
   writeFileSync(values.out, JSON.stringify(output) + "\n");
@@ -327,6 +332,8 @@ async function main(): Promise<void> {
       return `| ${extraSource.id} ${weight} | ${l?.n ?? 0} | ${format(l?.worstPx ?? Number.NaN)} | ${format(l?.meanPx ?? Number.NaN)} | ${format(l?.p90Px ?? Number.NaN)} | ${l?.pixelExact ?? 0} | ${format(l?.pixelWorstPx ?? Number.NaN)} | ${format(extraSummary[weight]?.word?.worstPx ?? Number.NaN)} | ${l?.excluded ?? 0} |`;
     }),
     ``,
+    `The model of the engine ${engine}, worst line error in px: ${[...Object.entries(engineSummary).map(([script, cells]) => `${script} ${format(cells.line?.worstPx ?? Number.NaN)}`), ...extraWeights.map((weight) => `${extraSource.id} ${weight} ${format(engineExtraSummary[weight]?.line?.worstPx ?? Number.NaN)}`)].join(", ")}.`,
+    ``,
     `| font | weight | model instance | probe found | tied | error at the weight px | matches |`,
     `|---|---|---|---|---|---|---|`,
     ...instances.map((p) => `| ${p.font} | ${p.requested} | ${JSON.stringify(p.model)} | ${p.found} | ${p.tied} | ${format(p.errorAtRequested)} | ${p.matches} |`),
@@ -337,7 +344,7 @@ async function main(): Promise<void> {
     ``,
     `Worst line error with the HVAR deltas not rounded: ${Object.entries(deltaErrors).map(([script, value]) => `${script} ${format(value)}`).join(", ")}.`,
     ``,
-    `The advances of single characters at ${advanceSize} px against each model, worst and mean error in font units. The model of this arm: deltas ${deltasMode}, advances ${advancesMode}, metrics ${metricsMode}.`,
+    `The advances of single characters at ${advanceSize} px against each model, worst and mean error in font units. The model of this arm: engine ${engine} (deltas ${deltasMode}, metrics ${metricsMode}, rounding ${engineRounding}), advances ${advancesMode}.`,
     ``,
     `| font | weight | gvar against HVAR | HVAR round | HVAR exact | gvar round | gvar exact | component metrics | best |`,
     `|---|---|---|---|---|---|---|---|---|`,
