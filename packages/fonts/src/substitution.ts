@@ -50,8 +50,12 @@ export interface SubstitutionLookup {
   readonly flags: number;
   /** The tags of the features that use the lookup. */
   readonly features: readonly string[];
-  /** This function applies the lookup to all the glyphs of a text. It changes the array. */
-  apply(glyphs: number[]): void;
+  /**
+   * This function applies the lookup to all the glyphs of a text. It changes the array. The array `masks`, when it is
+   * given, has one mask for each glyph. Then the lookup starts only at a glyph whose mask has a bit of `mask`, as the
+   * feature masks of HarfBuzz do. The function keeps `masks` in step with the glyphs.
+   */
+  apply(glyphs: number[], masks?: number[], mask?: number): void;
 }
 
 /** One lookup of the lookup list, with the subtables of an extension lookup resolved. */
@@ -118,17 +122,42 @@ class Gsub {
     return found;
   }
 
-  /** This function applies a lookup to all the glyphs, as the main loop of a shaper does. */
-  applyAll(index: number, glyphs: number[]): void {
+  /**
+   * The masks of the glyphs of the current call of `applyAll`, or `undefined`. A substitution that adds or removes glyphs
+   * changes this array in the same way.
+   */
+  private masks: number[] | undefined;
+
+  /** This function replaces `count` glyphs at `at` with `replacement`. Each new glyph gets the mask of the glyph at `at`. */
+  private splice(glyphs: number[], at: number, count: number, replacement: readonly number[]): void {
+    glyphs.splice(at, count, ...replacement);
+    const masks = this.masks;
+    if (masks !== undefined) masks.splice(at, count, ...replacement.map(() => masks[at] ?? 0));
+  }
+
+  /**
+   * This function applies a lookup to all the glyphs, as the main loop of a shaper does. With `masks`, the lookup starts
+   * only at a glyph whose mask has a bit of `mask`.
+   */
+  applyAll(index: number, glyphs: number[], masks?: number[], mask = -1): void {
     const lookup = this.lookup(index);
     if (lookup === undefined) return;
+    this.masks = masks;
+    try {
+      this.applyMasked(lookup, glyphs, (i) => masks === undefined || ((masks[i] ?? 0) & mask) !== 0);
+    } finally {
+      this.masks = undefined;
+    }
+  }
+
+  private applyMasked(lookup: Lookup, glyphs: number[], selected: (i: number) => boolean): void {
     if (lookup.type === 8) {
-      for (let i = glyphs.length - 1; i >= 0; i--) if (!lookup.skip(glyphs[i]!)) this.reverse(lookup, glyphs, i);
+      for (let i = glyphs.length - 1; i >= 0; i--) if (selected(i) && !lookup.skip(glyphs[i]!)) this.reverse(lookup, glyphs, i);
       return;
     }
     let i = 0;
     while (i < glyphs.length) {
-      if (lookup.skip(glyphs[i]!)) {
+      if (!selected(i) || lookup.skip(glyphs[i]!)) {
         i++;
         continue;
       }
@@ -247,7 +276,7 @@ class Gsub {
         if (index < 0) return -1;
         const sequence = t.part(t.u16(6 + index * 2));
         const replacement = Array.from({ length: sequence.u16(0) }, (_, k) => sequence.u16(2 + k * 2));
-        glyphs.splice(i, 1, ...replacement);
+        this.splice(glyphs, i, 1, replacement);
         return i + replacement.length;
       }
       case 3: {
@@ -267,7 +296,7 @@ class Gsub {
           const positions = this.matchInput(lookup, glyphs, i, components - 1, (k, g) => g === ligature.u16(4 + k * 2));
           if (positions === undefined) continue;
           glyphs[i] = ligature.u16(0);
-          for (let k = positions.length - 1; k >= 1; k--) glyphs.splice(positions[k]!, 1);
+          for (let k = positions.length - 1; k >= 1; k--) this.splice(glyphs, positions[k]!, 1, []);
           return i + 1;
         }
         return -1;
@@ -406,7 +435,7 @@ export function readSubstitutions(gsub: Reader, script: string, features: readon
   for (const [index, tags] of [...indices].sort(([a], [b]) => a - b)) {
     const lookup = table.lookup(index);
     if (lookup === undefined) continue;
-    result.push({ index, type: lookup.type, flags: lookup.flags, features: tags, apply: (glyphs: number[]) => table.applyAll(index, glyphs) });
+    result.push({ index, type: lookup.type, flags: lookup.flags, features: tags, apply: (glyphs: number[], masks?: number[], mask?: number) => table.applyAll(index, glyphs, masks, mask) });
   }
   return result;
 }

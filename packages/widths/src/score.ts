@@ -1,6 +1,6 @@
 /**
  * The command `node src/score.ts <folder> [--out outcomes.json]`. It reads the file `font-widths.json` of each arm in the
- * folder. It gives the outcomes of the predictions of T1b and T1c.
+ * folder. It gives the outcomes of the predictions of T1b, T1c and T1d.
  * Each platform has its own bounds. An arm with no file makes its outcomes fail.
  */
 import { appendFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -240,6 +240,17 @@ export function scoreKana(files: ReadonlyMap<string, ArmFile>): Outcome[] {
   ];
 }
 
+/** The scripts that the prediction `typeset-t1d-arabic-joining` bounds on each arm: the scripts of `engineScripts` and kana. */
+export const arabicNoRegressionScripts: readonly ScriptId[] = [...engineScripts, "kana"];
+
+/** This function gives the outcomes of the prediction `typeset-t1d-arabic-joining` from the files of the arms. */
+export function scoreArabic(files: ReadonlyMap<string, ArmFile>): Outcome[] {
+  return [
+    { outcome: "specificArabicCanvas", ...engineBound(files, allArms, 0.01, ["arabic"], false) },
+    { outcome: "specificNoRegression", ...engineBound(files, allArms, 0.01, arabicNoRegressionScripts) },
+  ];
+}
+
 /** This function finds the file `font-widths.json` of each arm: in the folder itself, or in a subfolder for each artifact. */
 function readArms(folder: string): Map<string, ArmFile> {
   const files = new Map<string, ArmFile>();
@@ -257,7 +268,7 @@ function main(): void {
   const folder = positionals[0];
   if (folder === undefined) throw new Error("give the folder of the arm files");
   const files = readArms(folder);
-  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files), "typeset-t1c-engine-rules": scoreEngines(files), "typeset-t1c-kana-words": scoreKana(files) };
+  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files), "typeset-t1c-engine-rules": scoreEngines(files), "typeset-t1c-kana-words": scoreKana(files), "typeset-t1d-arabic-joining": scoreArabic(files) };
   writeFileSync(values.out, JSON.stringify({ schema: "typeset-font-outcomes/2", arms: [...files.keys()].sort(), predictions }, null, 2) + "\n");
   const lines = [`Arms: ${[...files.keys()].sort().join(", ")}.`];
   for (const [id, outcomes] of Object.entries(predictions)) {
