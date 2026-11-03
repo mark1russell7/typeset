@@ -63,6 +63,20 @@ A browser uses the CSS weight for the axis `wght`, not the default instance of t
 - `bidiLevels` gives the levels of a paragraph with the base level 0, as a canvas with the direction `inherit` has them. It has no explicit embeddings and no brackets.
 - The rounding `pixel` ignores the option `sum`. A sum of whole px is exact in single precision.
 
+The fonts run 41562917143 on the head 65f5225 of typeset#36 measured the model of each arm:
+
+| Arm | Engine row | Worst line | Worst paragraph | Worst page |
+|---|---|---|---|---|
+| `linux-1` | `freetype`, sum `exact` | 0.0000 px | 0.0000 px | 0.0000 px |
+| `linux-2` | `freetype`, sum `exact` | 0.0000 px | 0.0000 px | 0.0000 px |
+| `macos-2` | `coretext`, sum `float32` | 0.0000 px | 0.0000 px | 0.0000 px |
+| `windows-1` | `directwrite`, sum `float32` | 0.0000 px | 0.0000 px | 0.0000 px |
+
+- The numbers are for the 9 scripts Latin, Greek, Cyrillic, Arabic, Hebrew, Thai, Han, kana and Hangul, and for Source Sans 3 at 400 and 700.
+- Before this change, the worst page on macOS and Windows was 0.10 to 3.01 px.
+- The two Linux arms give the same summaries as the run 41556398022.
+- The pages of Latin Extended (5.2 px) and Devanagari have other causes. They stay open.
+
 ## The font epoch
 
 The epoch of a font is the revision of `head` and an FNV-1a hash of the data that gives the widths. This data is the units per em, the advances and the tables `cmap`, `GDEF`, `GPOS` and `kern`.
