@@ -21,6 +21,8 @@ import {
   scoreCauses,
   scoreEngines,
   scoreKana,
+  scoreArabic,
+  allArms,
   scoreGsub,
   substitutionTrace,
   sourceUrl,
@@ -318,6 +320,20 @@ describe("the model of the engine of an arm", () => {
     const arm = (name: string, kana: number): ArmFile => ({ arm: name, instances: [], fractions: { line: fractionsOf([]) }, woff2Mismatches: null, summary: {}, extraSummary: {}, engineSummary: { ...scripts, kana: line(kana) }, engineExtraSummary: { "400": line(0), "700": line(0) }, features: { summary: { kana: { shapedDefault: 0.015 } as never } } });
     const files = new Map(["linux-1", "linux-2", "macos-2", "windows-1"].map((name) => [name, arm(name, name === "macos-2" ? 3.84 : 0)]));
     expect(Object.fromEntries(scoreKana(files).map((o) => [o.outcome, o.holds]))).toEqual({ specificKanaCanvas: false, specificKanaDom: true, specificNoRegression: true });
+  });
+
+  it("bounds the Arabic of the canvas on each arm, with kana in the scripts of no regression", () => {
+    const line = (worst: number) => ({ line: { worstPx: worst } as never });
+    const scripts = Object.fromEntries(["latin", "latin-extended", "greek", "cyrillic", "hebrew", "thai", "han", "hangul"].map((script) => [script, line(0)]));
+    const arm = (name: string, arabic: number, kana = 0): ArmFile => ({ arm: name, instances: [], fractions: { line: fractionsOf([]) }, woff2Mismatches: null, summary: {}, extraSummary: {}, engineSummary: { ...scripts, kana: line(kana), arabic: line(arabic) }, engineExtraSummary: { "400": line(0), "700": line(0) } });
+    const files = new Map(allArms.map((name) => [name, arm(name, 0.004)]));
+    expect(Object.fromEntries(scoreArabic(files).map((o) => [o.outcome, o.holds]))).toEqual({ specificArabicCanvas: true, specificNoRegression: true });
+    files.set("windows-1", arm("windows-1", 0.02, 0.5));
+    expect(Object.fromEntries(scoreArabic(files).map((o) => [o.outcome, o.holds]))).toEqual({ specificArabicCanvas: false, specificNoRegression: false });
+    // An absent arm is a miss
+    files.delete("macos-2");
+    files.set("windows-1", arm("windows-1", 0));
+    expect(scoreArabic(files).every((o) => !o.holds)).toBe(true);
   });
 });
 

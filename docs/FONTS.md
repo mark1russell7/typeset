@@ -8,7 +8,7 @@
 - It reads `head`, `hhea`, `maxp`, `hmtx`, `cmap` (formats 4 and 12), `GDEF`, the `kern` table (format 0) and the pair adjustments of the `kern` feature of `GPOS`.
 - `measureWidth` adds the advances and the pair kerning, and scales the sum by the size divided by the units per em.
 - A mark of `GDEF` has the advance 0, as in HarfBuzz. A lookup that ignores marks skips them.
-- `measureWidth` does not shape the text. Thus it does not make ligatures, the joined forms of Arabic or the conjuncts of Devanagari. T4 measures that error.
+- `measureWidth` applies the GSUB features and the joining forms of Arabic. It does not apply the Indic shaper, so it does not make the conjuncts of Devanagari.
 
 ## Instances of variable fonts
 
@@ -29,7 +29,14 @@ A variable font has axes in `fvar`, for example the weight `wght`. Give the inst
 - DirectWrite uses the advance of that component, and FreeType and CoreText use the advance of the glyph. In Source Sans 3, `i` is a composite glyph of `ı` and a dot. At 400, `ı` has 247 units and `i` has 246.
 - The option `kerning: false` of `measureWidth` gives the sum of the advances with no pair kerning.
 - Before the kerning, `measureWidth` applies the GSUB substitutions of the features `defaultFeatures`: `ccmp`, `locl`, `rlig`, `liga`, `clig`, `calt` and `rclt`.
-- A browser applies these features when the page does not change them. The option `features` gives another list, and `[]` applies no substitution.
+- A browser applies these features when the page does not change them. The option `features` gives another list, and `[]` applies no feature of the list.
+- The scripts `arab` and `syrc` also get the joining forms of the Arabic shaper of HarfBuzz. The option `joining: false` turns them off.
+- `joiningForms` gives the form of each letter: `isol`, `fina`, `fin2`, `fin3`, `medi`, `med2` or `init`. It uses the state machine of `hb-ot-shaper-arabic.cc`.
+- The state machine uses the joining type of each character. The table comes from `ArabicShaping.txt` of Unicode 18.0.0, for the Arabic and Syriac blocks.
+- A mark is transparent, so the letters on the two sides of a mark join. A zero width non-joiner stops the joining.
+- The lookups of a joining form apply only to the glyphs with that form. A mask for each glyph tells the form, as the feature masks of HarfBuzz do.
+- `joiningStages` gives the order of HarfBuzz: `ccmp` and `locl`, then each form alone, then `rlig`, then `calt`, then the other features.
+- A mark already has the advance 0 from `GDEF`, as HarfBuzz gives it for Arabic. The joining does not change this rule.
 - The GSUB pass reads the lookup types 1 to 8 and the lookup flags. It does not read the `FeatureVariations` table.
 - The GSUB pass shapes each word alone, and each space and each tab alone. Blink shapes the text of a canvas in the same words.
 - Thus a GSUB context does not go across a space. Noto Sans KR has a `calt` context on the space. The browser does not apply it.
@@ -176,7 +183,7 @@ The fonts run 41520081253 on the head of typeset#25 measures the default model w
 - The first run gave hangul an error of 48 px. The `calt` lookup 30 of Noto Sans KR changes the space between Hangul syllables.
 - Blink shapes the text of a canvas word by word, with each space alone. Thus the GSUB pass shapes each word of `shapingWords` alone.
 - The cause of the Source Sans 3 error is in the advances of the instance, not in GSUB or kerning. That cause is the next T1c step.
-- The GSUB pass does not correct Arabic and Devanagari. These scripts need the joining forms and the Indic shaper.
+- The GSUB pass does not correct Arabic and Devanagari. These scripts need the joining forms and the Indic shaper. T1d adds the joining forms.
 
 ## The result of the instance advances
 
@@ -206,5 +213,29 @@ The fonts run 41547699014 on the head of typeset#29 measures the model of the en
 - The 8 scripts are Latin, Latin Extended, Greek, Cyrillic, Hebrew, Thai, Han and Hangul.
 - The kana error came from the shaping of the canvas. Blink shapes each kana as a word alone, so no kerning goes from one kana to the next kana.
 - The DOM shapes all the run and kerns the kana. The model with `shaping: "dom"` stays at 0.0150 px on Windows.
-- Arabic and Devanagari stay open. T1d adds the joining forms and an Indic shaper.
+- Devanagari stays open. It needs an Indic shaper. The next section has the result of Arabic.
 
+## The result of the Arabic joining
+
+The diagnosis of T1d measures each Arabic text of the corpus again, with the files of the fonts run 41548747569 on `main`. The model with no joining gives the same widths as the records.
+
+| Arm | Lines within 0.01 px, no joining | Lines within 0.01 px, with joining | Worst line, with joining |
+|---|---|---|---|
+| linux-1 and linux-2 | 0 of 240 | 240 of 240 | 0 px |
+| macos-2 and windows-1 | 0 of 240 | 240 of 240 | 0.0007 px |
+
+- With no joining, the model is 28 % wider than the canvas on the average line. The isolated forms are wider than the joined forms.
+- The marks of Noto Sans Arabic have the advance 0 in `hmtx` and the class 3 in `GDEF`. Thus the advances of the marks did not cause the error.
+- The paragraphs and the pages have the same errors as the other scripts: 0.026 and 1.3 px on Windows. The canvas adds its widths in single precision.
+- `GPOS` of Noto Sans Arabic has `kern`, `mark` and `mkmk`. The marks do not change an advance, and the font has no `curs` feature.
+
+The fonts run 41553727572 on the head of typeset#34 confirms the diagnosis on the four arms of CI:
+
+| Arm | Arabic lines within 0.01 px | Worst line | Worst paragraph | Worst page |
+|---|---|---|---|---|
+| `linux-1` | 240 of 240 | 0.0000 px | 0.0000 px | 0.0000 px |
+| `linux-2` | 240 of 240 | 0.0000 px | 0.0000 px | 0.0000 px |
+| `macos-2` | 240 of 240 | 0.0007 px | 0.0258 px | 1.2646 px |
+| `windows-1` | 240 of 240 | 0.0007 px | 0.0258 px | 1.2646 px |
+
+- The other scripts have no regression on the four arms.

@@ -6,6 +6,7 @@ import { defaultFeatures, readGlyphFilter, readSubstitutions, type GlyphFilter, 
 import { readAdvances, readCharacterMap, readGlyphClasses, readHeader } from "./tables.ts";
 import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts, type GlyphPoints } from "./gvar.ts";
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
+import { joiningFeatures, joiningForms, joiningScripts, joiningStages } from "./joining.ts";
 import { canvasWords } from "./words.ts";
 
 /** The options of `readFont`. */
@@ -239,9 +240,16 @@ export interface MeasureOptions {
   readonly kerning?: boolean;
   /**
    * The GSUB features to apply before the kerning. The default is `defaultFeatures`: the features that a browser applies
-   * when the page does not change them. An empty list applies no substitution.
+   * when the page does not change them. An empty list applies no feature of the list. The joining forms are not in the
+   * list. The option `joining` controls them.
    */
   readonly features?: readonly string[];
+  /**
+   * The joining of the Arabic shaper of HarfBuzz. When it is `true` (the default), the scripts of `joiningScripts` get the
+   * joining forms, for example `init` and `fina`. Their features then go in the stages of `joiningStages`. The other
+   * scripts do not change. When it is `false`, all the scripts use the one stage of the other scripts.
+   */
+  readonly joining?: boolean;
   /**
    * The shaping of the browser to model. `dom` (the default) shapes the words of `shapingWords` and then kerns all the
    * text. `canvas` shapes and kerns each word of `canvasWords` alone, as Blink does for the text of a canvas.
@@ -277,19 +285,31 @@ export function shapingWords(text: string): string[] {
 /**
  * This function gives the glyphs of a text and their advances in font units. With the shaping `dom`, it applies the GSUB
  * substitutions to each word of `shapingWords`, and then the pair kerning to all the text. With the shaping `canvas`, it
- * applies the substitutions and the kerning to each word of `canvasWords` alone.
+ * applies the substitutions and the kerning to each word of `canvasWords` alone. A script of `joiningScripts` also gets
+ * the joining forms of each word, in the stages of `joiningStages`.
  */
 export function glyphAdvances(font: Font, text: string, options: MeasureOptions = {}): { glyphs: number[]; advances: number[] } {
   const script = options.script ?? "DFLT";
-  const lookups = font.substitutions(script, options.features ?? defaultFeatures);
+  const features = options.features ?? defaultFeatures;
+  const joins = options.joining !== false && joiningScripts.includes(script);
+  const lookups = joins ? [] : font.substitutions(script, features);
+  const stages = joins ? joiningStages(features, features.includes("rclt") && font.substitutions(script, ["rclt"]).length > 0).map((stage) => ({ stage, lookups: font.substitutions(script, stage.features) })) : [];
   const kerning = options.kerning === false ? [] : font.kerning(script);
   const canvas = options.shaping === "canvas";
   const glyphs: number[] = [];
   const advances: number[] = [];
   for (const word of canvas ? canvasWords(text) : shapingWords(text)) {
-    const wordGlyphs: number[] = [];
-    for (const character of word) wordGlyphs.push(font.glyph(character.codePointAt(0)!));
+    const codePoints = [...word].map((character) => character.codePointAt(0)!);
+    const wordGlyphs = codePoints.map((codePoint) => font.glyph(codePoint));
     for (const lookup of lookups) lookup.apply(wordGlyphs);
+    if (joins) {
+      // Each glyph has the bit of its joining form, and the bit 7 for the features of all the glyphs
+      const masks = joiningForms(codePoints).map((form) => 0x80 | (form === undefined ? 0 : 1 << joiningFeatures.indexOf(form)));
+      for (const { stage, lookups: stageLookups } of stages) {
+        const mask = stage.form === undefined ? 0x80 : 1 << joiningFeatures.indexOf(stage.form);
+        for (const lookup of stageLookups) lookup.apply(wordGlyphs, masks, mask);
+      }
+    }
     const wordAdvances = wordGlyphs.map((glyph) => font.advance(glyph));
     if (canvas) kern(font, kerning, wordGlyphs, wordAdvances);
     glyphs.push(...wordGlyphs);
