@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>typeset: text widths from the font file, against your browser</title>
+    <meta name="description" content="typeset reads text widths from the font tables. This page measures text in your browser with the tables and with canvas measureText, and shows the error per script, font and platform." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23162033'/%3E%3Cpath d='M9 9h14v3h-5.5v12h-3V12H9z' fill='%23f3efe6'/%3E%3Crect x='6' y='26' width='20' height='2' rx='1' fill='%23e98b3a'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#lab">Skip to the lab</a>
+    <header class="top">
+      <div class="brand">
+        <p class="wordmark"><span class="mark" aria-hidden="true">T</span>typeset</p>
+        <nav class="links" aria-label="Links">
+          <a href="#lab">Lab</a>
+          <a href="#sweep">Sweep</a>
+          <a href="#ci">CI platforms</a>
+          <a href="status/">Status</a>
+          <a href="https://github.com/mark1russell7/typeset">GitHub</a>
+        </nav>
+      </div>
+      <h1>Text widths from the font file, checked against your browser</h1>
+      <p class="lead">
+        typeset reads the advance of each glyph and the kerning from the font tables. It does not draw the text. This page loads a real font, measures text with the tables and with the canvas of your browser, and shows the difference.
+      </p>
+      <div class="tiles" id="tiles" aria-label="The Latin result of CI on each platform"></div>
+    </header>
+
+    <main>
+      <section id="lab" class="panel" aria-labelledby="lab-title">
+        <div class="panel-head">
+          <h2 id="lab-title">Lab <span class="tag">live</span></h2>
+          <p class="hint">Type or pick a text. Both widths update as you type.</p>
+        </div>
+
+        <div class="controls">
+          <label class="field">Font<select id="font"></select></label>
+          <label class="field">Weight<select id="weight"></select></label>
+          <label class="field">Script<select id="script"></select></label>
+          <label class="field">Sample<select id="length">
+            <option value="word">a word</option>
+            <option value="line" selected>a line</option>
+            <option value="paragraph">a paragraph</option>
+          </select></label>
+          <div class="field">
+            <span>Size <output id="size-out" for="size"></output></span>
+            <input type="range" id="size" min="8" max="96" step="1" value="16" aria-label="Font size in px" />
+          </div>
+          <label class="field">Engine model<select id="engine"></select></label>
+        </div>
+        <p class="hint engine-hint" id="engine-hint"></p>
+
+        <div class="text-row">
+          <label for="text" class="sr">Text</label>
+          <textarea id="text" rows="2" spellcheck="false"></textarea>
+          <button type="button" id="next" class="secondary" title="The next sample of the corpus">New sample</button>
+        </div>
+
+        <p class="status" id="status" role="status"></p>
+        <div class="notes" id="notes"></div>
+
+        <div class="readout" id="readout">
+          <div class="num"><span class="k">Canvas <code>measureText</code></span><span class="v" id="r-canvas">–</span><span class="u">px, the reference</span></div>
+          <div class="num"><span class="k">typeset model</span><span class="v" id="r-model">–</span><span class="u">px, from the tables</span></div>
+          <div class="num err"><span class="k">Error</span><span class="v" id="r-error">–</span><span class="u">px, model minus canvas</span></div>
+        </div>
+
+        <figure class="preview">
+          <div class="preview-scroll"><canvas id="preview" aria-label="The text, drawn by the canvas, with the edge of each model glyph"></canvas></div>
+          <figcaption>The canvas draws the text. Each tick is the end of a glyph in the model. The bars give the two widths. The error is the gap between their ends.</figcaption>
+        </figure>
+
+        <h3>Canvas words</h3>
+        <p class="hint">Blink shapes the text of a canvas one word at a time, so no kerning goes across two words. Each CJK character is a word alone. Select a word to see its glyphs.</p>
+        <div class="words" id="words"></div>
+
+        <details class="glyphs" id="glyph-box" open>
+          <summary>Glyphs of <span id="glyph-word">the first word</span></summary>
+          <div class="table-scroll"><table id="glyphs"><thead><tr><th>Char</th><th>Glyph</th><th>Advance</th><th>Kerning</th><th>px</th></tr></thead><tbody></tbody></table></div>
+          <p class="hint">Advance and kerning are in font units. One em has <span id="upem">–</span> units. The px column has no rounding.</p>
+        </details>
+      </section>
+
+      <section id="sweep" class="panel" aria-labelledby="sweep-title">
+        <div class="panel-head">
+          <h2 id="sweep-title">Sweep <span class="tag">in this browser</span></h2>
+          <p class="hint">The sweep measures the CI corpus in your browser: 40 texts for each script and length, at 6 sizes from 10 to 48 px.</p>
+        </div>
+        <div class="controls">
+          <button type="button" id="sweep-one">Sweep the lab font</button>
+          <button type="button" id="sweep-all" class="secondary">Sweep all 12 fonts (48 MB)</button>
+          <label class="field">Texts<select id="sweep-class">
+            <option value="line" selected>lines</option>
+            <option value="word">words</option>
+            <option value="paragraph">paragraphs</option>
+          </select></label>
+          <label class="field">Value<select id="sweep-stat">
+            <option value="worstPx" selected>worst error</option>
+            <option value="p90Px">90th percentile</option>
+            <option value="meanPx">mean error</option>
+          </select></label>
+        </div>
+        <div class="progress" id="sweep-progress" hidden><div class="bar"><span id="sweep-bar"></span></div><span id="sweep-text"></span></div>
+        <div class="table-scroll"><table class="heat" id="sweep-table"></table></div>
+        <p class="hint" id="sweep-empty">No sweep yet. A sweep of Noto Sans takes a few seconds.</p>
+      </section>
+
+      <section id="ci" class="panel" aria-labelledby="ci-title">
+        <div class="panel-head">
+          <h2 id="ci-title">CI platforms <span class="tag">recorded</span></h2>
+          <p class="hint" id="ci-run"></p>
+        </div>
+        <div class="controls">
+          <label class="field">Model<select id="ci-model">
+            <option value="engine" selected>the engine of each arm</option>
+            <option value="plain">no rounding, all arms</option>
+          </select></label>
+          <label class="field">Texts<select id="ci-class">
+            <option value="line" selected>lines</option>
+            <option value="word">words</option>
+            <option value="paragraph">paragraphs</option>
+            <option value="page">pages</option>
+          </select></label>
+          <label class="field">Value<select id="ci-stat">
+            <option value="worstPx" selected>worst error</option>
+            <option value="p90Px">90th percentile</option>
+            <option value="meanPx">mean error</option>
+          </select></label>
+        </div>
+        <div class="table-scroll"><table class="heat" id="ci-table"></table></div>
+        <div class="detail" id="ci-detail" aria-live="polite"><p class="hint">Select a cell to see its count of texts and its worst text.</p></div>
+      </section>
+
+      <div class="legend" id="legend" aria-label="The color scale of the error"></div>
+
+      <section class="panel about" aria-labelledby="about-title">
+        <h2 id="about-title">How it works</h2>
+        <ul>
+          <li><strong>The model</strong> reads <code>hmtx</code>, <code>HVAR</code>, <code>GSUB</code> and <code>GPOS</code> of the font file. It adds the advances and the kerning of each canvas word.</li>
+          <li><strong>The reference</strong> is <code>measureText</code> of a canvas, with the same file loaded as a <code>FontFace</code>.</li>
+          <li><strong>An engine model</strong> is a row of rules for one text engine: the rounding of the variable-font deltas, the metrics of composite glyphs and the rounding of each advance.</li>
+          <li><strong>A shaped script</strong> (Arabic, Devanagari, Thai) needs joining forms or clusters. The model does not do this yet, so these errors are large.</li>
+          <li>The fonts come from <code>google/fonts</code> at a pinned commit. Read <a href="https://github.com/mark1russell7/typeset/blob/main/docs/FONTS.md">docs/FONTS.md</a> for the measurements.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <p>typeset is MIT. The fonts have the SIL Open Font License. <a href="https://github.com/mark1russell7/typeset/blob/main/docs/ROADMAP.md">Roadmap</a></p>
+    </footer>
+    <div class="tip" id="tip" role="tooltip" hidden></div>
+    <script type="module" src="/src/app.ts"></script>
+  </body>
+</html>

@@ -263,6 +263,34 @@ importers:
         specifier: ^5.0.3
         version: 5.0.5(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15))
 
+  packages/site:
+    dependencies:
+      '@typeset/corpus':
+        specifier: workspace:*
+        version: link:../corpus
+      '@typeset/fonts':
+        specifier: workspace:*
+        version: link:../fonts
+      '@typeset/widths':
+        specifier: workspace:*
+        version: link:../widths
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.2
+        version: 1.1.0
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.6
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^8.3.5
+        version: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15)
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.5(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15))
+
   packages/widths:
     dependencies:
       '@mark1russell7/rigor-statistics':

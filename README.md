@@ -4,6 +4,8 @@ Fast, exact and incremental text measurement and line breaking, for every layout
 
 The goal is to solve text measurement fully: each method is measured, each error has a stated bound, and each result is repeatable.
 
+The site [mark1russell7.github.io/typeset](https://mark1russell7.github.io/typeset/) measures text in your browser with the font tables and with canvas `measureText`. It shows the error for each script, font and platform.
+
 ## The idea
 
 A `Text` value knows its own size. It is a tree of pieces (a rope), and each piece keeps a summary: its width, its first and last glyph, and its break opportunities. The width is a monoid:
