@@ -50,6 +50,19 @@ A browser uses the CSS weight for the axis `wght`, not the default instance of t
 - `exact` (the default) adds the advances with no rounding.
 - `pixel` rounds each advance to 1/64 px and then to whole px, and rounds each kerning value to whole px. This mode gives the canvas widths of Chromium on Linux at the device scale 1.
 
+## The sum of the advances
+
+`measureWidth` has the option `sum`.
+
+- `exact` (the default) adds the advances in double precision.
+- `float32` gives the canvas widths of Blink with CoreText and DirectWrite. The option `shaping` then has no effect, because this sum always shapes each segment alone.
+- With `float32`, each advance in single precision is cut to 1/65536 px. Blink gives HarfBuzz the advances in the 16.16 fixed point.
+- HarfBuzz scales each kerning value at the scale of the size times 65536. It scales the value with `em_mult` and the variation delta with `em_scalef`.
+- `canvasSegments` gives the segments of the text: the words of `canvasWords`, split where the bidi level changes, in the visual order.
+- The sum of the positions of one segment is exact. The sum of the segments is in single precision.
+- `bidiLevels` gives the levels of a paragraph with the base level 0, as a canvas with the direction `inherit` has them. It has no explicit embeddings and no brackets.
+- The rounding `pixel` ignores the option `sum`. A sum of whole px is exact in single precision.
+
 ## The font epoch
 
 The epoch of a font is the revision of `head` and an FNV-1a hash of the data that gives the widths. This data is the units per em, the advances and the tables `cmap`, `GDEF`, `GPOS` and `kern`.
@@ -75,7 +88,7 @@ The comparison has four arms. Each arm is one job of the workflow.
 3. `packages/widths/src/main.ts` measures each sample of the corpus (seed 1) with each font that covers its script, at each size from 10 px to 48 px. Each font uses the instance of the CSS weight 400.
 4. It also measures the Latin samples with the extra font, Source Sans 3, at the weights 400 and 700. The default weight of this font is 200, and the corpus does not use it.
 5. The command writes `font-widths.json` and uploads it as `font-widths-<arm>`.
-6. The job `report` reads the files of all the arms with `packages/widths/src/score.ts`. It writes the outcomes of the prediction `typeset-t1b-instancing-platforms` to `outcomes.json`.
+6. The job `report` reads the files of all the arms with `packages/widths/src/score.ts`. It writes the outcomes of each prediction, `typeset-t1d-float-sum` included, to `outcomes.json`.
 
 - The error is the table width minus the canvas width, in px. A record with a code point that the font has no glyph for is not in the numbers, because the canvas then uses a fallback font.
 - Each record also has the width of the mode `pixel`.
@@ -94,6 +107,7 @@ The comparison has four arms. Each arm is one job of the workflow.
 - The table `engines` of `@typeset/fonts` gives the rules of each engine: the rounding of the deltas, the metrics of a composite glyph and the rounding of each advance.
 - A caller spreads one row of `engines` into the options of `readFont` and of `measureWidth`. A new engine is a new row.
 - `engineSummary` and `engineExtraSummary` give the line errors of the model of the engine of the arm. `summary` stays the model with no rounding.
+- Each record has the field `float32`: the width with the sum `float32`. The model of an engine with the sum `float32` uses it.
 - The option `shaping: "canvas"` of `measureWidth` shapes and kerns each word of `canvasWords` alone, as Blink does for the text of a canvas.
 - `canvasWords` follows `NextWordEndIndex` of Blink. Each CJK character starts a word, so no kerning goes from one kana to the next kana.
 - The records of the canvas use `shaping: "canvas"`. The model of the DOM diagnostic keeps `shaping: "dom"`, the default.

@@ -21,6 +21,8 @@ export interface WidthRecord {
   readonly error: number;
   /** The table width in the rounding mode `pixel`. */
   readonly pixel: number;
+  /** The table width with the sum `float32`. An older record has no such field. */
+  readonly float32?: number;
   /** The table width with the `HVAR` deltas not rounded, when the comparison computes it. */
   readonly exactDeltas?: number;
 }
@@ -59,8 +61,9 @@ export function recordsOf(task: FontTask, font: Font, canvas: readonly (readonly
       const options = { script: scriptTags[sample.script], shaping: "canvas" } as const;
       const tables = measureWidth(font, sample.text, size, options);
       const pixel = measureWidth(font, sample.text, size, { ...options, rounding: "pixel" });
+      const float32 = measureWidth(font, sample.text, size, { ...options, sum: "float32" });
       const measured = canvas[s]![i]!;
-      const record = { sample: sample.id, script: sample.script, lengthClass: sample.lengthClass, font: task.font, weight: task.weight ?? 400, size, codePoints, missing, canvas: measured, tables, error: tables - measured, pixel };
+      const record = { sample: sample.id, script: sample.script, lengthClass: sample.lengthClass, font: task.font, weight: task.weight ?? 400, size, codePoints, missing, canvas: measured, tables, error: tables - measured, pixel, float32 };
       records.push(exactDeltas === undefined ? record : { ...record, exactDeltas: measureWidth(exactDeltas, sample.text, size, options) });
     });
   });
@@ -69,10 +72,13 @@ export function recordsOf(task: FontTask, font: Font, canvas: readonly (readonly
 
 /**
  * This function gives the records of the model of an engine. With the rounding `pixel`, the table width of each record
- * is its width in the mode `pixel`. With `exact`, the records do not change.
+ * is its width in the mode `pixel`. With `exact` and the sum `float32`, it is the width of the sum `float32`. With `exact`
+ * and the sum `exact`, the records do not change. A record with no field `float32` keeps its table width.
  */
-export function engineRecords(records: readonly WidthRecord[], rounding: "exact" | "pixel"): WidthRecord[] {
-  return rounding === "exact" ? [...records] : records.map((record) => ({ ...record, tables: record.pixel, error: record.pixel - record.canvas }));
+export function engineRecords(records: readonly WidthRecord[], rounding: "exact" | "pixel", sum: "exact" | "float32" = "exact"): WidthRecord[] {
+  if (rounding === "pixel") return records.map((record) => ({ ...record, tables: record.pixel, error: record.pixel - record.canvas }));
+  if (sum === "exact") return [...records];
+  return records.map((record) => (record.float32 === undefined ? record : { ...record, tables: record.float32, error: record.float32 - record.canvas }));
 }
 
 /** The errors of one script and one length class. A record with a missing glyph is not in the numbers, only in `excluded`. */

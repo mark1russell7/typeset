@@ -7,7 +7,7 @@ import { readAdvances, readCharacterMap, readGlyphClasses, readHeader } from "./
 import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts, type GlyphPoints } from "./gvar.ts";
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
 import { joiningFeatures, joiningForms, joiningScripts, joiningStages } from "./joining.ts";
-import { canvasWords } from "./words.ts";
+import { canvasSegments, canvasWords } from "./words.ts";
 
 /** The options of `readFont`. */
 export interface ReadOptions {
@@ -255,6 +255,11 @@ export interface MeasureOptions {
    * text. `canvas` shapes and kerns each word of `canvasWords` alone, as Blink does for the text of a canvas.
    */
   readonly shaping?: "dom" | "canvas";
+  /**
+   * The sum of the advances. `exact` (the default) adds them with no rounding. `float32` models the canvas of Blink with
+   * CoreText and DirectWrite. Then the option `shaping` has no effect. The rounding `pixel` ignores this option.
+   */
+  readonly sum?: "exact" | "float32";
 }
 
 /** This function tells if a lookup with the flags `flags` skips a glyph of the GDEF class `glyphClass`. */
@@ -282,23 +287,14 @@ export function shapingWords(text: string): string[] {
   return words;
 }
 
-/**
- * This function gives the glyphs of a text and their advances in font units. With the shaping `dom`, it applies the GSUB
- * substitutions to each word of `shapingWords`, and then the pair kerning to all the text. With the shaping `canvas`, it
- * applies the substitutions and the kerning to each word of `canvasWords` alone. A script of `joiningScripts` also gets
- * the joining forms of each word, in the stages of `joiningStages`.
- */
-export function glyphAdvances(font: Font, text: string, options: MeasureOptions = {}): { glyphs: number[]; advances: number[] } {
+/** The GSUB pass of one set of options: a function that gives the glyphs of one word, and the kerning lookups. */
+function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: string) => number[]; kerning: readonly PairLookup[] } {
   const script = options.script ?? "DFLT";
   const features = options.features ?? defaultFeatures;
   const joins = options.joining !== false && joiningScripts.includes(script);
   const lookups = joins ? [] : font.substitutions(script, features);
   const stages = joins ? joiningStages(features, features.includes("rclt") && font.substitutions(script, ["rclt"]).length > 0).map((stage) => ({ stage, lookups: font.substitutions(script, stage.features) })) : [];
-  const kerning = options.kerning === false ? [] : font.kerning(script);
-  const canvas = options.shaping === "canvas";
-  const glyphs: number[] = [];
-  const advances: number[] = [];
-  for (const word of canvas ? canvasWords(text) : shapingWords(text)) {
+  const substitute = (word: string): number[] => {
     const codePoints = [...word].map((character) => character.codePointAt(0)!);
     const wordGlyphs = codePoints.map((codePoint) => font.glyph(codePoint));
     for (const lookup of lookups) lookup.apply(wordGlyphs);
@@ -310,6 +306,24 @@ export function glyphAdvances(font: Font, text: string, options: MeasureOptions 
         for (const lookup of stageLookups) lookup.apply(wordGlyphs, masks, mask);
       }
     }
+    return wordGlyphs;
+  };
+  return { substitute, kerning: options.kerning === false ? [] : font.kerning(script) };
+}
+
+/**
+ * This function gives the glyphs of a text and their advances in font units. With the shaping `dom`, it applies the GSUB
+ * substitutions to each word of `shapingWords`, and then the pair kerning to all the text. With the shaping `canvas`, it
+ * applies the substitutions and the kerning to each word of `canvasWords` alone. A script of `joiningScripts` also gets
+ * the joining forms of each word, in the stages of `joiningStages`.
+ */
+export function glyphAdvances(font: Font, text: string, options: MeasureOptions = {}): { glyphs: number[]; advances: number[] } {
+  const { substitute, kerning } = shaperOf(font, options);
+  const canvas = options.shaping === "canvas";
+  const glyphs: number[] = [];
+  const advances: number[] = [];
+  for (const word of canvas ? canvasWords(text) : shapingWords(text)) {
+    const wordGlyphs = substitute(word);
     const wordAdvances = wordGlyphs.map((glyph) => font.advance(glyph));
     if (canvas) kern(font, kerning, wordGlyphs, wordAdvances);
     glyphs.push(...wordGlyphs);
@@ -319,8 +333,36 @@ export function glyphAdvances(font: Font, text: string, options: MeasureOptions 
   return { glyphs, advances };
 }
 
-/** This function adds the values of the pair kerning lookups `lookups` to the advances `advances` of the glyphs `glyphs`. */
-function kern(font: Font, lookups: readonly PairLookup[], glyphs: readonly number[], advances: number[]): void {
+/**
+ * The scale of HarfBuzz at one size. Blink gives HarfBuzz the scale of the size times 65536, so a position is in 1/65536 px.
+ * The field `multiplier` is the factor of `em_mult` in `hb-font.hh`.
+ */
+interface PositionScale {
+  readonly xScale: number;
+  readonly multiplier: number;
+  readonly unitsPerEm: number;
+}
+
+/** This function rounds a value to the nearest whole number, and a half goes away from 0, as `roundf` does. */
+function roundHalfAway(value: number): number {
+  return Math.sign(value) * Math.floor(Math.abs(value) + 0.5);
+}
+
+/**
+ * This function gives a kerning value in 1/65536 px, as HarfBuzz scales it. HarfBuzz scales the value of the ValueRecord
+ * with `em_mult`, and the delta of the VariationIndex table in single precision with `em_scalef`.
+ */
+function kerningPosition(value: number, delta: number, scale: PositionScale): number {
+  const base = Math.round(value - delta);
+  const scaledDelta = delta === 0 ? 0 : roundHalfAway(Math.fround(Math.fround(Math.fround(delta) * scale.xScale) / scale.unitsPerEm));
+  return Math.floor((base * scale.multiplier + 32768) / 65536) + scaledDelta;
+}
+
+/**
+ * This function adds the values of the pair kerning lookups `lookups` to the advances `advances` of the glyphs `glyphs`.
+ * When `positions` is given, it also adds each value in 1/65536 px, as HarfBuzz scales it at the scale `scale`.
+ */
+function kern(font: Font, lookups: readonly PairLookup[], glyphs: readonly number[], advances: number[], positions?: number[], scale?: PositionScale): void {
   for (const lookup of lookups) {
     const next = (from: number): number => {
       for (let j = from; j < glyphs.length; j++) if (!skips(lookup.flags, font.glyphClass(glyphs[j]!))) return j;
@@ -337,9 +379,36 @@ function kern(font: Font, lookups: readonly PairLookup[], glyphs: readonly numbe
       }
       advances[i]! += value.first;
       advances[j]! += value.second;
+      if (positions !== undefined && scale !== undefined) {
+        positions[i]! += kerningPosition(value.first, value.firstDelta ?? 0, scale);
+        positions[j]! += kerningPosition(value.second, value.secondDelta ?? 0, scale);
+      }
       i = value.skipSecond ? next(j + 1) : j;
     }
   }
+}
+
+/**
+ * This function gives the width of a text with the sum `float32`, as Blink adds the widths of a canvas. Each advance in
+ * single precision is cut to 1/65536 px, and HarfBuzz scales each kerning value. The sum of a segment of `canvasSegments`
+ * is exact, and the sum of the segments is in single precision.
+ */
+function float32Width(font: Font, text: string, size: number, options: MeasureOptions): number {
+  const { substitute, kerning } = shaperOf(font, options);
+  const xScale = Math.trunc(Math.fround(size) * 65536);
+  const scale: PositionScale = { xScale, multiplier: Math.floor((xScale * 65536) / font.unitsPerEm), unitsPerEm: font.unitsPerEm };
+  const pxPerUnit = size / font.unitsPerEm;
+  let total = 0;
+  for (const segment of canvasSegments(text)) {
+    const glyphs = substitute(segment);
+    // Skia gives each advance in single precision, and Blink cuts it to the 16.16 fixed point of HarfBuzz
+    const positions = glyphs.map((glyph) => Math.trunc(Math.fround(font.advance(glyph) * pxPerUnit) * 65536));
+    kern(font, kerning, glyphs, glyphs.map((glyph) => font.advance(glyph)), positions, scale);
+    let units = 0;
+    for (const position of positions) units += position;
+    total = Math.fround(total + Math.fround(units / 65536));
+  }
+  return total;
 }
 
 /**
@@ -347,6 +416,7 @@ function kern(font: Font, lookups: readonly PairLookup[], glyphs: readonly numbe
  * GSUB substitutions and the pair kerning.
  */
 export function measureWidth(font: Font, text: string, size: number, options: MeasureOptions = {}): number {
+  if (options.sum === "float32" && options.rounding !== "pixel") return float32Width(font, text, size, options);
   const { glyphs, advances } = glyphAdvances(font, text, options);
   if (options.rounding === "pixel") {
     const scale = size / font.unitsPerEm;

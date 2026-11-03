@@ -4,6 +4,7 @@
  * `third_party/blink/renderer/platform/fonts/plain_text_node.cc` and the CJK table of `character_property_data.h`.
  * The Chromium Authors wrote these files under a BSD-style license.
  */
+import { bidiLevels, visualOrder } from "./bidi.ts";
 
 /** The single code points of the CJK table of Blink. */
 const cjkValues: ReadonlySet<number> = new Set([
@@ -63,6 +64,30 @@ export function canvasWords(text: string): string[] {
     start = end;
   }
   return words;
+}
+
+/**
+ * This function gives the segments of the text of a canvas in the visual order. A segment is a word of `canvasWords`, or a
+ * part of a word where the bidi level changes. Blink shapes each bidi run alone and adds the widths of the words in this order.
+ */
+export function canvasSegments(text: string): string[] {
+  const characters = [...text];
+  const levels = bidiLevels(text);
+  const segments: string[] = [];
+  const segmentLevels: number[] = [];
+  let at = 0;
+  for (const word of canvasWords(text)) {
+    const end = at + [...word].length;
+    let start = at;
+    for (let i = at + 1; i <= end; i++) {
+      if (i < end && levels[i] === levels[start]) continue;
+      segments.push(characters.slice(start, i).join(""));
+      segmentLevels.push(levels[start]!);
+      start = i;
+    }
+    at = end;
+  }
+  return visualOrder(segments, segmentLevels);
 }
 
 /** This function gives the index after the last character of the word that starts at `start`. */

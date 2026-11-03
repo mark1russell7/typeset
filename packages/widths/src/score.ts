@@ -25,7 +25,7 @@ export interface ArmFile {
   /** The diagnostic of the advances of T1c. An older arm file has no such field. */
   readonly advanceModels?: readonly AdvanceModelRow[];
   /** The errors of the model of the engine of the arm. An older arm file has no such fields. */
-  readonly engineSummary?: Partial<Record<ScriptId, { readonly line?: Cell }>>;
+  readonly engineSummary?: Partial<Record<ScriptId, { readonly line?: Cell; readonly paragraph?: Cell; readonly page?: Cell }>>;
   readonly engineExtraSummary?: Record<string, { readonly line?: Cell }>;
 }
 
@@ -251,6 +251,39 @@ export function scoreArabic(files: ReadonlyMap<string, ArmFile>): Outcome[] {
   ];
 }
 
+/** The scripts that the prediction `typeset-t1d-float-sum` bounds: the scripts with no missing shaper in the model. */
+export const floatSumScripts: readonly ScriptId[] = ["latin", "greek", "cyrillic", "arabic", "hebrew", "thai", "han", "kana", "hangul"];
+
+/**
+ * This function examines the paragraphs and the pages of the model of the engine on some arms. Each worst error of the
+ * scripts `scripts` in the two length classes is at most `limit` px. An arm or a cell that is not there is a miss.
+ */
+function pageBound(files: ReadonlyMap<string, ArmFile>, arms: readonly string[], limit: number, scripts: readonly ScriptId[]): { holds: boolean; detail: string } {
+  let holds = true;
+  const details = arms.map((arm) => {
+    const summary = files.get(arm)?.engineSummary;
+    if (summary === undefined) {
+      holds = false;
+      return `${arm}: no engineSummary`;
+    }
+    const values = scripts.map((script) => [script, summary[script]?.paragraph?.worstPx ?? Number.NaN, summary[script]?.page?.worstPx ?? Number.NaN] as const);
+    if (!values.every(([, paragraph, page]) => paragraph <= limit && page <= limit)) holds = false;
+    return `${arm}: ${values.map(([script, paragraph, page]) => `${script} ${paragraph.toFixed(4)} and ${page.toFixed(4)}`).join(", ")}`;
+  });
+  return { holds, detail: details.join("; ") };
+}
+
+/**
+ * This function gives the outcomes of the prediction `typeset-t1d-float-sum` from the files of the arms. The report of the
+ * pull request compares the `engineSummary` of `linux-1` and `linux-2` with the run before the change.
+ */
+export function scoreFloatSum(files: ReadonlyMap<string, ArmFile>): Outcome[] {
+  return [
+    { outcome: "specificPageExact", ...pageBound(files, desktopArms, 0.01, floatSumScripts) },
+    { outcome: "specificNoRegression", ...engineBound(files, allArms, 0.01, floatSumScripts) },
+  ];
+}
+
 /** This function finds the file `font-widths.json` of each arm: in the folder itself, or in a subfolder for each artifact. */
 function readArms(folder: string): Map<string, ArmFile> {
   const files = new Map<string, ArmFile>();
@@ -268,7 +301,7 @@ function main(): void {
   const folder = positionals[0];
   if (folder === undefined) throw new Error("give the folder of the arm files");
   const files = readArms(folder);
-  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files), "typeset-t1c-engine-rules": scoreEngines(files), "typeset-t1c-kana-words": scoreKana(files), "typeset-t1d-arabic-joining": scoreArabic(files) };
+  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files), "typeset-t1c-engine-rules": scoreEngines(files), "typeset-t1c-kana-words": scoreKana(files), "typeset-t1d-arabic-joining": scoreArabic(files), "typeset-t1d-float-sum": scoreFloatSum(files) };
   writeFileSync(values.out, JSON.stringify({ schema: "typeset-font-outcomes/2", arms: [...files.keys()].sort(), predictions }, null, 2) + "\n");
   const lines = [`Arms: ${[...files.keys()].sort().join(", ")}.`];
   for (const [id, outcomes] of Object.entries(predictions)) {
