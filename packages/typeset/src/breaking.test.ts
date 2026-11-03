@@ -1,6 +1,6 @@
 import { generateSample, type ScriptId } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
-import { balanced, breakers, greedy, knuthPlass, linesOf, paragraphOf, raggedness, spread, totalFit, type Breaker, type Paragraph } from "./index.ts";
+import { balanced, breakers, greedy, knuthPlass, linesOf, paragraphOf, raggedness, spread, totalFit, type Breaker, type Paragraph } from "./breaking.ts";
 
 /** The width of a text in this test: one unit for each code point. */
 const count = (text: string): number => [...text].length;

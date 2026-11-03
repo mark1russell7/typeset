@@ -1,5 +1,5 @@
 import { generateSample } from "@typeset/corpus";
-import { balanced, greedy, knuthPlass, paragraphOf, type Breaker, type Paragraph } from "@typeset/breaking";
+import { balanced, greedy, knuthPlass, paragraphOf, type Breaker, type Paragraph } from "@mark1russell7/typeset/breaking";
 import { defineCase, type BenchCase, type CaseModule } from "../case.ts";
 
 /** This function gives the width of a text in this module: 8 units for each code point. */
@@ -13,7 +13,7 @@ function breakCase(breaker: Breaker): BenchCase {
   });
 }
 
-/** The cases of the line breakers of `@typeset/breaking`. Each case breaks the same page, so the cases compare the breakers. */
+/** The cases of the line breakers of `@mark1russell7/typeset/breaking`. Each case breaks the same page, so the cases compare the breakers. */
 export const cases: CaseModule = {
   /** The paragraph model of a page of Latin text. */
   "breaking.paragraph": defineCase({

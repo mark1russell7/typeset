@@ -1,11 +1,11 @@
 /**
  * The report of the breakers on the corpus. It gives the parity of greedy with `layoutText` of `@mark1russell7/layout-contract/text`,
  * the raggedness of total fit and the spread of balanced. It uses a width function of the code points, so it needs no font
- * file. Start it with `node src/report.ts`. The output is deterministic.
+ * file. Start it with `node src/breaking/report.ts`. The output is deterministic.
  */
 import { generateSample, type LengthClass, type ScriptId } from "@typeset/corpus";
 import { createMeasurer, layoutText, TEXT_UNITS } from "@mark1russell7/layout-contract/text";
-import { balanced, greedy, knuthPlass, linesOf, paragraphOf, raggedness, spread, type Breaker, type Paragraph } from "./index.ts";
+import { balanced, greedy, knuthPlass, linesOf, paragraphOf, raggedness, spread, type Breaker, type Paragraph } from "../breaking.ts";
 
 /** The scripts, the length classes and the wrap widths of the report, as the prediction `typeset-t3-breakers` gives them. */
 export const reportScripts: readonly ScriptId[] = ["latin", "latin-extended", "greek", "cyrillic"];

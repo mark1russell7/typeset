@@ -1,0 +1,149 @@
+# The public API of @mark1russell7/typeset
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (build/index.d.ts): 1 names
+
+breaking: build/chunks/breaking.d.ts#breaking_d_exports
+
+## ./breaking (build/breaking.d.ts): 24 names
+
+type BalancedOptions: build/chunks/breaking.d.ts#BalancedOptions
+type Box: build/chunks/breaking.d.ts#Box
+type Breaker: build/chunks/breaking.d.ts#Breaker
+type Glue: build/chunks/breaking.d.ts#Glue
+type Item: build/chunks/breaking.d.ts#Item
+type Line: build/chunks/breaking.d.ts#Line
+type Paragraph: build/chunks/breaking.d.ts#Paragraph
+type ParagraphOptions: build/chunks/breaking.d.ts#ParagraphOptions
+type Penalty: build/chunks/breaking.d.ts#Penalty
+type TotalFitOptions: build/chunks/breaking.d.ts#TotalFitOptions
+type WidthOf: build/chunks/breaking.d.ts#WidthOf
+balanced: build/chunks/breaking.d.ts#balanced
+balancedBreaker: build/chunks/breaking.d.ts#balancedBreaker
+breakers: build/chunks/breaking.d.ts#breakers
+greedy: build/chunks/breaking.d.ts#greedy
+isBreak: build/chunks/breaking.d.ts#isBreak
+knuthPlass: build/chunks/breaking.d.ts#knuthPlass
+lineStart: build/chunks/breaking.d.ts#lineStart
+lineWidth: build/chunks/breaking.d.ts#lineWidth
+linesOf: build/chunks/breaking.d.ts#linesOf
+paragraphOf: build/chunks/breaking.d.ts#paragraphOf
+raggedness: build/chunks/breaking.d.ts#raggedness
+spread: build/chunks/breaking.d.ts#spread
+totalFit: build/chunks/breaking.d.ts#totalFit
+
+## Declarations
+
+### build/chunks/breaking.d.ts#BalancedOptions
+interface BalancedOptions {
+  readonly steps?: number;
+}
+
+### build/chunks/breaking.d.ts#Box
+interface Box {
+  readonly type: "box";
+  readonly text: string;
+  readonly width: number;
+}
+
+### build/chunks/breaking.d.ts#Breaker
+interface Breaker {
+  readonly name: string;
+  breaks(paragraph: Paragraph, width: number): number[];
+}
+
+### build/chunks/breaking.d.ts#Glue
+interface Glue {
+  readonly type: "glue";
+  readonly text: string;
+  readonly width: number;
+}
+
+### build/chunks/breaking.d.ts#Item
+type Item = Box | Glue | Penalty;
+
+### build/chunks/breaking.d.ts#Line
+interface Line {
+  readonly text: string;
+  readonly width: number;
+  readonly start: number;
+  readonly end: number;
+}
+
+### build/chunks/breaking.d.ts#Paragraph
+interface Paragraph {
+  readonly items: readonly Item[];
+}
+
+### build/chunks/breaking.d.ts#ParagraphOptions
+interface ParagraphOptions {
+  readonly widthOf: WidthOf;
+  readonly hyphenate?: (word: string) => readonly number[];
+  readonly hyphen?: string;
+  readonly hyphenCost?: number;
+}
+
+### build/chunks/breaking.d.ts#Penalty
+interface Penalty {
+  readonly type: "penalty";
+  readonly text: string;
+  readonly width: number;
+  readonly cost: number;
+  readonly flagged: boolean;
+}
+
+### build/chunks/breaking.d.ts#TotalFitOptions
+interface TotalFitOptions {
+  readonly linePenalty?: number;
+  readonly flaggedCost?: number;
+}
+
+### build/chunks/breaking.d.ts#WidthOf
+type WidthOf = (text: string) => number;
+
+### build/chunks/breaking.d.ts#balanced
+declare const balanced: Breaker;
+
+### build/chunks/breaking.d.ts#balancedBreaker
+declare function balancedBreaker(options?: BalancedOptions): Breaker;
+
+### build/chunks/breaking.d.ts#breakers
+declare const breakers: Readonly<Record<"greedy" | "total-fit" | "balanced", Breaker>>;
+
+### build/chunks/breaking.d.ts#breaking_d_exports
+declare namespace breaking_d_exports {
+  export { BalancedOptions, Box, Breaker, Glue, Item, Line, Paragraph, ParagraphOptions, Penalty, TotalFitOptions, WidthOf, balanced, balancedBreaker, breakers, greedy, isBreak, knuthPlass, lineStart, lineWidth, linesOf, paragraphOf, raggedness, spread, totalFit };
+}
+
+### build/chunks/breaking.d.ts#greedy
+declare const greedy: Breaker;
+
+### build/chunks/breaking.d.ts#isBreak
+declare function isBreak(items: readonly Item[], index: number): boolean;
+
+### build/chunks/breaking.d.ts#knuthPlass
+declare const knuthPlass: Breaker;
+
+### build/chunks/breaking.d.ts#lineStart
+declare function lineStart(items: readonly Item[], index: number): number;
+
+### build/chunks/breaking.d.ts#lineWidth
+declare function lineWidth(items: readonly Item[], start: number, end: number): number;
+
+### build/chunks/breaking.d.ts#linesOf
+declare function linesOf(paragraph: Paragraph, breaks: readonly number[]): Line[];
+
+### build/chunks/breaking.d.ts#paragraphOf
+declare function paragraphOf(text: string, options: ParagraphOptions): Paragraph;
+
+### build/chunks/breaking.d.ts#raggedness
+declare function raggedness(lines: readonly Line[], width: number): number;
+
+### build/chunks/breaking.d.ts#spread
+declare function spread(lines: readonly Line[]): number;
+
+### build/chunks/breaking.d.ts#totalFit
+declare function totalFit(options?: TotalFitOptions): Breaker;

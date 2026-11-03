@@ -1,6 +1,6 @@
 # Line breaking
 
-The package `@typeset/breaking` breaks a paragraph into lines. It has one model of the paragraph and three breakers. Each breaker takes any width function.
+The subpath `@mark1russell7/typeset/breaking` breaks a paragraph into lines. It has one model of the paragraph and three breakers. Each breaker takes any width function.
 
 ## The model
 
@@ -24,7 +24,7 @@ The package `@typeset/breaking` breaks a paragraph into lines. It has one model 
 
 ## The report
 
-`node packages/breaking/src/report.ts` compares the breakers on the corpus. It uses a width function of the code points, so it needs no font file.
+`node packages/typeset/src/breaking/report.ts` compares the breakers on the corpus. It uses a width function of the code points, so it needs no font file.
 
 - The cases are seed 1, 20 samples for each cell. The scripts are Latin, extended Latin, Greek and Cyrillic, the lengths are paragraph and page, and the wrap widths are 120, 240 and 480 px. That is 480 cases.
 - The greedy breaker gives the same lines as `layoutText` of `@mark1russell7/layout-contract/text` 0.2.21 on 480 of 480 cases.
@@ -33,3 +33,16 @@ The package `@typeset/breaking` breaks a paragraph into lines. It has one model 
 - Balanced gives the line count of greedy on 480 of 480 cases. Its spread is not more than the greedy spread on 475 of 480 cases.
 
 The bench cases of the breakers are in `packages/bench/src/cases/breaking.ts`.
+
+## Why total fit gains only 8.9 %
+
+The prediction `typeset-t3-breakers` expected a median reduction of at least 30 %. The result is 8.9 %. These are the reasons:
+
+- Raggedness is the mean of `r²`. It is the square of the mean `r` plus the variance of `r` between the lines.
+- Greedy puts the most text into the lines before the last line. Thus no breaker with the same line count gets a smaller mean `r`.
+- Total fit keeps the line count of greedy on these cases. Thus it can remove only the variance part.
+- Under greedy, the mean part is 67 % to 70 % of the raggedness on paragraphs and pages at 120 px to 480 px. The ceiling of the reduction is thus near 30 %.
+- Total fit removes about a third of the variance part. The median reduction is 4.8 % to 12.9 % for each length class and width.
+- On short texts of 3 to 6 lines, the median reduction is 0. Few break choices are possible there.
+
+Total fit earns its cost where the variance part is large: long paragraphs at wide measures (12.9 % on a page at 480 px), and text with hyphen breaks. A justified edge, with stretch and shrink of the glue, is a different measure. These cases do not measure it.
