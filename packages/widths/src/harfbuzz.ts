@@ -87,10 +87,3 @@ export function openReferenceFont(bytes: Uint8Array, instance: Readonly<Record<s
     },
   };
 }
-
-/** This function gives the sum of the advances of the words of a canvas, in font units at the scale of the units per em. */
-export function referenceUnits(font: ReferenceFont, text: string, script: string): number {
-  let units = 0;
-  for (const { shaped } of font.shapeWords(text, script)) for (const advance of shaped.advances) units += advance;
-  return units;
-}

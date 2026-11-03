@@ -330,7 +330,10 @@ Each tier has each row of the table `engines`: `freetype`, `coretext` and `direc
 3. The sizes are 8, 10, 12, 13.5, 14, 15.333, 16, 24, 48, 72 and 96 px.
 4. HarfBuzz shapes each word of `canvasWords` alone, as Blink does for a canvas. The model uses the shaping `canvas`.
 5. HarfBuzz uses the instance `cssInstance(weight)`, the OpenType script tag of the sample and the direction of the script.
-6. The error is the model width minus the HarfBuzz width, in 1/64 px.
+6. The model error is the model width under the rule of the engine row minus the HarfBuzz width under the same rule, in 1/64 px.
+7. The rounding effect is the HarfBuzz width under the rule minus the HarfBuzz width with no rounding.
+
+The function `ruledWidth` of `bounds.ts` applies the fields `rounding` and `sum` of a row to the HarfBuzz advances, as `measureWidth` applies them. The check `ruleReplica` applies `ruledWidth` to the advances of the model and compares it with `measureWidth`. The test fails at a difference of 1/64 px or more. The claims of the prediction are on the model error.
 
 The scale of HarfBuzz is the units per em of the font. Thus each HarfBuzz advance is a whole number of font units. The HarfBuzz width in px is `units × size / unitsPerEm`, with no rounding. A scale of `round(size × 64)` changes the scale at a fractional size, for example 15.333 px. The scale of the units per em does not change it, and one shaping then serves all the sizes.
 
@@ -341,11 +344,11 @@ A line with a missing glyph stays in the statistics, because the model and HarfB
 The file `harfbuzz-bounds.json` (schema `typeset-harfbuzz-bounds/1`) has these fields:
 
 - `harfbuzz`: the version of HarfBuzz and of `harfbuzzjs`. `runId` is the value of `GITHUB_RUN_ID`.
-- `cells`: one cell for each script, font, weight, size, tier and engine row. A cell has `n`, `missing`, `worst` and `p99`.
+- `cells`: one cell for each script, font, weight, size, tier and engine row. A cell has `n`, `missing`, `worst` and `p99` of the model error. Its field `rounding` has the same statistics of the rounding effect.
 - `worst` is the error with the largest absolute value, with its sign. `p99` is the 0.99 quantile of the absolute errors.
 - Each statistic has a 95 % percentile bootstrap interval of `rigor-statistics`, with 2000 runs. A seed of `rigor-generators` comes from the name of the cell.
 - `glyphMatch`: for the tier `model`, the share of the canvas words that have the glyphs of HarfBuzz, for each script and each font. Each share has its Wilson interval.
-- `checks`: the results of the reference check, of the scaling check and of `engineRowsEqual`.
+- `checks`: the results of the reference check, of the scaling check, of `engineRowsEqual`, of `ruleReplica` and of `roundingSameForEachTier`. HarfBuzz has no tiers, so the rounding effect of a cell does not change with its tier.
 - `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f decides the rule.
 - `knownOpen`: the scripts with an open error. Latin Extended is open (T1e). No test gates on it.
 
@@ -362,7 +365,7 @@ The workflow `fonts.yml` runs the test on the arm `linux-1` only, after the test
 
 ### The result
 
-The committed record is `packages/widths/data/harfbuzz-bounds.json`, with one line for each cell. The check `engineRowsEqual` tells if the 3 engine rows give the same statistics. The command `pnpm --filter @typeset/widths bounds-table` writes this table from the record. Each value is the worst error over the fonts, the weights, the sizes and the engine rows, with its 95 % interval, in 1/64 px.
+The committed record is `packages/widths/data/harfbuzz-bounds.json`, with one line for each cell. The check `engineRowsEqual` tells if the 3 engine rows give the same statistics. The command `pnpm --filter @typeset/widths bounds-table` writes this table from the record. Each tier has a column of the worst model error. The last column is the worst rounding effect. Each value is the worst over the fonts, the weights, the sizes and the engine rows, with its 95 % interval, in 1/64 px, and the place of the cell.
 
 <!-- bounds-table:start -->
 The record of the first CI run follows in this pull request.
