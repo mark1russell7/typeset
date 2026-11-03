@@ -4,6 +4,7 @@ import type { Cell } from "@typeset/widths";
 import { fontsCommit } from "@typeset/widths";
 import { describe, expect, it } from "vitest";
 import {
+  allLeftOut,
   armMatrix,
   armOrder,
   engineForAgent,
@@ -12,6 +13,7 @@ import {
   formatSigned,
   heatLevel,
   labResult,
+  previewFit,
   readSnapshot,
   scriptOrder,
   snapshotOf,
@@ -174,5 +176,32 @@ describe("labResult", () => {
   it("counts the characters with no glyph, and each CJK character is a word alone", () => {
     expect(labResult({ font: testFont(), text: "aЖ", size: 10, script: "cyrillic", rounding: "exact" }, () => 0).missing).toBe(1);
     expect(labResult({ font: testFont(), text: "かな", size: 10, script: "kana", rounding: "pixel" }, () => 0).words.map((word) => word.text)).toEqual(["か", "な"]);
+  });
+});
+
+describe("previewFit", () => {
+  it("keeps a drawing that fits at the scale 1", () => {
+    expect(previewFit(300, 330)).toBe(1);
+  });
+  it("scales a wider drawing to the box", () => {
+    expect(previewFit(440, 330)).toBeCloseTo(0.75, 12);
+  });
+  it("stops at the minimum scale", () => {
+    expect(previewFit(3000, 330)).toBe(0.5);
+  });
+  it("gives 1 when a size is not known", () => {
+    expect(previewFit(440, 0)).toBe(1);
+  });
+});
+
+describe("allLeftOut", () => {
+  it("is true when every text of the row was left out", () => {
+    expect(allLeftOut([{ ...cell(0, 0), excluded: 240 }, undefined])).toBe(true);
+  });
+  it("is false when a cell has widths", () => {
+    expect(allLeftOut([{ ...cell(0, 0), excluded: 240 }, cell(0.1)])).toBe(false);
+  });
+  it("is false when nothing was left out", () => {
+    expect(allLeftOut([cell(0, 0), undefined])).toBe(false);
   });
 });

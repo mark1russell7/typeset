@@ -16,3 +16,4 @@ Each item has a prediction before its code: the claims, how each claim is measur
 | T7 | A text corpus generator (scripts, lengths, fonts, edit sequences) and the CI bench | P1 | done | |
 | T8 | An adapter for the `/text` measurer interface of `@mark1russell7/layout-contract` | P1 | later | T2 |
 | T9 | Use the rigor homes: `rigor-generators` for the random numbers of the corpus, `rigor-statistics` for the statistics of the bench | P1 | done | T7 |
+| S1 | The site on GitHub Pages: the font tables against canvas `measureText` in the browser, a sweep of the corpus, and the grid of a CI fonts run (typeset#35, typeset#37) | P1 | done | T1c |

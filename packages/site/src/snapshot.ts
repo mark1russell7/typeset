@@ -176,3 +176,8 @@ export function statOf(cell: Cell | undefined, statistic: Statistic): number {
   const value = cell[statistic];
   return typeof value === "number" ? value : Number.NaN;
 }
+
+/** This function gives `true` when no cell of a row has a width and some cell left out texts for a missing glyph. */
+export function allLeftOut(cells: readonly (Cell | undefined)[]): boolean {
+  return cells.every((cell) => cell === undefined || cell.n === 0) && cells.some((cell) => cell !== undefined && cell.excluded > 0);
+}

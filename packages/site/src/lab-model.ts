@@ -97,3 +97,12 @@ export function sweepTask(font: string, weight: number, scripts: readonly Script
 export function sweepSummary(task: FontTask, font: Font, canvas: readonly (readonly number[])[], rounding: "exact" | "pixel"): Summary {
   return summarize(engineRecords(recordsOf(task, font, canvas), rounding));
 }
+
+/**
+ * This function gives the scale of the preview drawing, so that a drawing of `width` px fits in a box of `available` px.
+ * The scale is at most 1 and at least `minimum`. A wider drawing at the minimum scale scrolls in its box.
+ */
+export function previewFit(width: number, available: number, minimum = 0.5): number {
+  if (!(width > 0) || !(available > 0)) return 1;
+  return Math.max(minimum, Math.min(1, available / width));
+}
