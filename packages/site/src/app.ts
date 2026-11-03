@@ -150,7 +150,7 @@ function update(): void {
   const notes: string[] = [];
   if (state.text === "") notes.push("The text is empty.");
   if (result.missing > 0) notes.push(`The font has no glyph for ${result.missing} ${result.missing === 1 ? "character" : "characters"}. The browser draws them with a fallback font, so the error is not valid.`);
-  if (shapedScripts.has(state.script)) notes.push(`${scriptLabels[state.script]} needs a shaper for joining forms or clusters. The model does not shape it yet (roadmap item T1d), so a large error is expected.`);
+  if (shapedScripts.has(state.script)) notes.push(`${scriptLabels[state.script]} needs a shaper for joining forms or clusters. The model does not shape it yet, so a large error is expected.`);
   $("notes").replaceChildren(...notes.map((note) => make("p", "note", note)));
   if (state.word >= result.words.length) state.word = 0;
   drawPreview(result);

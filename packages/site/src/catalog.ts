@@ -69,8 +69,8 @@ export const scriptLabels: Readonly<Record<ScriptId, string>> = {
 /** The scripts in the order of the corpus. */
 export const scriptOrder: readonly ScriptId[] = scriptIds;
 
-/** The scripts that need a shaper for a correct width. The model of typeset does not shape them yet (roadmap item T1d). Arabic has its joining forms since typeset#34. */
-export const shapedScripts: ReadonlySet<ScriptId> = new Set<ScriptId>(["devanagari"]);
+/** The scripts that need a shaper that the model does not have. The set is empty: Arabic has its joining forms (typeset#34), and Devanagari has the Indic shaper (typeset#44). */
+export const shapedScripts: ReadonlySet<ScriptId> = new Set<ScriptId>([]);
 
 /** One text engine, with its platform and a one-line description. */
 export interface EngineChoice {
