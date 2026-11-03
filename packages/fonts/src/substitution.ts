@@ -40,6 +40,32 @@ export function readGlyphFilter(gdef: Reader | undefined, glyphClass: (glyph: nu
   };
 }
 
+/** The glyph property of HarfBuzz for a glyph that a substitution changed. */
+export const SUBSTITUTED = 0x10;
+/** The glyph property of HarfBuzz for a glyph that a ligature substitution made. */
+export const LIGATED = 0x20;
+/** The glyph property of HarfBuzz for a glyph that a multiple substitution made, with more than one glyph. */
+export const MULTIPLIED = 0x40;
+
+/**
+ * The data that a syllabic shaper keeps with each glyph, as the `hb_glyph_info_t` of HarfBuzz keeps it. A substitution
+ * gives each new glyph a copy of the data of the glyph that it replaces. A ligature keeps the data of its first glyph.
+ */
+export interface GlyphInfo {
+  /** The feature mask. A lookup starts only at a glyph with a bit of the mask of the lookup. */
+  mask: number;
+  /** The syllable byte of HarfBuzz: the serial number in the high 4 bits, and the syllable type in the low 4 bits. */
+  syllable: number;
+  /** The glyph properties `SUBSTITUTED`, `LIGATED` and `MULTIPLIED`. */
+  props: number;
+  /** The category of the shaper. */
+  category: number;
+  /** The position of the shaper. */
+  position: number;
+  /** The code point of the character of the glyph, after the normalization. */
+  readonly codePoint: number;
+}
+
 /** A lookup of GSUB for one script and one set of features. */
 export interface SubstitutionLookup {
   /** The index of the lookup in the lookup list of GSUB. */
@@ -56,6 +82,17 @@ export interface SubstitutionLookup {
    * feature masks of HarfBuzz do. The function keeps `masks` in step with the glyphs.
    */
   apply(glyphs: number[], masks?: number[], mask?: number): void;
+  /**
+   * This function applies the lookup with the data `infos` of the glyphs, as HarfBuzz applies a lookup of a syllabic shaper.
+   * The lookup starts at a glyph with a bit of `mask`, and each input glyph after it also needs a bit of `mask`. When
+   * `perSyllable` is true, all the matched glyphs have the syllable of the first glyph. The function keeps `infos` in step.
+   */
+  applyInfos(glyphs: number[], infos: GlyphInfo[], mask: number, perSyllable: boolean): void;
+  /**
+   * This function tells if the lookup changes the glyph sequence `glyphs` when the sequence is all the text, as
+   * `hb_ot_layout_lookup_would_substitute` with zero context tells it. A context rule with backtrack or lookahead does not apply.
+   */
+  wouldApply(glyphs: readonly number[]): boolean;
 }
 
 /** One lookup of the lookup list, with the subtables of an extension lookup resolved. */
@@ -128,11 +165,60 @@ class Gsub {
    */
   private masks: number[] | undefined;
 
-  /** This function replaces `count` glyphs at `at` with `replacement`. Each new glyph gets the mask of the glyph at `at`. */
+  /** The data of the glyphs of the current call of `applyRun`, or `undefined`. */
+  private infos: GlyphInfo[] | undefined;
+  /** The mask of the current call of `applyRun`. Each input glyph needs a bit of it. */
+  private lookupMask = -1;
+  /** It is true when the matched glyphs of the current call of `applyRun` need the syllable of the first glyph. */
+  private perSyllable = false;
+
+  /**
+   * This function replaces `count` glyphs at `at` with `replacement`. Each new glyph gets the mask and the data of the
+   * glyph at `at`.
+   */
   private splice(glyphs: number[], at: number, count: number, replacement: readonly number[]): void {
     glyphs.splice(at, count, ...replacement);
     const masks = this.masks;
     if (masks !== undefined) masks.splice(at, count, ...replacement.map(() => masks[at] ?? 0));
+    const infos = this.infos;
+    if (infos !== undefined) {
+      const source = infos[at]!;
+      infos.splice(at, count, ...replacement.map(() => ({ ...source })));
+    }
+  }
+
+  /** This function adds the glyph properties `set` to the glyph at `i`, and then removes the properties `clear`. */
+  private setProps(i: number, set: number, clear = 0): void {
+    const info = this.infos?.[i];
+    if (info !== undefined) info.props = (info.props | set) & ~clear;
+  }
+
+  /**
+   * This function tells if the glyph at `j` can match for the glyph at `first`. An input glyph needs a bit of the mask of
+   * the lookup. With the per-syllable matching, each glyph needs the syllable of `first`.
+   */
+  private admits(j: number, first: number, input: boolean): boolean {
+    const infos = this.infos;
+    if (infos === undefined) return true;
+    if (input && (infos[j]!.mask & this.lookupMask) === 0) return false;
+    const syllable = infos[first]?.syllable ?? 0;
+    return !this.perSyllable || syllable === 0 || infos[j]!.syllable === syllable;
+  }
+
+  /** This function applies a lookup to all the glyphs with their data `infos`, as `applyInfos` of `SubstitutionLookup` tells. */
+  applyRun(index: number, glyphs: number[], infos: GlyphInfo[], mask: number, perSyllable: boolean): void {
+    const lookup = this.lookup(index);
+    if (lookup === undefined) return;
+    this.infos = infos;
+    this.lookupMask = mask;
+    this.perSyllable = perSyllable;
+    try {
+      this.applyMasked(lookup, glyphs, (i) => (infos[i]!.mask & mask) !== 0);
+    } finally {
+      this.infos = undefined;
+      this.lookupMask = -1;
+      this.perSyllable = false;
+    }
   }
 
   /**
@@ -196,7 +282,7 @@ class Gsub {
     let at = i;
     for (let k = 0; k < count; k++) {
       at = this.nextOf(lookup, glyphs, at + 1);
-      if (at < 0 || !test(k, glyphs[at]!)) return undefined;
+      if (at < 0 || !this.admits(at, i, true) || !test(k, glyphs[at]!)) return undefined;
       positions.push(at);
     }
     return positions;
@@ -206,16 +292,16 @@ class Gsub {
     let at = i;
     for (let k = 0; k < count; k++) {
       at = this.previousOf(lookup, glyphs, at - 1);
-      if (at < 0 || !test(k, glyphs[at]!)) return false;
+      if (at < 0 || !this.admits(at, i, false) || !test(k, glyphs[at]!)) return false;
     }
     return true;
   }
 
-  private matchLookahead(lookup: Lookup, glyphs: readonly number[], last: number, count: number, test: (k: number, glyph: number) => boolean): boolean {
+  private matchLookahead(lookup: Lookup, glyphs: readonly number[], first: number, last: number, count: number, test: (k: number, glyph: number) => boolean): boolean {
     let at = last;
     for (let k = 0; k < count; k++) {
       at = this.nextOf(lookup, glyphs, at + 1);
-      if (at < 0 || !test(k, glyphs[at]!)) return false;
+      if (at < 0 || !this.admits(at, first, false) || !test(k, glyphs[at]!)) return false;
     }
     return true;
   }
@@ -253,11 +339,57 @@ class Gsub {
       const aheadCount = t.u16(aheadAt);
       const substituteAt = aheadAt + 2 + aheadCount * 2;
       if (!this.matchBacktrack(lookup, glyphs, i, backCount, (k, g) => coverageIndex(t.part(t.u16(6 + k * 2)), g) >= 0)) continue;
-      if (!this.matchLookahead(lookup, glyphs, i, aheadCount, (k, g) => coverageIndex(t.part(t.u16(aheadAt + 2 + k * 2)), g) >= 0)) continue;
+      if (!this.matchLookahead(lookup, glyphs, i, i, aheadCount, (k, g) => coverageIndex(t.part(t.u16(aheadAt + 2 + k * 2)), g) >= 0)) continue;
       glyphs[i] = t.u16(substituteAt + 2 + index * 2);
+      this.setProps(i, SUBSTITUTED);
       return true;
     }
     return false;
+  }
+
+  /** This function tells if a lookup changes the sequence `glyphs` with no context, as `wouldApply` of `SubstitutionLookup` tells. */
+  wouldApply(index: number, glyphs: readonly number[]): boolean {
+    const lookup = this.lookup(index);
+    if (lookup === undefined || glyphs.length === 0) return false;
+    const [first] = glyphs as [number];
+    return lookup.subtables.some((t) => {
+      const format = t.u16(0);
+      if (lookup.type === 1 || lookup.type === 2 || lookup.type === 3 || lookup.type === 8) return glyphs.length === 1 && coverageIndex(t.part(t.u16(2)), first) >= 0;
+      if (lookup.type === 4) {
+        const index = coverageIndex(t.part(t.u16(2)), first);
+        if (index < 0) return false;
+        const set = t.part(t.u16(6 + index * 2));
+        return Array.from({ length: set.u16(0) }, (_, l) => set.part(set.u16(2 + l * 2))).some((ligature) => ligature.u16(2) === glyphs.length && glyphs.every((g, k) => k === 0 || ligature.u16(4 + (k - 1) * 2) === g));
+      }
+      if (lookup.type !== 5 && lookup.type !== 6) return false;
+      const chain = lookup.type === 6;
+      if (format === 3) {
+        const backCount = chain ? t.u16(2) : 0;
+        const inputAt = chain ? 4 + backCount * 2 : 2;
+        const count = t.u16(inputAt);
+        const coverageAt = chain ? inputAt + 2 : 6;
+        if (chain && (backCount !== 0 || t.u16(inputAt + 2 + count * 2) !== 0)) return false;
+        return count === glyphs.length && glyphs.every((g, k) => coverageIndex(t.part(t.u16(coverageAt + k * 2)), g) >= 0);
+      }
+      const index = coverageIndex(t.part(t.u16(2)), first);
+      if (index < 0) return false;
+      const classes = format === 2 ? t.part(t.u16(chain ? 6 : 4)) : undefined;
+      const value = (g: number) => (classes === undefined ? g : classOf(classes, g));
+      const setIndex = classes === undefined ? index : value(first);
+      const setCountAt = chain ? (format === 2 ? 10 : 4) : format === 2 ? 6 : 4;
+      if (setIndex >= t.u16(setCountAt) || t.u16(setCountAt + 2 + setIndex * 2) === 0) return false;
+      const set = t.part(t.u16(setCountAt + 2 + setIndex * 2));
+      for (let r = 0; r < set.u16(0); r++) {
+        const rule = set.part(set.u16(2 + r * 2));
+        const backCount = chain ? rule.u16(0) : 0;
+        const inputAt = chain ? 2 + backCount * 2 : 0;
+        const count = rule.u16(inputAt);
+        const inputStart = chain ? inputAt + 2 : 4;
+        if (chain && (backCount !== 0 || rule.u16(inputStart + Math.max(0, count - 1) * 2) !== 0)) continue;
+        if (count === glyphs.length && glyphs.every((g, k) => k === 0 || value(g) === rule.u16(inputStart + (k - 1) * 2))) return true;
+      }
+      return false;
+    });
   }
 
   /** This function applies one subtable at `i`. It gives the next position, or -1 when the subtable does not match. */
@@ -269,6 +401,7 @@ class Gsub {
         const index = coverageIndex(t.part(t.u16(2)), glyph);
         if (index < 0) return -1;
         glyphs[i] = format === 1 ? (glyph + t.i16(4)) & 0xffff : t.u16(6 + index * 2);
+        this.setProps(i, SUBSTITUTED);
         return i + 1;
       }
       case 2: {
@@ -277,6 +410,7 @@ class Gsub {
         const sequence = t.part(t.u16(6 + index * 2));
         const replacement = Array.from({ length: sequence.u16(0) }, (_, k) => sequence.u16(2 + k * 2));
         this.splice(glyphs, i, 1, replacement);
+        for (let k = 0; k < replacement.length; k++) this.setProps(i + k, replacement.length > 1 ? SUBSTITUTED | MULTIPLIED : SUBSTITUTED);
         return i + replacement.length;
       }
       case 3: {
@@ -284,6 +418,7 @@ class Gsub {
         if (index < 0) return -1;
         const set = t.part(t.u16(6 + index * 2));
         if (set.u16(0) > 0) glyphs[i] = set.u16(2);
+        this.setProps(i, SUBSTITUTED);
         return i + 1;
       }
       case 4: {
@@ -296,6 +431,8 @@ class Gsub {
           const positions = this.matchInput(lookup, glyphs, i, components - 1, (k, g) => g === ligature.u16(4 + k * 2));
           if (positions === undefined) continue;
           glyphs[i] = ligature.u16(0);
+          // A ligature is not a multiplied glyph, even when one of its glyphs was
+          this.setProps(i, SUBSTITUTED | LIGATED, MULTIPLIED);
           for (let k = positions.length - 1; k >= 1; k--) this.splice(glyphs, positions[k]!, 1, []);
           return i + 1;
         }
@@ -359,7 +496,7 @@ class Gsub {
       if (!this.matchBacktrack(lookup, glyphs, i, backCount, (k, g) => covers(4 + k * 2, g))) return -1;
       const positions = this.matchInput(lookup, glyphs, i, inputCount - 1, (k, g) => covers(inputAt + 4 + k * 2, g));
       if (positions === undefined) return -1;
-      if (!this.matchLookahead(lookup, glyphs, positions[positions.length - 1]!, aheadCount, (k, g) => covers(aheadAt + 2 + k * 2, g))) return -1;
+      if (!this.matchLookahead(lookup, glyphs, i, positions[positions.length - 1]!, aheadCount, (k, g) => covers(aheadAt + 2 + k * 2, g))) return -1;
       return this.applyRecords(glyphs, positions, records(t, recordsAt + 2, t.u16(recordsAt)), depth);
     }
     const index = coverageIndex(t.part(t.u16(2)), glyph);
@@ -386,7 +523,7 @@ class Gsub {
       if (!this.matchBacktrack(lookup, glyphs, i, backCount, (k, g) => valueIn(backClasses, g) === rule.u16(2 + k * 2))) continue;
       const positions = this.matchInput(lookup, glyphs, i, inputCount - 1, (k, g) => valueIn(inputClasses, g) === rule.u16(inputAt + 2 + k * 2));
       if (positions === undefined) continue;
-      if (!this.matchLookahead(lookup, glyphs, positions[positions.length - 1]!, aheadCount, (k, g) => valueIn(aheadClasses, g) === rule.u16(aheadAt + 2 + k * 2))) continue;
+      if (!this.matchLookahead(lookup, glyphs, i, positions[positions.length - 1]!, aheadCount, (k, g) => valueIn(aheadClasses, g) === rule.u16(aheadAt + 2 + k * 2))) continue;
       return this.applyRecords(glyphs, positions, records(rule, recordsAt + 2, rule.u16(recordsAt)), depth);
     }
     return -1;
@@ -435,7 +572,15 @@ export function readSubstitutions(gsub: Reader, script: string, features: readon
   for (const [index, tags] of [...indices].sort(([a], [b]) => a - b)) {
     const lookup = table.lookup(index);
     if (lookup === undefined) continue;
-    result.push({ index, type: lookup.type, flags: lookup.flags, features: tags, apply: (glyphs: number[], masks?: number[], mask?: number) => table.applyAll(index, glyphs, masks, mask) });
+    result.push({
+      index,
+      type: lookup.type,
+      flags: lookup.flags,
+      features: tags,
+      apply: (glyphs: number[], masks?: number[], mask?: number) => table.applyAll(index, glyphs, masks, mask),
+      applyInfos: (glyphs: number[], infos: GlyphInfo[], mask: number, perSyllable: boolean) => table.applyRun(index, glyphs, infos, mask, perSyllable),
+      wouldApply: (glyphs: readonly number[]) => table.wouldApply(index, glyphs),
+    });
   }
   return result;
 }

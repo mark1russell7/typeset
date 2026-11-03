@@ -1,4 +1,5 @@
 import type { Reader } from "./binary.ts";
+import type { GlyphFilter } from "./substitution.ts";
 import { classOf, coverageIndex } from "./tables.ts";
 import type { VariationStore } from "./variations.ts";
 
@@ -17,6 +18,11 @@ export interface PairValue {
 /** A lookup of pair adjustments, with the flags that tell which glyphs it skips. */
 export interface PairLookup {
   readonly flags: number;
+  /**
+   * This function tells if the lookup skips a glyph, when the lookup uses a mark filtering set. Then the lookup skips each
+   * mark that is not in the set. Without the function, the flags alone tell which glyphs the lookup skips.
+   */
+  readonly skip?: (glyph: number) => boolean;
   /** This function gives the value for a pair, or `undefined` when no subtable applies. */
   pair(first: number, second: number): PairValue | undefined;
 }
@@ -108,11 +114,17 @@ export function scriptTags(script: string): string[] {
   return [...tags, "DFLT", "dflt", "latn"];
 }
 
+/** The GPOS features with pair lookups that HarfBuzz applies to horizontal text. */
+const pairFeatures = new Set(["kern", "dist"]);
+
+/** The lookup flag that selects a mark filtering set of GDEF. */
+const USE_MARK_FILTERING_SET = 0x10;
+
 /**
- * This function gives the pair lookups of the feature `kern` of GPOS for a script, in the order of the lookup list. The
- * store gives the deltas of a variable font at its instance.
+ * This function gives the pair lookups of the features `kern` and `dist` of GPOS for a script, in the order of the lookup
+ * list. The store gives the deltas of a variable font at its instance. The filter gives the mark filtering sets of GDEF.
  */
-export function readGposKerning(gpos: Reader, script: string, store?: VariationStore): PairLookup[] {
+export function readGposKerning(gpos: Reader, script: string, store?: VariationStore, filter?: GlyphFilter): PairLookup[] {
   const scripts = gpos.part(gpos.u16(4));
   const features = gpos.part(gpos.u16(6));
   const lookups = gpos.part(gpos.u16(8));
@@ -132,7 +144,7 @@ export function readGposKerning(gpos: Reader, script: string, store?: VariationS
   const featureCount = langSys.u16(4);
   for (let i = 0; i < featureCount; i++) {
     const record = 2 + langSys.u16(6 + i * 2) * 6;
-    if (features.tag(record) !== "kern") continue;
+    if (!pairFeatures.has(features.tag(record))) continue;
     const feature = features.part(features.u16(record + 4));
     for (let k = 0; k < feature.u16(2); k++) indices.add(feature.u16(4 + k * 2));
   }
@@ -150,8 +162,18 @@ export function readGposKerning(gpos: Reader, script: string, store?: VariationS
       if (subtype === 2) subtables.push(pairSubtable(subtable, store));
     }
     if (subtables.length === 0) return [];
+    const flags = lookup.u16(2);
+    const markSet = (flags & USE_MARK_FILTERING_SET) !== 0 && filter !== undefined ? lookup.u16(6 + lookup.u16(4) * 2) : -1;
+    const skip = markSet < 0 ? undefined : (glyph: number): boolean => {
+      const kind = filter!.glyphClass(glyph);
+      if ((flags & IGNORE_BASE) !== 0 && kind === 1) return true;
+      if ((flags & IGNORE_LIGATURES) !== 0 && kind === 2) return true;
+      if (kind !== 3) return false;
+      return (flags & IGNORE_MARKS) !== 0 || !filter!.inMarkSet(markSet, glyph);
+    };
     return [{
-      flags: lookup.u16(2),
+      flags,
+      ...(skip === undefined ? {} : { skip }),
       pair(first: number, second: number): PairValue | undefined {
         for (const subtable of subtables) {
           const value = subtable(first, second);
