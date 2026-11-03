@@ -70,6 +70,22 @@ const cells: BoundCell[] = [];
 const matches: GlyphMatch[] = [];
 const checks: Record<string, unknown> = {};
 
+/**
+ * Each rule names a cluster on which two references disagree. The model matched Chrome on it (T1d), and HarfBuzz of the
+ * record gives other glyphs. The rule of the specification decides it in a separate item. Until then, no reference is the truth.
+ */
+const disagreementRules = [
+  {
+    id: "devanagari-vowel-sign-after-independent-vowel",
+    script: "devanagari",
+    cluster: "आै",
+    model: "a dotted circle before the vowel sign",
+    chrome: "Chromium 156.0.8078.4 gives the glyphs of the model (T1d, docs/FONTS.md). Its HarfBuzz version is not known yet.",
+    harfbuzz: "no dotted circle",
+  },
+];
+const disagreements: { rule: string; sample: string; font: string; word: string; model: readonly number[]; harfbuzz: readonly number[] }[] = [];
+
 /** This function measures the line samples of one script with one font at one weight, and adds the cells and the glyph match. */
 function measure(script: ScriptId, id: string, weight: number, samples: readonly Sample[]): number {
   const tag = scriptTags[script];
@@ -101,7 +117,12 @@ function measure(script: ScriptId, id: string, weight: number, samples: readonly
       const model = glyphAdvances(models.freetype, word, { script: tag, shaping: "canvas" }).glyphs;
       words++;
       if (model.length === shaped.glyphs.length && model.every((glyph, i) => glyph === shaped.glyphs[i])) matched++;
-      else if (examples.length < 5) examples.push({ sample: sample.id, word, model, harfbuzz: shaped.glyphs });
+      else {
+        if (examples.length < 5) examples.push({ sample: sample.id, word, model, harfbuzz: shaped.glyphs });
+        // The word stays in the counts above. The record also lists it when the two references disagree on its cluster.
+        const rule = disagreementRules.find((candidate) => candidate.script === script && word.includes(candidate.cluster));
+        if (rule !== undefined) disagreements.push({ rule: rule.id, sample: sample.id, font: id, word, model, harfbuzz: shaped.glyphs });
+      }
     }
   }
   matches.push({ script, font: id, weight, words, matched, examples });
@@ -224,6 +245,7 @@ describe.skipIf(folder === undefined)("the error of the fast path against HarfBu
       knownOpen,
       checks,
       glyphMatch: { scripts, fonts: matches },
+      referencesDisagree: { rules: disagreementRules, words: disagreements },
       cells,
     };
     // Each fraction keeps 4 decimals: 1/10 000 of 1/64 px is far below each error of the record
