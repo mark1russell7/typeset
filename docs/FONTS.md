@@ -377,5 +377,28 @@ The workflow `fonts.yml` runs the test on the arm `linux-1` only, after the test
 The committed record is `packages/widths/data/harfbuzz-bounds.json`, with one line for each cell. The check `engineRowsEqual` tells if the 3 engine rows give the same statistics. The command `pnpm --filter @typeset/widths bounds-table` writes this table from the record. Each tier has a column of the worst model error. The last column is the worst rounding effect. Each value is the worst over the fonts, the weights, the sizes and the engine rows, with its 95 % interval, in 1/64 px, and the place of the cell.
 
 <!-- bounds-table:start -->
-The record of the first CI run follows in this pull request.
+| Script | Model error, `advances` | Model error, `kerned` | Model error, `model` | Rounding effect | Read effect |
+|---|---|---|---|---|---|
+| arabic | 76873.7 [63074.3, 76873.7] (noto-sans-arabic 400, 96 px, coretext) | 76873.7 [63074.3, 76873.7] (noto-sans-arabic 400, 96 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-arabic 400, 96 px, coretext) | 748.3 [679.1, 748.3] (noto-sans-arabic 400, 13.5 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 8 px, freetype) |
+| cyrillic | 1344.0 [1280.0, 1344.0] (noto-sans 400, 96 px, freetype) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -1945.6 [-1945.6, -1894.4] (noto-sans-mono 400, 14 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 8 px, freetype) |
+| devanagari | -3904.0 [-3904.0, 2496.0] (noto-sans-devanagari 400, 96 px, freetype) | -3904.0 [-3904.0, 2496.0] (noto-sans-devanagari 400, 96 px, freetype) | 3136.0 [0.0, 3136.0] (noto-sans-devanagari 400, 96 px, freetype) | -1082.9 [-1082.9, -544.3] (noto-sans-devanagari 400, 48 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 8 px, freetype) |
+| emoji | 0.0 [0.0, 0.0] (noto-emoji 400, 8 px, freetype) | 0.0 [0.0, 0.0] (noto-emoji 400, 8 px, freetype) | 0.0 [0.0, 0.0] (noto-emoji 400, 8 px, freetype) | -2335.6 [-2335.6, -2212.4] (noto-emoji 400, 15.333 px, freetype) | 0.0 [0.0, 0.0] (noto-emoji 400, 8 px, freetype) |
+| greek | 3904.0 [3072.0, 3904.0] (noto-serif 400, 96 px, freetype) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 96 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 96 px, coretext) | 2048.0 [2022.4, 2048.0] (noto-sans-mono 400, 16 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 8 px, freetype) |
+| han | 0.0 [0.0, 0.0] (noto-sans-sc 400, 8 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-sc 400, 8 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-sc 400, 8 px, coretext) | 2497.9 [2400.0, 2497.9] (noto-sans-sc 400, 13.5 px, freetype) | 21.7 [13.8, 21.7] (noto-sans-sc 400, 96 px, coretext) |
+| hangul | -0.1 [-0.1, -0.1] (noto-sans-kr 400, 96 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-kr 400, 96 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-kr 400, 96 px, coretext) | -1624.6 [-1624.6, -1491.8] (noto-sans-kr 400, 13.5 px, freetype) | -58.3 [-58.3, -52.3] (noto-sans-kr 400, 96 px, coretext) |
+| hebrew | 1984.0 [1408.0, 1984.0] (noto-sans-hebrew 400, 96 px, freetype) | -0.1 [-0.1, 0.0] (noto-sans-hebrew 400, 48 px, coretext) | -0.1 [-0.1, 0.0] (noto-sans-hebrew 400, 48 px, coretext) | -933.6 [-933.6, -527.6] (noto-sans-hebrew 400, 24 px, freetype) | -50.0 [-50.0, -42.2] (noto-sans-hebrew 400, 96 px, coretext) |
+| kana | 832.0 [448.0, 832.0] (noto-sans-jp 400, 96 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 8 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 8 px, coretext) | 2489.9 [2400.0, 2489.9] (noto-sans-jp 400, 13.5 px, freetype) | 31.6 [15.8, 31.6] (noto-sans-jp 400, 96 px, coretext) |
+| latin | 1728.0 [1408.0, 1728.0] (source-sans-3 700, 96 px, freetype) | 344.0 [184.3, 344.0] (noto-serif 400, 96 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 96 px, coretext) | -2022.4 [-2022.4, -1996.8] (noto-sans-mono 400, 14 px, freetype) | 40.6 [20.0, 40.6] (source-sans-3 700, 96 px, coretext) |
+| latin-extended (open: T1e) | 1216.0 [640.0, 1216.0] (noto-serif 400, 96 px, freetype) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -2022.4 [-2022.4, -1920.0] (noto-sans-mono 400, 14 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 8 px, freetype) |
+| thai | 256.0 [128.0, 256.0] (noto-sans-thai 400, 96 px, freetype) | 256.0 [128.0, 256.0] (noto-sans-thai 400, 96 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 96 px, coretext) | -754.7 [-754.7, -563.7] (noto-sans-thai 400, 72 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 8 px, freetype) |
+
+The source is the record of the CI run 41731795116.
 <!-- bounds-table:end -->
+
+The Fonts run 41731795116 gave this record, with HarfBuzz 15.0.0:
+
+- The worst model error of the tier `model` is 0.13 in 1/64 px for each script except Devanagari.
+- The worst error of Devanagari comes from one word. The two references disagree on that word, and T1f decides it.
+- The glyph ids agree on 783 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. T1e examines Latin Extended.
+- The largest precision error of the reference stays in its bound in all 2277 cells.
+- The read effect has no external reference until T4b.
