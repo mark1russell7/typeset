@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import type { Font } from "@typeset/fonts";
+import { measureWidth, type Font } from "@typeset/fonts";
 import type { Cell } from "@typeset/widths";
-import { fontsCommit } from "@typeset/widths";
+import { fontsCommit, scriptTags } from "@typeset/widths";
 import { describe, expect, it } from "vitest";
 import {
   allLeftOut,
@@ -176,6 +176,13 @@ describe("labResult", () => {
   it("counts the characters with no glyph, and each CJK character is a word alone", () => {
     expect(labResult({ font: testFont(), text: "aЖ", size: 10, script: "cyrillic", rounding: "exact" }, () => 0).missing).toBe(1);
     expect(labResult({ font: testFont(), text: "かな", size: 10, script: "kana", rounding: "pixel" }, () => 0).words.map((word) => word.text)).toEqual(["か", "な"]);
+  });
+
+  it("gives the model the sum of the engine", () => {
+    const font = testFont();
+    const options = { script: scriptTags.latin, shaping: "canvas", rounding: "exact", sum: "float32" } as const;
+    const result = labResult({ font, text: "ab cd ab", size: 13.3, script: "latin", rounding: "exact", sum: "float32" }, () => 0);
+    expect(result.model).toBe(measureWidth(font, "ab cd ab", 13.3, options));
   });
 });
 

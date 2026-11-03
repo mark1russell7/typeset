@@ -138,8 +138,8 @@ function update(): void {
   if (loaded === undefined || loaded.choice.id !== state.font) return;
   const font = loaded.model(state.engine, state.weight);
   measureContext.font = cssFont(loaded, state.weight, state.size);
-  const rounding = engines[state.engine].rounding;
-  const result = labResult({ font, text: state.text, size: state.size, script: state.script, rounding }, (text) => measureContext.measureText(text).width);
+  const { rounding, sum } = engines[state.engine];
+  const result = labResult({ font, text: state.text, size: state.size, script: state.script, rounding, sum }, (text) => measureContext.measureText(text).width);
   lastResult = result;
   $("r-canvas").textContent = formatPx(result.canvas);
   $("r-model").textContent = formatPx(result.model);
@@ -426,7 +426,7 @@ async function sweepFont(choice: FontChoice, weight: number, engine: EngineName,
   }
   report(`Scoring ${choice.family}`, 0.85);
   await nextFrame();
-  const summary = sweepSummary(task, model, canvas, engines[engine].rounding);
+  const summary = sweepSummary(task, model, canvas, engines[engine].rounding, engines[engine].sum);
   const key = `${choice.id}/${used}/${engine}`;
   sweeps.set(key, { key, label: `${choice.family} ${used}`, engine, summary });
   renderSweep();
