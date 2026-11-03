@@ -302,6 +302,9 @@ importers:
       '@mark1russell7/layout-contract':
         specifier: ^0.3.2
         version: 0.3.2
+      '@mark1russell7/rigor-generators':
+        specifier: ^0.1.0
+        version: 0.1.1
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
@@ -323,6 +326,9 @@ importers:
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.0
         version: 0.1.5
+      '@mark1russell7/typeset':
+        specifier: workspace:*
+        version: link:../typeset
       '@typeset/corpus':
         specifier: workspace:*
         version: link:../corpus
