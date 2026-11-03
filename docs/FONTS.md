@@ -75,7 +75,7 @@ The fonts run 41562917143 on the head 65f5225 of typeset#36 measured the model o
 - The numbers are for the 9 scripts Latin, Greek, Cyrillic, Arabic, Hebrew, Thai, Han, kana and Hangul, and for Source Sans 3 at 400 and 700.
 - Before this change, the worst page on macOS and Windows was 0.10 to 3.01 px.
 - The two Linux arms give the same summaries as the run 41556398022.
-- The pages of Latin Extended (5.2 px) and Devanagari have other causes. They stay open.
+- The pages of Latin Extended (5.2 px) and Devanagari have other causes. T1e and T1d find them.
 
 ## The limit of the width
 
@@ -312,6 +312,28 @@ The fonts run 41553727572 on the head of typeset#34 confirms the diagnosis on th
 - The option `indic: false` stops the shaper. Then Devanagari uses the one stage of the other scripts.
 - HarfBuzz skips a ZWJ or a ZWNJ in some lookups. The model does not skip them. The corpus has no joiners.
 - `indicSyllables` gives the syllables of a text. The tests use it with no font.
+
+
+## The normalization (T1e)
+
+HarfBuzz normalizes each text before GSUB. The model did this only in the Indic shaper. This caused the error of the Latin Extended pages, at most 5.2 px.
+
+The steps come from `hb-ot-shape-normalize.cc`. `normalizeCodePoints` of `fonts/normalize.ts` applies them:
+
+1. A character with a glyph and with no mark near it keeps its form. Each other character decomposes when the font has its parts.
+2. The marks after a base go in the order of their combining classes. The shadda of Arabic and the points of Hebrew use the classes of HarfBuzz, not the canonical classes.
+3. Each mark composes with its starter when the font has the glyph of the composite. A mark between them with the same class or a larger class blocks this.
+
+An example: the text `u` and U+031B has two glyphs before this step. The font has a glyph for U+01B0, and that glyph is wider than the sum of the two glyphs.
+
+- The script Hangul does not get this step. HarfBuzz uses the mode `NONE` for it.
+- The form NFD of JavaScript gives the canonical order, so the module has a table only for Hebrew and Arabic.
+- `widthBound` counts each part and each composite of the normalization, so it stays sound.
+
+Two differences from HarfBuzz stay, and neither changes a width:
+
+- HarfBuzz hides U+034F with a zero-width space glyph. The model keeps its own glyph with the advance 0.
+- HarfBuzz moves some Arabic marks to the start of a mark run after the sort. The model keeps them in the sorted order. The glyphs are the same, in another order.
 
 ## The result of the Indic shaper
 

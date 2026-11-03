@@ -247,6 +247,32 @@ describe("the kerning", () => {
   });
 });
 
+describe("the normalization", () => {
+  // The fixture makes the glyph 4 a mark, so it has no advance
+  const map: [number, number][] = [[0x55, 1], [0x31b, 4], [0x1af, 3], [0xe9, 5], [0x65, 2], [0x301, 6]];
+  const widths = [500, 100, 100, 1000, 0, 1200, 0];
+
+  it("composes a base and a mark in the model", () => {
+    expect(measureWidth(fontOf({ map, widths, gpos: null }), string(0x55, 0x31b), 1000)).toBe(1000);
+  });
+
+  it("counts a composite that only a mark of the set can give", () => {
+    const font = fontOf({ map, widths, gpos: null });
+    const bound = widthBound(font, string(0x55, 0x31b));
+    expect(bound.advance).toBe(1000);
+    expect(measureWidth(font, string(0x55, 0x31b), 1000)).toBeLessThanOrEqual(bound.width(2, 1000));
+  });
+
+  it("counts a character that keeps its form when its parts are narrower", () => {
+    expect(widthBound(fontOf({ map, widths, gpos: null }), string(0xe9)).advance).toBe(1200);
+  });
+
+  it("counts the parts of a character that decomposes when they are wider", () => {
+    const wide = [500, 100, 400, 1000, 0, 150, 300];
+    expect(widthBound(fontOf({ map, widths: wide, gpos: null }), string(0xe9)).advance).toBe(700);
+  });
+});
+
 describe("the margins", () => {
   const font = fontOf({ gpos: pairs([[1, 2, 70]]) });
   const noKerning = readFont(buildTtf());

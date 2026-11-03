@@ -8,6 +8,7 @@ import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts, type Gl
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
 import { indicScripts, indicShaper } from "./indic.ts";
 import { joiningFeatures, joiningForms, joiningScripts, joiningStages } from "./joining.ts";
+import { hasMark, normalizeCodePoints } from "./normalize.ts";
 import { canvasSegments, canvasWords } from "./words.ts";
 
 /** The options of `readFont`. */
@@ -318,9 +319,16 @@ function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: str
   const joins = shaper === "joining";
   const lookups = joins ? [] : font.substitutions(script, features);
   const stages = joins ? joiningStages(features, features.includes("rclt") && font.substitutions(script, ["rclt"]).length > 0).map((stage) => ({ stage, lookups: font.substitutions(script, stage.features) })) : [];
+  // The shaper of Hangul has its own normalization in HarfBuzz: the mode `NONE` keeps each character with a glyph
+  const normalizes = script !== "hang";
+  const rules = { hasGlyph: (codePoint: number) => font.glyph(codePoint) !== 0, shortCircuit: true };
   const substitute = (word: string): number[] => {
-    const codePoints = [...word].map((character) => character.codePointAt(0)!);
-    const wordGlyphs = codePoints.map((codePoint) => font.glyph(codePoint));
+    let codePoints = [...word].map((character) => character.codePointAt(0)!);
+    let wordGlyphs = codePoints.map((codePoint) => font.glyph(codePoint));
+    if (normalizes && (hasMark(word) || wordGlyphs.includes(0))) {
+      codePoints = normalizeCodePoints(codePoints, rules);
+      wordGlyphs = codePoints.map((codePoint) => font.glyph(codePoint));
+    }
     for (const lookup of lookups) lookup.apply(wordGlyphs);
     if (joins) {
       // Each glyph has the bit of its joining form, and the bit 7 for the features of all the glyphs
