@@ -17,7 +17,7 @@ w(a + b) = w(a) + w(b) + kern(last(a), first(b))
 Thus a concatenation adds two numbers, and an edit updates only the path from the changed piece to the root. No text is measured again.
 
 - **Advances come from the font file.** The package reads the advance of each glyph and the kerning pairs once per font. A canvas is not necessary.
-- **Sizes scale.** Without hinting, an advance scales linearly with the font size, so one table serves all sizes. A test checks this for each font.
+- **Sizes scale.** Without hinting, an advance scales linearly with the font size, so one table serves all sizes. No test checks this yet: T4 adds a test for each font.
 - **Fonts can change.** Each font has an epoch. When a font loads or changes, its cache is dropped and built again.
 - **Line breaks are searches.** Prefix sums of the advances give each greedy break in O(log n). Other breakers (Knuth-Plass total fit, balanced) use the same summaries.
 - **Hard scripts fall back.** Complex scripts, ligatures and contextual forms go to a shaper (HarfBuzz). The fast path states where it applies.
