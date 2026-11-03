@@ -184,7 +184,11 @@ export function ruledWidth(words: readonly RuledWord[], size: number, unitsPerEm
       let units = 0;
       advances.forEach((advance, i) => {
         const base = bases[i]!;
-        units += Math.trunc(Math.fround(base * pxPerUnit) * 65536) + Math.floor((Math.round(advance - base) * multiplier + 32768) / 65536);
+        // The kerning has a whole part, which HarfBuzz scales with em_mult, and the fraction of a variation delta, which it scales exactly
+        const kerning = advance - base;
+        const whole = Math.round(kerning);
+        const fraction = Math.fround(Math.fround(Math.fround(kerning - whole) * xScale) / unitsPerEm);
+        units += Math.trunc(Math.fround(base * pxPerUnit) * 65536) + Math.floor((whole * multiplier + 32768) / 65536) + Math.sign(fraction) * Math.round(Math.abs(fraction));
       });
       total = Math.fround(total + Math.fround(units / 65536));
     }

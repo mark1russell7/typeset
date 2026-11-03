@@ -3,7 +3,7 @@ import { release } from "node:os";
 import { join } from "node:path";
 import { wilson } from "@mark1russell7/rigor-statistics";
 import { engines, measureWidth, readFont, type EngineName, type Font } from "@mark1russell7/typeset/fonts";
-import { canvasWords, glyphAdvances, readTables } from "@mark1russell7/typeset/fonts/inspect";
+import { canvasSegments, canvasWords, glyphAdvances, readTables } from "@mark1russell7/typeset/fonts/inspect";
 import { fingerprint, fonts as corpusFonts, fontsFor, generateCorpus, scriptIds, type Sample, type ScriptId } from "@typeset/corpus";
 import { afterAll, describe, expect, it } from "vitest";
 import { boundSizes, boundsTable, tableMarks, withTable, type RecordCell, ruledWidth, type RuledWord, type WidthRule, bootstrapRuns, boundStatistics, hmtxAdvances, knownOpen, tierNames, tiers, worstSigned, type BoundStatistics, type TierName } from "./bounds.ts";
@@ -106,9 +106,11 @@ function measure(script: ScriptId, id: string, weight: number, samples: readonly
     if (!baseOf.has(glyph)) baseOf.set(glyph, reference.glyphAdvance(glyph, reference.unitsPerEm));
     return baseOf.get(glyph)!;
   };
-  const referenceWords: RuledWord[][] = samples.map((sample) =>
-    reference.shapeWords(sample.text, tag).map(({ shaped }) => ({ advances: shaped.advances, bases: shaped.glyphs.map(base) })),
-  );
+  const ruled = (shaped: { readonly glyphs: readonly number[]; readonly advances: readonly number[] }): RuledWord => ({ advances: shaped.advances, bases: shaped.glyphs.map(base) });
+  // measureWidth shapes each bidi segment alone under the sum float32, as Blink does, and each canvas word under the other rules
+  const bySegment = (rule: WidthRule): boolean => rule.sum === "float32" && rule.rounding !== "pixel";
+  const referenceWords: RuledWord[][] = samples.map((sample) => reference.shapeWords(sample.text, tag).map(({ shaped }) => ruled(shaped)));
+  const referenceSegments: RuledWord[][] = samples.map((sample) => reference.shapeSegments(sample.text, tag).map(ruled));
   const exactRule: WidthRule = { rounding: "exact", sum: "exact" };
   for (const tier of tierNames) {
     for (const engine of engineNames) {
@@ -116,20 +118,21 @@ function measure(script: ScriptId, id: string, weight: number, samples: readonly
       const options = { ...tiers[tier], script: tag, shaping: "canvas", rounding, sum } as const;
       // The advances of the model for each word, so the replica check applies ruledWidth to the model too
       const modelWords: RuledWord[][] = samples.map((sample) =>
-        canvasWords(sample.text).map((word) => {
+        (bySegment({ rounding, sum }) ? canvasSegments(sample.text) : canvasWords(sample.text)).map((word) => {
           const { glyphs, advances } = glyphAdvances(models[engine], word, options);
           return { advances, bases: glyphs.map((glyph) => models[engine].advance(glyph)) };
         }),
       );
+      const shapedReference = bySegment({ rounding, sum }) ? referenceSegments : referenceWords;
       for (const size of boundSizes) {
-        const ruled = samples.map((_, i) => ruledWidth(referenceWords[i]!, size, reference.unitsPerEm, { rounding, sum }));
+        const widths = samples.map((_, i) => ruledWidth(shapedReference[i]!, size, reference.unitsPerEm, { rounding, sum }));
         const errors = samples.map((sample, i) => {
           const model = measureWidth(models[engine], sample.text, size, options);
           const replica = ruledWidth(modelWords[i]!, size, models[engine].unitsPerEm, { rounding, sum });
           noteReplica(engine, Math.abs(replica - model) * 64);
-          return (model - ruled[i]!) * 64;
+          return (model - widths[i]!) * 64;
         });
-        const effects = samples.map((_, i) => (ruled[i]! - ruledWidth(referenceWords[i]!, size, reference.unitsPerEm, exactRule)) * 64);
+        const effects = samples.map((_, i) => (widths[i]! - ruledWidth(shapedReference[i]!, size, reference.unitsPerEm, exactRule)) * 64);
         const label = `${script}/${id}/${weight}/${size}/${tier}/${engine}`;
         const statistics = boundStatistics(errors, label);
         cells.push({ script, font: id, weight, size, tier, engine, missing, ...statistics, rounding: boundStatistics(effects, `${script}/${id}/${weight}/${size}/${engine}/rounding`) });

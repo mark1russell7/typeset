@@ -53,8 +53,9 @@ isEngineName: build/chunks/engines.d.ts#isEngineName
 measureWidth: build/chunks/font.d.ts#measureWidth
 readFont: build/chunks/font.d.ts#readFont
 
-## ./fonts/inspect (build/fonts-inspect.d.ts): 5 names
+## ./fonts/inspect (build/fonts-inspect.d.ts): 6 names
 
+canvasSegments: build/fonts-inspect.d.ts#canvasSegments
 canvasWords: build/fonts-inspect.d.ts#canvasWords
 defaultFeatures: build/chunks/font.d.ts#defaultFeatures
 glyphAdvances: build/chunks/font.d.ts#glyphAdvances
@@ -354,6 +355,9 @@ interface TextOptions {
 declare namespace text_d_exports {
   export { Text, TextOptions };
 }
+
+### build/fonts-inspect.d.ts#canvasSegments
+export declare function canvasSegments(text: string): string[];
 
 ### build/fonts-inspect.d.ts#canvasWords
 export declare function canvasWords(text: string): string[];
