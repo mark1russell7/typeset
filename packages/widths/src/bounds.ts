@@ -89,7 +89,7 @@ export function hmtxAdvances(tables: ReturnType<typeof readTables>): (glyph: num
 
 /**
  * One cell of the record, as `harfbuzz-bounds.json` writes it. Its statistics are the model error. The model error is the
- * model under the rule of the engine row with the deltas rounded, minus HarfBuzz under the same rule.
+ * model with the read rules of HarfBuzz, under the rule of the engine row, minus HarfBuzz under the same rule.
  */
 export interface RecordCell extends BoundStatistics {
   readonly script: string;
@@ -100,8 +100,8 @@ export interface RecordCell extends BoundStatistics {
   readonly engine: string;
   /** The rounding effect: HarfBuzz under the rule of the engine row minus HarfBuzz with no rounding, in 1/64 px. */
   readonly rounding: BoundStatistics;
-  /** The deltas effect: the model under the rule of the row minus the model with the deltas rounded, in 1/64 px. */
-  readonly deltasEffect: BoundStatistics;
+  /** The read effect: the model under the rule of the row minus the model with the read rules of HarfBuzz, in 1/64 px. */
+  readonly readEffect: BoundStatistics;
 }
 
 /** The marks in `docs/FONTS.md` between which `scripts/bounds-table.ts` writes the table. */
@@ -123,20 +123,20 @@ function worstOf(cells: readonly RecordCell[], of: (cell: RecordCell) => BoundSt
 
 /**
  * This function gives a Markdown table of the record. Each row is a script. Each tier has a column of the worst model error,
- * and then come the worst rounding effect and the worst deltas effect. Each worst value is over the fonts, the weights,
+ * and then come the worst rounding effect and the worst read effect. Each worst value is over the fonts, the weights,
  * the sizes and the engine rows, with its 95 % interval, in 1/64 px. The rounding effect has one column, because HarfBuzz
- * has no tiers. The deltas effect has one column over the tiers.
+ * has no tiers. The read effect has one column over the tiers.
  */
 export function boundsTable(cells: readonly RecordCell[]): string {
   const scripts = [...new Set(cells.map((cell) => cell.script))].sort();
   const rows = scripts.map((script) => {
     const own = cells.filter((cell) => cell.script === script);
     const values = tierNames.map((tier) => worstOf(own.filter((cell) => cell.tier === tier), (cell) => cell));
-    values.push(worstOf(own, (cell) => cell.rounding), worstOf(own, (cell) => cell.deltasEffect));
+    values.push(worstOf(own, (cell) => cell.rounding), worstOf(own, (cell) => cell.readEffect));
     const open = knownOpen[script] === undefined ? "" : ` (open: ${knownOpen[script]})`;
     return `| ${script}${open} | ${values.join(" | ")} |`;
   });
-  const heads = [...tierNames.map((tier) => `Model error, \`${tier}\``), "Rounding effect", "Deltas effect"];
+  const heads = [...tierNames.map((tier) => `Model error, \`${tier}\``), "Rounding effect", "Read effect"];
   return [`| Script | ${heads.join(" | ")} |`, `|---|${heads.map(() => "---").join("|")}|`, ...rows].join("\n");
 }
 

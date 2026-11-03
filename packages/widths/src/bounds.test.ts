@@ -59,8 +59,8 @@ interface BoundCell extends BoundStatistics {
   readonly reference: "size-scale";
   /** The largest difference of the upem reference and the size-scale reference in font units, and the count of samples over the bound. */
   readonly referencePrecision: { readonly largest: number; readonly overBound: number };
-  /** The model under the rule of the row minus the model with the deltas rounded. No reference checks it yet (T4b). */
-  readonly deltasEffect: BoundStatistics;
+  /** The model under the rule of the row minus the model with the read rules of HarfBuzz. No reference checks it yet (T4b). */
+  readonly readEffect: BoundStatistics;
 }
 
 /** The glyph match of the tier `model` for one script, font and weight: the canvas words with the glyphs of HarfBuzz. */
@@ -106,7 +106,7 @@ interface SizeReference {
   readonly bound: number;
 }
 const exactRule: WidthRule = { rounding: "exact", sum: "exact" };
-/** The largest difference of the model error plus deltasEffect and the total error, in 1/64 px. */
+/** The largest difference of the model error plus readEffect and the total error, in 1/64 px. */
 let largestSumDifference = 0;
 const noteSum = (difference: number): void => {
   largestSumDifference = Math.max(largestSumDifference, difference);
@@ -119,8 +119,8 @@ function measure(script: ScriptId, id: string, weight: number, samples: readonly
   const bytes = bytesOf(id);
   const reference = openReferenceFont(bytes, cssInstance(weight));
   const models = Object.fromEntries(engineNames.map((engine) => [engine, readFont(bytes, { instance: cssInstance(weight), deltas: engines[engine].deltas, metrics: engines[engine].metrics })])) as Record<EngineName, Font>;
-  // HarfBuzz rounds each variation delta of an advance to whole units, so the model error uses the model with the deltas rounded
-  const rounded = Object.fromEntries(engineNames.map((engine) => [engine, readFont(bytes, { instance: cssInstance(weight), deltas: "round", metrics: engines[engine].metrics })])) as Record<EngineName, Font>;
+  // HarfBuzz rounds each variation delta of an advance and keeps the metrics of each glyph, so the model error reads the font in that way
+  const harfbuzzRead = readFont(bytes, { instance: cssInstance(weight), deltas: "round", metrics: "own" });
   const missing = samples.filter((sample) => missingGlyphs(models.freetype, sample.text) > 0).length;
   // measureWidth shapes each bidi segment alone under the sum float32, as Blink does, and each canvas word under the other rules
   const bySegment = (rule: WidthRule): boolean => rule.sum === "float32" && rule.rounding !== "pixel";
@@ -164,14 +164,14 @@ function measure(script: ScriptId, id: string, weight: number, samples: readonly
         const shaped = bySegment(rule) ? references.get(size)!.segments : references.get(size)!.words;
         const pxPerUnit = size / models[engine].unitsPerEm;
         const widths = shaped.map(({ words }) => ruledWidth(words, rule));
-        const deltaEffects: number[] = [];
+        const readEffects: number[] = [];
         let sumDifference = 0;
         const errors = samples.map((sample, i) => {
           const model = measureWidth(models[engine], sample.text, size, options);
-          const modelRounded = measureWidth(rounded[engine], sample.text, size, options);
-          const error = (modelRounded - widths[i]!) * 64;
-          deltaEffects.push((model - modelRounded) * 64);
-          sumDifference = Math.max(sumDifference, Math.abs(error + deltaEffects[i]! - (model - widths[i]!) * 64));
+          const modelRead = measureWidth(harfbuzzRead, sample.text, size, options);
+          const error = (modelRead - widths[i]!) * 64;
+          readEffects.push((model - modelRead) * 64);
+          sumDifference = Math.max(sumDifference, Math.abs(error + readEffects[i]! - (model - widths[i]!) * 64));
           const own = modelWords[i]!.map(({ glyphs, advances }) => ({
             bases: glyphs.map((glyph) => models[engine].advance(glyph) * pxPerUnit),
             kernings: glyphs.map((glyph, j) => (advances[j]! - models[engine].advance(glyph)) * pxPerUnit),
@@ -199,7 +199,7 @@ function measure(script: ScriptId, id: string, weight: number, samples: readonly
           ...statistics,
           rounding: boundStatistics(effects, `${script}/${id}/${weight}/${size}/${engine}/rounding`),
           referencePrecision: precision,
-          deltasEffect: boundStatistics(deltaEffects, `${label}/deltas`),
+          readEffect: boundStatistics(readEffects, `${label}/read`),
         });
       }
     }
@@ -318,7 +318,7 @@ describe.skipIf(folder === undefined)("the error of the fast path against HarfBu
     for (const engine of engineNames) expect(replicaDifference[engine] ?? 0, engine).toBeLessThan(1);
   });
 
-  it("gives the total error as the model error plus deltasEffect in each cell", () => {
+  it("gives the total error as the model error plus readEffect in each cell", () => {
     expect(largestSumDifference).toBeLessThan(1e-6);
   });
 
@@ -341,7 +341,7 @@ describe.skipIf(folder === undefined)("the error of the fast path against HarfBu
     }
     const unequal = [...byCase.entries()].filter(([, rows]) => new Set(rows).size > 1).map(([key]) => key);
     checks["engineRowsEqual"] = { equal: unequal.length === 0, cases: byCase.size, unequal: unequal.length, examples: unequal.slice(0, 5) };
-    checks["deltasSum"] = { unit: "1/64 px", largestDifference: largestSumDifference };
+    checks["readSum"] = { unit: "1/64 px", largestDifference: largestSumDifference };
     checks["ruleReplica"] = { unit: "1/64 px", largestDifference: replicaDifference };
     // HarfBuzz has no tiers, so the rounding effect of a cell does not depend on its tier
     const effects = new Map<string, Set<string>>();
@@ -391,12 +391,12 @@ describe("the table of the record", () => {
     worst: { estimate, low: estimate - 1, high: estimate + 1 },
     p99: { estimate: Math.abs(estimate), low: 0, high: Math.abs(estimate) + 1 },
     rounding: { n: 40, worst: { estimate: estimate / 2, low: estimate / 2, high: estimate / 2 }, p99: null },
-    deltasEffect: { n: 40, worst: { estimate: size === 96 ? 5 : 0, low: 0, high: 5 }, p99: null },
+    readEffect: { n: 40, worst: { estimate: size === 96 ? 5 : 0, low: 0, high: 5 }, p99: null },
   });
 
-  it("gives the worst model error of each script and tier, the worst rounding effect and the worst deltas effect, each with its place", () => {
+  it("gives the worst model error of each script and tier, the worst rounding effect and the worst read effect, each with its place", () => {
     const table = boundsTable([cell("latin", "advances", 16, "freetype", 3), cell("latin", "advances", 96, "coretext", -40.04), cell("latin", "model", 8, "freetype", 0)]);
-    expect(table.split("\n")[0]).toBe("| Script | Model error, `advances` | Model error, `kerned` | Model error, `model` | Rounding effect | Deltas effect |");
+    expect(table.split("\n")[0]).toBe("| Script | Model error, `advances` | Model error, `kerned` | Model error, `model` | Rounding effect | Read effect |");
     expect(table).toContain("| latin | -40.0 [-41.0, -39.0] (f 400, 96 px, coretext) | no data | 0.0 [-1.0, 1.0] (f 400, 8 px, freetype) | -20.0 [-20.0, -20.0] (f 400, 96 px, coretext) | 5.0 [0.0, 5.0] (f 400, 96 px, coretext) |");
     expect(boundsTable([cell("latin-extended", "model", 8, "freetype", 1)])).toContain("| latin-extended (open: T1e) |");
   });

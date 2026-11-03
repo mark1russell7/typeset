@@ -330,17 +330,17 @@ Each tier has each row of the table `engines`: `freetype`, `coretext` and `direc
 3. The sizes are 8, 10, 12, 13.5, 14, 15.333, 16, 24, 48, 72 and 96 px.
 4. HarfBuzz shapes each word of `canvasWords` alone, as Blink does for a canvas. The model uses the shaping `canvas`. Under the sum `float32`, HarfBuzz and the model shape each segment of `canvasSegments` alone, as `measureWidth` does.
 5. HarfBuzz uses the instance `cssInstance(weight)`, the OpenType script tag of the sample and the direction of the script.
-6. The model error is the model width under the rule of the engine row with the deltas rounded, minus the HarfBuzz width under the same rule, in 1/64 px.
+6. The model error is the width of the model with the read rules of HarfBuzz, under the rule of the engine row, minus the HarfBuzz width under the same rule, in 1/64 px.
 7. The rounding effect is the HarfBuzz width under the rule minus the HarfBuzz width with no rounding.
-8. The deltas effect is the model width under the rule minus the model width with the deltas rounded. Thus the model error and the deltas effect add up to the total error.
+8. The read effect is the model width with the read rules of the row minus the model width with the read rules of HarfBuzz. Thus the model error and the read effect add up to the total error.
 
 The function `ruledWidth` of `bounds.ts` applies the fields `rounding` and `sum` of a row to the HarfBuzz advances in px, as `measureWidth` applies them. The check `ruleReplica` applies `ruledWidth` to the advances of the model and compares it with `measureWidth`. The test fails at a difference of 1/64 px or more. The claims of the prediction are on the model error.
 
 The reference of each size is HarfBuzz at the scale of Blink: `trunc(fround(size) × 65536)`. Each position is then in 1/65536 px. The reference is more precise than each rule that it measures. The field `reference` of each cell is `size-scale`.
 
-HarfBuzz rounds each variation delta of an advance to whole font units, as FreeType does. The row `coretext` keeps the fraction (field `deltas`). HarfBuzz cannot follow that rule. Thus the model error uses the model with the deltas rounded, and the deltas effect keeps the rest.
+The read rules are the fields `deltas` and `metrics` of a row. HarfBuzz reads a font with `deltas: round` and `metrics: own`, and it cannot follow another read rule. The row `coretext` keeps the fraction of a delta, and the row `directwrite` takes the metrics of a component. For example, the glyph `i` of Source Sans 3 at weight 400 has 246 units under `own` and 247 under `component`. Thus the model error uses the read rules of HarfBuzz, and the read effect keeps the rest.
 
-The deltas effect is the model of the engine rule against itself, with no external reference. This is an open gap. T4b measures each engine row against its real engine.
+The read effect is the model of the engine rule against itself, with no external reference. This is an open gap. T4b measures each engine row against its real engine.
 
 A line with a missing glyph stays in the statistics, because the model and HarfBuzz both use the glyph 0. The field `missing` of each cell gives the count of these lines.
 
@@ -349,11 +349,11 @@ A line with a missing glyph stays in the statistics, because the model and HarfB
 The file `harfbuzz-bounds.json` (schema `typeset-harfbuzz-bounds/1`) has these fields:
 
 - `harfbuzz`: the version of HarfBuzz and of `harfbuzzjs`. `runId` is the value of `GITHUB_RUN_ID`.
-- `cells`: one cell for each script, font, weight, size, tier and engine row. A cell has `n`, `missing`, `worst` and `p99` of the model error. Its fields `rounding` and `deltasEffect` have the same statistics of the rounding effect and of the deltas effect. Its field `referencePrecision` has the largest difference of the upem reference and the size-scale reference in font units, and the count of samples over the bound.
+- `cells`: one cell for each script, font, weight, size, tier and engine row. A cell has `n`, `missing`, `worst` and `p99` of the model error. Its fields `rounding` and `readEffect` have the same statistics of the rounding effect and of the read effect. Its field `referencePrecision` has the largest difference of the upem reference and the size-scale reference in font units, and the count of samples over the bound.
 - `worst` is the error with the largest absolute value, with its sign. `p99` is the 0.99 quantile of the absolute errors.
 - Each statistic has a 95 % percentile bootstrap interval of `rigor-statistics`, with 2000 runs. A seed of `rigor-generators` comes from the name of the cell.
 - `glyphMatch`: for the tier `model`, the share of the canvas words that have the glyphs of HarfBuzz, for each script and each font. Each share has its Wilson interval.
-- `checks`: the results of the reference check, of the scaling check, of `engineRowsEqual`, of `ruleReplica`, of `roundingSameForEachTier` and of `deltasSum`. The check `deltasSum` gives the largest difference of the model error plus the deltas effect and the total error. HarfBuzz has no tiers, so the rounding effect of a cell does not change with its tier.
+- `checks`: the results of the reference check, of the scaling check, of `engineRowsEqual`, of `ruleReplica`, of `roundingSameForEachTier` and of `readSum`. The check `readSum` gives the largest difference of the model error plus the read effect and the total error. HarfBuzz has no tiers, so the rounding effect of a cell does not change with its tier.
 - `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f decides the rule.
 - `knownOpen`: the scripts with an open error. Latin Extended is open (T1e). No test gates on it.
 
