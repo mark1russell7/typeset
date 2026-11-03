@@ -2,7 +2,7 @@ import { brotliCompressSync, brotliDecompressSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { Reader } from "./binary.ts";
 import { readPointCounts, readTransformedPointCounts } from "./gvar.ts";
-import { defaultFeatures, engines, glyphAdvances, isEngineName, measureWidth, readFont, readTables, shapingWords, type Font } from "./index.ts";
+import { canvasWords, defaultFeatures, engines, glyphAdvances, isCjkIdeographOrSymbol, isEngineName, measureWidth, readFont, readTables, shapingWords, type Font } from "./index.ts";
 
 /** A writer of big-endian bytes for the test fonts. */
 class Bytes {
@@ -515,6 +515,42 @@ describe("the words of the GSUB pass", () => {
     } as unknown as Font;
     expect(glyphAdvances(font, "ab c").glyphs).toEqual([0x61, 0x62, 0x20, 0x63]);
     expect(seen).toEqual([[0x61, 0x62], [0x20], [0x63]]);
+  });
+});
+
+describe("the words of a canvas", () => {
+  it("ends a word at each space, tab and zero width space", () => {
+    expect(canvasWords("ab  c	d​e")).toEqual(["ab", " ", " ", "c", "	", "d", "​", "e"]);
+    expect(canvasWords("")).toEqual([]);
+  });
+
+  it("makes each kana and each ideograph a word, with its marks and the CJK characters of the script Common", () => {
+    expect(canvasWords("かな漢字")).toEqual(["か", "な", "漢", "字"]);
+    expect(canvasWords("がボーカ。")).toEqual(["が", "ボー", "カ。"]);
+    expect(canvasWords("。か")).toEqual(["。か"]);
+  });
+
+  it("ends a word of Latin text or digits at a CJK character, and keeps digits after a CJK character", () => {
+    expect(canvasWords("ab12かcd")).toEqual(["ab12", "か", "cd"]);
+    expect(canvasWords("か34ナ")).toEqual(["か34", "ナ"]);
+  });
+
+  it("knows the CJK characters of the table of Blink", () => {
+    expect([0x3042, 0x30ab, 0x4e00, 0x3002, 0x1f600].map(isCjkIdeographOrSymbol)).toEqual([true, true, true, true, true]);
+    expect([0x41, 0x2c6, 0xac00, 0x5d0].map(isCjkIdeographOrSymbol)).toEqual([false, false, false, false]);
+  });
+
+  it("kerns only inside each word with the canvas shaping", () => {
+    const pair = { first: -10, second: 0, skipSecond: false };
+    const font = {
+      glyph: (codePoint: number) => codePoint,
+      advance: () => 500,
+      glyphClass: () => 0,
+      kerning: () => [{ flags: 0, pair: () => pair }],
+      substitutions: () => [],
+    } as unknown as Font;
+    expect(glyphAdvances(font, "かな12").advances).toEqual([490, 490, 490, 500]);
+    expect(glyphAdvances(font, "かな12", { shaping: "canvas" }).advances).toEqual([500, 490, 490, 500]);
   });
 });
 

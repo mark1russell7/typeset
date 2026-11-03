@@ -6,6 +6,7 @@ import { defaultFeatures, readGlyphFilter, readSubstitutions, type GlyphFilter, 
 import { readAdvances, readCharacterMap, readGlyphClasses, readHeader } from "./tables.ts";
 import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts, type GlyphPoints } from "./gvar.ts";
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
+import { canvasWords } from "./words.ts";
 
 /** The options of `readFont`. */
 export interface ReadOptions {
@@ -241,6 +242,11 @@ export interface MeasureOptions {
    * when the page does not change them. An empty list applies no substitution.
    */
   readonly features?: readonly string[];
+  /**
+   * The shaping of the browser to model. `dom` (the default) shapes the words of `shapingWords` and then kerns all the
+   * text. `canvas` shapes and kerns each word of `canvasWords` alone, as Blink does for the text of a canvas.
+   */
+  readonly shaping?: "dom" | "canvas";
 }
 
 /** This function tells if a lookup with the flags `flags` skips a glyph of the GDEF class `glyphClass`. */
@@ -269,20 +275,33 @@ export function shapingWords(text: string): string[] {
 }
 
 /**
- * This function gives the glyphs of a text and their advances in font units. It applies the GSUB substitutions of the
- * features to each word of `shapingWords`, and then the pair kerning to all the text.
+ * This function gives the glyphs of a text and their advances in font units. With the shaping `dom`, it applies the GSUB
+ * substitutions to each word of `shapingWords`, and then the pair kerning to all the text. With the shaping `canvas`, it
+ * applies the substitutions and the kerning to each word of `canvasWords` alone.
  */
 export function glyphAdvances(font: Font, text: string, options: MeasureOptions = {}): { glyphs: number[]; advances: number[] } {
-  const lookups = font.substitutions(options.script ?? "DFLT", options.features ?? defaultFeatures);
+  const script = options.script ?? "DFLT";
+  const lookups = font.substitutions(script, options.features ?? defaultFeatures);
+  const kerning = options.kerning === false ? [] : font.kerning(script);
+  const canvas = options.shaping === "canvas";
   const glyphs: number[] = [];
-  for (const word of shapingWords(text)) {
+  const advances: number[] = [];
+  for (const word of canvas ? canvasWords(text) : shapingWords(text)) {
     const wordGlyphs: number[] = [];
     for (const character of word) wordGlyphs.push(font.glyph(character.codePointAt(0)!));
     for (const lookup of lookups) lookup.apply(wordGlyphs);
+    const wordAdvances = wordGlyphs.map((glyph) => font.advance(glyph));
+    if (canvas) kern(font, kerning, wordGlyphs, wordAdvances);
     glyphs.push(...wordGlyphs);
+    advances.push(...wordAdvances);
   }
-  const advances = glyphs.map((glyph) => font.advance(glyph));
-  for (const lookup of options.kerning === false ? [] : font.kerning(options.script ?? "DFLT")) {
+  if (!canvas) kern(font, kerning, glyphs, advances);
+  return { glyphs, advances };
+}
+
+/** This function adds the values of the pair kerning lookups `lookups` to the advances `advances` of the glyphs `glyphs`. */
+function kern(font: Font, lookups: readonly PairLookup[], glyphs: readonly number[], advances: number[]): void {
+  for (const lookup of lookups) {
     const next = (from: number): number => {
       for (let j = from; j < glyphs.length; j++) if (!skips(lookup.flags, font.glyphClass(glyphs[j]!))) return j;
       return -1;
@@ -301,7 +320,6 @@ export function glyphAdvances(font: Font, text: string, options: MeasureOptions 
       i = value.skipSecond ? next(j + 1) : j;
     }
   }
-  return { glyphs, advances };
 }
 
 /**

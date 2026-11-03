@@ -200,18 +200,21 @@ export function scoreAdvances(files: ReadonlyMap<string, ArmFile>): Outcome[] {
 /** The scripts that the prediction `typeset-t1c-engine-rules` bounds on each arm. */
 export const engineScripts: readonly ScriptId[] = ["latin", "latin-extended", "greek", "cyrillic", "hebrew", "thai", "han", "hangul"];
 
-/** This function examines the model of the engine on some arms. Each line error of the scripts and of the extra font is at most `limit` px. */
-function engineBound(files: ReadonlyMap<string, ArmFile>, arms: readonly string[], limit: number): { holds: boolean; detail: string } {
+/**
+ * This function examines the model of the engine on some arms. Each line error of the scripts `scripts` is at most
+ * `limit` px. When `extra` is true, the line errors of the extra font at 400 and 700 are also at most `limit` px.
+ */
+function engineBound(files: ReadonlyMap<string, ArmFile>, arms: readonly string[], limit: number, scripts: readonly ScriptId[] = engineScripts, extra = true): { holds: boolean; detail: string } {
   let holds = true;
   const details = arms.map((arm) => {
     const file = files.get(arm);
-    if (file?.engineSummary === undefined || file.engineExtraSummary === undefined) {
+    if (file?.engineSummary === undefined || (extra && file.engineExtraSummary === undefined)) {
       holds = false;
       return `${arm}: no engineSummary`;
     }
     const values = [
-      ...engineScripts.map((script) => [script, file.engineSummary![script]?.line?.worstPx ?? Number.NaN] as const),
-      ...["400", "700"].map((weight) => [`extra ${weight}`, file.engineExtraSummary![weight]?.line?.worstPx ?? Number.NaN] as const),
+      ...scripts.map((script) => [script, file.engineSummary![script]?.line?.worstPx ?? Number.NaN] as const),
+      ...(extra ? ["400", "700"] : []).map((weight) => [`extra ${weight}`, file.engineExtraSummary![weight]?.line?.worstPx ?? Number.NaN] as const),
     ];
     if (!values.every(([, value]) => value <= limit)) holds = false;
     return `${arm}: ${values.map(([name, value]) => `${name} ${value.toFixed(4)}`).join(", ")}`;
@@ -224,6 +227,16 @@ export function scoreEngines(files: ReadonlyMap<string, ArmFile>): Outcome[] {
   return [
     { outcome: "specificEngineLinux", ...engineBound(files, ["linux-1", "linux-2"], 0.01) },
     { outcome: "specificEngineOthers", ...engineBound(files, ["macos-2", "windows-1"], 0.01) },
+  ];
+}
+
+/** This function gives the outcomes of the prediction `typeset-t1c-kana-words` from the files of the arms. */
+export function scoreKana(files: ReadonlyMap<string, ArmFile>): Outcome[] {
+  const arms = ["linux-1", "linux-2", "macos-2", "windows-1"];
+  return [
+    { outcome: "specificKanaCanvas", ...engineBound(files, arms, 0.01, ["kana"], false) },
+    { outcome: "specificKanaDom", ...featureBound(files, ["windows-1"], ["kana"], "shapedDefault", 0.03) },
+    { outcome: "specificNoRegression", ...engineBound(files, arms, 0.01) },
   ];
 }
 
@@ -244,7 +257,7 @@ function main(): void {
   const folder = positionals[0];
   if (folder === undefined) throw new Error("give the folder of the arm files");
   const files = readArms(folder);
-  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files), "typeset-t1c-engine-rules": scoreEngines(files) };
+  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files), "typeset-t1c-engine-rules": scoreEngines(files), "typeset-t1c-kana-words": scoreKana(files) };
   writeFileSync(values.out, JSON.stringify({ schema: "typeset-font-outcomes/2", arms: [...files.keys()].sort(), predictions }, null, 2) + "\n");
   const lines = [`Arms: ${[...files.keys()].sort().join(", ")}.`];
   for (const [id, outcomes] of Object.entries(predictions)) {

@@ -252,7 +252,7 @@ async function main(): Promise<void> {
       let gvarMismatches = 0;
       for (const record of records.filter((r) => r.font === id)) {
         const sample = texts.get(record.sample)!;
-        if (measureWidth(base.at(cssInstance(record.weight)), sample.text, record.size, { script: scriptTags[sample.script] }) !== record.tables) mismatches++;
+        if (measureWidth(base.at(cssInstance(record.weight)), sample.text, record.size, { script: scriptTags[sample.script], shaping: "canvas" }) !== record.tables) mismatches++;
       }
       // The phantom points of gvar and the flag USE_MY_METRICS come from the transformed glyf table of WOFF2, so the check compares them
       const ttf = readFont(readFileSync(join(values.fonts, fileName(id))), { advances: "gvar", metrics: "component" });

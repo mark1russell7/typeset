@@ -87,6 +87,10 @@ The comparison has four arms. Each arm is one job of the workflow.
 - The table `engines` of `@typeset/fonts` gives the rules of each engine: the rounding of the deltas, the metrics of a composite glyph and the rounding of each advance.
 - A caller spreads one row of `engines` into the options of `readFont` and of `measureWidth`. A new engine is a new row.
 - `engineSummary` and `engineExtraSummary` give the line errors of the model of the engine of the arm. `summary` stays the model with no rounding.
+- The option `shaping: "canvas"` of `measureWidth` shapes and kerns each word of `canvasWords` alone, as Blink does for the text of a canvas.
+- `canvasWords` follows `NextWordEndIndex` of Blink. Each CJK character starts a word, so no kerning goes from one kana to the next kana.
+- The records of the canvas use `shaping: "canvas"`. The model of the DOM diagnostic keeps `shaping: "dom"`, the default.
+- Blink shapes all the text as one word when the space glyph is in a lookup of the font. No font of the corpus kerns the space, so the model does not examine this.
 - `woff2GvarMismatches` compares the advances of the WOFF2 and TrueType files with `gvar` and the component metrics.
 - `breakdown` gives the line errors of each font, weight and script, with the three worst samples and their texts.
 
