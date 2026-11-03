@@ -13,10 +13,10 @@ on:
 
 permissions: {}
 
-# One deployment at a time. A newer push cancels a deployment that waits.
+# One deployment at a time. A newer push waits until the current deployment ends, so each push to main gets a result.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   pages:
