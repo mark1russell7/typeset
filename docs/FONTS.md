@@ -1,6 +1,6 @@
 # Font tables
 
-`@typeset/fonts` reads the widths of text from a font file. `@typeset/widths` compares those widths with canvas `measureText` in Chromium.
+The subpath `@mark1russell7/typeset/fonts` reads the widths of text from a font file. `@typeset/widths` compares those widths with canvas `measureText` in Chromium. The subpath `./measurer` gives those widths to the measurer of `@mark1russell7/layout-contract/text`.
 
 ## What the reader reads
 
@@ -118,7 +118,7 @@ The comparison has four arms. Each arm is one job of the workflow.
 - `advanceModels` measures single characters and the space at 1000 px, for each font at the weights 400 and 700. It compares them with four models of the advances.
 - The models are `HVAR` and `gvar`, each rounded and exact, and `componentRound`: rounded `HVAR` with `metrics: "component"`. The field `gvarAgainstHvar` gives the largest difference of the two exact models, in font units.
 - The option `--engine` of `main.ts` selects the text engine of an arm: `freetype`, `coretext` or `directwrite`. `fonts.yml` gives it for each arm.
-- The table `engines` of `@typeset/fonts` gives the rules of each engine: the rounding of the deltas, the metrics of a composite glyph and the rounding of each advance.
+- The table `engines` of `@mark1russell7/typeset/fonts` gives the rules of each engine: the rounding of the deltas, the metrics of a composite glyph and the rounding of each advance.
 - A caller spreads one row of `engines` into the options of `readFont` and of `measureWidth`. A new engine is a new row.
 - `engineSummary` and `engineExtraSummary` give the line errors of the model of the engine of the arm. `summary` stays the model with no rounding.
 - Each record has the field `float32`: the width with the sum `float32`. The model of an engine with the sum `float32` uses it.

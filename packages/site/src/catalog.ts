@@ -3,7 +3,7 @@
  * measures the same files as CI.
  */
 import { fonts, scriptIds, type ScriptId } from "@typeset/corpus";
-import type { EngineName } from "@typeset/fonts";
+import type { EngineName } from "@mark1russell7/typeset/fonts";
 import { extraSource, fontSources, sourceUrl } from "@typeset/widths";
 
 /** One font that the visitor can pick. */

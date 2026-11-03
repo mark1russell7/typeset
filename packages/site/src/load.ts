@@ -1,5 +1,5 @@
 /** The download of the font files and their faces in the page. */
-import { engines, readFont, type EngineName, type Font } from "@typeset/fonts";
+import { engines, readFont, type EngineName, type Font } from "@mark1russell7/typeset/fonts";
 import { cssInstance } from "@typeset/widths";
 import type { FontChoice } from "./catalog.ts";
 

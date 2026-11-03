@@ -5,6 +5,8 @@ This package measures text and breaks it into lines. Each area has its own subpa
 | Subpath | What it has |
 | --- | --- |
 | `@mark1russell7/typeset/breaking` | The paragraph model of boxes, glue and penalties, and the greedy, total fit and balanced line breakers. |
+| `@mark1russell7/typeset/fonts` | The font model: it reads a font file and gives the width of a text as a browser engine gives it. |
+| `@mark1russell7/typeset/measurer` | `fontAdvance`: the advance function of a layout engine, from the font files of the host. |
 | `@mark1russell7/typeset/text` | The `Text` rope: a text with its width, and edits that measure only the changed parts. |
 
 ## Line breaking
@@ -36,6 +38,24 @@ console.log(edited.toString(), edited.width);
 - An edit uses the width function of the order of `log n` times, on the changed leaves and on short windows.
 - The width is exact when the width function obeys the separator law: `width(p + s + q) = width(p + s) + width(s + q) - width(s)`.
 - The separator `s` is a space or a tab. The option `separators` changes the set.
-- The width model of the repository obeys the law for its shaping `dom` and `canvas`, with the sum `exact`.
+- The font model of `./fonts` obeys the law for its shaping `dom` and `canvas`, with the sum `exact`.
+
+## The font model and the measurer
+
+```ts
+import { readFileSync } from "node:fs";
+import { createMeasurer, layoutText } from "@mark1russell7/layout-contract/text";
+import { fontAdvance } from "@mark1russell7/typeset/measurer";
+
+const advance = fontAdvance({ faces: [{ family: "Noto Sans", data: readFileSync("NotoSans.ttf") }], engine: "freetype" });
+const layout = layoutText("The quick brown fox", { font: "16px Noto Sans", measurer: createMeasurer(advance), lineHeight: 20, wrapWidth: 80 });
+```
+
+- The host gives the bytes of each font file. The package has no font file.
+- `fontAdvance` reads the CSS font, and finds the face with the CSS rules of the family, the style and the weight.
+- Each run of the text gets the first family with a glyph for its first character.
+- The width of a run is `measureWidth` of `./fonts`, with the script of the run and the rules of one engine of `engines`.
+- The engine rows are `freetype` (Chromium on Linux), `coretext` (macOS) and `directwrite` (Windows).
+- `readFont` reads TrueType, OpenType and WOFF2 files. A WOFF2 file needs a Brotli decompress function, for example `brotliDecompressSync` of `node:zlib`.
 
 The repository [mark1russell7/typeset](https://github.com/mark1russell7/typeset) has the report of the breakers in `docs/BREAKING.md`.

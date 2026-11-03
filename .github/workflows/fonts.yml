@@ -37,7 +37,6 @@ jobs:
         with:
           paths: |
             packages/corpus/src/**
-            packages/fonts/src/**
             packages/widths/src/**
             packages/typeset/src/**
             .github/workflows/fonts.yml
@@ -54,7 +53,7 @@ jobs:
       matrix:
         include:
           # linux-1 rounds each advance to whole px, so it is the reference of the mode pixel. It also checks WOFF2.
-          # Each arm names its text engine. The table engines of @typeset/fonts gives the rules of each engine.
+          # Each arm names its text engine. The table engines of @mark1russell7/typeset/fonts gives the rules of each engine.
           - { arm: linux-1, os: ubuntu-latest, scale: "1", reference: pixel, woff2: true, engine: freetype }
           - { arm: linux-2, os: ubuntu-latest, scale: "2", reference: exact, woff2: false, engine: freetype }
           - { arm: macos-2, os: macos-latest, scale: "2", reference: exact, woff2: false, engine: coretext }
@@ -83,11 +82,15 @@ jobs:
         run: node packages/widths/src/fetch.ts "$RUNNER_TEMP/fonts"
       # The tests of the Indic shaper and of the Text rope need the real fonts. Without TYPESET_FONTS, they do not run.
       - name: Test the shapers with the real fonts
-        run: pnpm --filter @typeset/fonts exec vitest run src/indic.test.ts
+        run: pnpm --filter @mark1russell7/typeset exec vitest run src/fonts/indic.test.ts
         env:
           TYPESET_FONTS: ${{ runner.temp }}/fonts
       - name: Test the Text rope with the real fonts
         run: pnpm --filter @typeset/widths exec vitest run src/text.test.ts
+        env:
+          TYPESET_FONTS: ${{ runner.temp }}/fonts
+      - name: Test the measurer with the real fonts
+        run: pnpm --filter @typeset/widths exec vitest run src/measurer.test.ts
         env:
           TYPESET_FONTS: ${{ runner.temp }}/fonts
       - name: Make the WOFF2 files

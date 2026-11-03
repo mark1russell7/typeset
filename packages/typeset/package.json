@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/typeset",
-  "version": "0.1.1",
-  "description": "Text measurement and line breaking. The subpath ./breaking has the line breakers, and ./text has a rope with the width of each part, for any width function.",
+  "version": "0.1.2",
+  "description": "Text measurement and line breaking. The subpath ./fonts reads font tables and gives widths, ./measurer gives the advance function of a layout, ./breaking has the line breakers, and ./text has a rope.",
   "keywords": [
     "typeset",
     "line-breaking",
@@ -28,6 +28,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./breaking": "./src/breaking.ts",
+    "./fonts": "./src/fonts.ts",
+    "./fonts/inspect": "./src/fonts-inspect.ts",
+    "./measurer": "./src/measurer.ts",
     "./text": "./src/text.ts",
     "./package.json": "./package.json"
   },
@@ -53,6 +56,18 @@
         "types": "./build/breaking.d.ts",
         "default": "./build/breaking.js"
       },
+      "./fonts": {
+        "types": "./build/fonts.d.ts",
+        "default": "./build/fonts.js"
+      },
+      "./fonts/inspect": {
+        "types": "./build/fonts-inspect.d.ts",
+        "default": "./build/fonts-inspect.js"
+      },
+      "./measurer": {
+        "types": "./build/measurer.d.ts",
+        "default": "./build/measurer.js"
+      },
       "./text": {
         "types": "./build/text.d.ts",
         "default": "./build/text.js"
@@ -66,10 +81,12 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
   },
+  "dependencies": {
+    "@mark1russell7/rigor-generators": "^0.1.0"
+  },
   "devDependencies": {
     "@mark1russell7/cue": "^1.0.2",
     "@mark1russell7/layout-contract": "^0.3.2",
-    "@mark1russell7/rigor-generators": "^0.1.0",
     "@types/node": "^26.6.5",
     "@typeset/corpus": "workspace:*",
     "tsdown": "^0.23.1",

@@ -1,6 +1,6 @@
 /** The page script of the site: the lab, the sweep and the explorer of the CI data. */
 import type { LengthClass, ScriptId } from "@typeset/corpus";
-import { engines, isEngineName, type EngineName } from "@typeset/fonts";
+import { engines, isEngineName, type EngineName } from "@mark1russell7/typeset/fonts";
 import type { Cell } from "@typeset/widths";
 import snapshotFile from "../data/ci-snapshot.json";
 import { armOfEngine, engineChoices, engineForAgent, fontChoice, fontChoices, scriptLabels, scriptOrder, shapedScripts, type FontChoice } from "./catalog.ts";
