@@ -199,6 +199,22 @@ The fonts run 41527566935 measures single characters at 1000 px against each mod
 - The glyph `i` of Source Sans 3 is a composite glyph of `ı`. DirectWrite uses the advance of `ı`, 247 units at 400. The glyph `i` has 246 units.
 - The scripts of Windows and macOS have no regression. Each line error stays at 0.0014 px or less.
 
+## The result of the engine table and the canvas words
+
+The fonts run 41547699014 on the head of typeset#29 measures the model of the engine of each arm. The fonts run 41548747569 on the head of typeset#31 adds the canvas words.
+
+| Arm | Engine | Worst line error of the 8 scripts and Source Sans 3 | Kana before | Kana after |
+|---|---|---|---|---|
+| `linux-1` | `freetype` | 0.0000 px | 4.0000 px | 0.0000 px |
+| `linux-2` | `freetype` | 0.0000 px | 4.0000 px | 0.0000 px |
+| `macos-2` | `coretext` | 0.0010 px | 3.8400 px | 0.0003 px |
+| `windows-1` | `directwrite` | 0.0014 px | 3.8400 px | 0.0002 px |
+
+- The 8 scripts are Latin, Latin Extended, Greek, Cyrillic, Hebrew, Thai, Han and Hangul.
+- The kana error came from the shaping of the canvas. Blink shapes each kana as a word alone, so no kerning goes from one kana to the next kana.
+- The DOM shapes all the run and kerns the kana. The model with `shaping: "dom"` stays at 0.0150 px on Windows.
+- Devanagari stays open. It needs an Indic shaper. The next section has the result of Arabic.
+
 ## The result of the Arabic joining
 
 The diagnosis of T1d measures each Arabic text of the corpus again, with the files of the fonts run 41548747569 on `main`. The model with no joining gives the same widths as the records.
@@ -212,3 +228,14 @@ The diagnosis of T1d measures each Arabic text of the corpus again, with the fil
 - The marks of Noto Sans Arabic have the advance 0 in `hmtx` and the class 3 in `GDEF`. Thus the advances of the marks did not cause the error.
 - The paragraphs and the pages have the same errors as the other scripts: 0.026 and 1.3 px on Windows. The canvas adds its widths in single precision.
 - `GPOS` of Noto Sans Arabic has `kern`, `mark` and `mkmk`. The marks do not change an advance, and the font has no `curs` feature.
+
+The fonts run 41553727572 on the head of typeset#34 confirms the diagnosis on the four arms of CI:
+
+| Arm | Arabic lines within 0.01 px | Worst line | Worst paragraph | Worst page |
+|---|---|---|---|---|
+| `linux-1` | 240 of 240 | 0.0000 px | 0.0000 px | 0.0000 px |
+| `linux-2` | 240 of 240 | 0.0000 px | 0.0000 px | 0.0000 px |
+| `macos-2` | 240 of 240 | 0.0007 px | 0.0258 px | 1.2646 px |
+| `windows-1` | 240 of 240 | 0.0007 px | 0.0258 px | 1.2646 px |
+
+- The other scripts have no regression on the four arms.

@@ -1,0 +1,41 @@
+# Builds packages/site and publishes it to GitHub Pages at https://mark1russell7.github.io/typeset/, with
+# the shared Pages workflow of mark1russell7 (reusable-pages.yml of mark1russell7/template, its CI.md).
+# The Pages source of the repository is "GitHub Actions" (Settings > Pages).
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  # One build each day, so the Status page shows the open pull requests and the data date of the day
+  schedule:
+    - cron: "15 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+# One deployment at a time. A newer push cancels a deployment that waits.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  pages:
+    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@3377b376fb6e39e4d65f130a98e74125d592f1f3 # main
+    # The build job of the shared workflow gets only the read permissions. Only its deploy job,
+    # which runs no code of the repository, writes to Pages.
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+      pull-requests: read
+      checks: read
+      statuses: read
+      pages: write
+      id-token: write
+    with:
+      build: pnpm --filter @typeset/site run build
+      out: packages/site/dist
+      env: '{"SITE_BASE": "/${{ github.event.repository.name }}"}'
+      # The Releases page and the Status page (releases/, status/ and their data/*.json), at deploy time
+      roadmap: docs/ROADMAP.md
+      site-name: typeset
