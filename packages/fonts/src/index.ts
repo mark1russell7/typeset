@@ -1,5 +1,6 @@
 export { readFont, measureWidth, glyphAdvances, shapingWords, type AdvanceSource, type Font, type ReadOptions, type MeasureOptions } from "./font.ts";
-export { canvasWords, isCjkIdeographOrSymbol } from "./words.ts";
+export { canvasSegments, canvasWords, isCjkIdeographOrSymbol } from "./words.ts";
+export { bidiLevels, visualOrder } from "./bidi.ts";
 export { joiningFeatures, joiningForms, joiningScripts, joiningStages, type JoiningForm, type JoiningStage } from "./joining.ts";
 export { engines, isEngineName, type EngineName, type EngineRules } from "./engines.ts";
 export { readTables, type Decompress, type TableMap } from "./sfnt.ts";

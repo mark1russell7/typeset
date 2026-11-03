@@ -2,7 +2,7 @@ import { brotliCompressSync, brotliDecompressSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { Reader } from "./binary.ts";
 import { readPointCounts, readTransformedPointCounts } from "./gvar.ts";
-import { canvasWords, defaultFeatures, engines, glyphAdvances, isCjkIdeographOrSymbol, isEngineName, measureWidth, readFont, readTables, shapingWords, type Font } from "./index.ts";
+import { bidiLevels, canvasSegments, canvasWords, defaultFeatures, engines, glyphAdvances, isCjkIdeographOrSymbol, isEngineName, measureWidth, readFont, readTables, shapingWords, visualOrder, type Font } from "./index.ts";
 
 /** A writer of big-endian bytes for the test fonts. */
 class Bytes {
@@ -554,6 +554,63 @@ describe("the words of a canvas", () => {
   });
 });
 
+describe("the bidi order of a canvas", () => {
+  it("gives the levels of RTL letters, digits and neutrals in a paragraph of the base level 0", () => {
+    expect(bidiLevels("ab 12")).toEqual([0, 0, 0, 0, 0]);
+    expect(bidiLevels("אב 12 גד")).toEqual([1, 1, 1, 2, 2, 1, 1, 1]);
+    // A digit after L is L, and the space between L and R gets the base level
+    expect(bidiLevels("12 אב")).toEqual([0, 0, 0, 1, 1]);
+    // A digit after an Arabic letter is an Arabic digit, and a mark and the tatweel go with the letter
+    expect(bidiLevels("بـَ 12")).toEqual([1, 1, 1, 1, 2, 2]);
+    // A full stop at the end goes to the base level, and so does a space at the end
+    expect(bidiLevels("אב. ")).toEqual([1, 1, 0, 0]);
+  });
+
+  it("reverses each sequence from the highest level down to the level 1", () => {
+    expect(visualOrder(["a", "b", "c"], [0, 0, 0])).toEqual(["a", "b", "c"]);
+    expect(visualOrder(["a", "b", "c", "d"], [1, 2, 2, 1])).toEqual(["d", "b", "c", "a"]);
+    expect(visualOrder(["x", "a", "b"], [0, 1, 1])).toEqual(["x", "b", "a"]);
+  });
+
+  it("gives the words of a canvas in the visual order, split where the level changes", () => {
+    expect(canvasSegments("ab cd")).toEqual(canvasWords("ab cd"));
+    expect(canvasSegments("אב 12 גד")).toEqual(["גד", " ", "12", " ", "אב"]);
+    expect(canvasSegments("12 אב.")).toEqual(["12", " ", "אב", "."]);
+  });
+});
+
+describe("the sum float32", () => {
+  const font = readFont(buildTtf());
+
+  it("cuts each advance in single precision to 1/65536 px", () => {
+    // A at 16 px is 9.6 px. In single precision it is 9.6000004, and 629145.625 / 65536 is cut to 629145 / 65536
+    expect(measureWidth(font, "A", 16, { sum: "float32" })).toBe(629145 / 65536);
+    expect(measureWidth(font, "A", 16)).toBe(9.6);
+  });
+
+  it("scales a kerning value with em_mult of HarfBuzz", () => {
+    // The scale is 16 * 65536 and the multiplier is 68719476. The kerning -80 is (-80 * 68719476 + 32768) >> 16 = -83886
+    const a = Math.trunc(Math.fround(9.6) * 65536);
+    const v = Math.trunc(Math.fround(9.28) * 65536);
+    expect(measureWidth(font, "AV", 16, { script: "latn", sum: "float32" })).toBe(Math.fround((a + v - 83886) / 65536));
+  });
+
+  it("adds the words in single precision, in the visual order", () => {
+    const pair = { first: -10, second: 0, skipSecond: false };
+    const mock = { unitsPerEm: 1000, glyph: (codePoint: number) => codePoint, advance: () => 333, glyphClass: () => 0, kerning: () => [{ flags: 0, pair: () => pair }], substitutions: () => [] } as unknown as Font;
+    const text = "abc d אבג 12 דה".repeat(40);
+    const width = measureWidth(mock, text, 48, { sum: "float32" });
+    expect(Math.fround(width)).toBe(width);
+    const sum = canvasSegments(text).reduce((total, segment) => Math.fround(total + measureWidth(mock, segment, 48, { sum: "float32" })), 0);
+    expect(width).toBe(sum);
+    expect(width).not.toBe(measureWidth(mock, text, 48, { shaping: "canvas" }));
+  });
+
+  it("keeps the whole px of the rounding pixel", () => {
+    expect(measureWidth(font, "AVo", 13, { script: "latn", rounding: "pixel", sum: "float32" })).toBe(measureWidth(font, "AVo", 13, { script: "latn", rounding: "pixel" }));
+  });
+});
+
 describe("the table of engines", () => {
   const both = buildTtf(true, false, "both");
 
@@ -565,6 +622,8 @@ describe("the table of engines", () => {
     const font = readFont(both, { instance: { wght: 900 } });
     expect(Number.isInteger(measureWidth(font, "AVo", 13, { rounding: engines.freetype.rounding }))).toBe(true);
     expect(measureWidth(font, "AVo", 13, { rounding: engines.coretext.rounding })).toBe(measureWidth(font, "AVo", 13));
+    expect([engines.freetype.sum, engines.coretext.sum, engines.directwrite.sum]).toEqual(["exact", "float32", "float32"]);
+    expect(measureWidth(font, "AVo", 13, { ...engines.freetype })).toBe(measureWidth(font, "AVo", 13, { rounding: "pixel" }));
   });
 
   it("tells the names of the engines", () => {

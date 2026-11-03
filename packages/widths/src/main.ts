@@ -142,7 +142,7 @@ async function main(): Promise<void> {
   const ids = fontSources.map((source) => source.id);
   if (!isEngineName(values.engine)) throw new Error(`give --engine ${Object.keys(engines).join(", ")}`);
   const engine = values.engine;
-  const { deltas: deltasMode, metrics: metricsMode, rounding: engineRounding } = engines[engine];
+  const { deltas: deltasMode, metrics: metricsMode, rounding: engineRounding, sum: engineSum } = engines[engine];
   const advancesMode = values.advances === "gvar" ? "gvar" : "auto";
   const read = (id: string, deltas: "round" | "exact" = deltasMode) => readFont(readFileSync(join(values.fonts!, fileName(id))), { instance: cssInstance(), deltas, advances: advancesMode, metrics: metricsMode });
   const fonts = new Map<FontId, Font>(ids.map((id) => [id, read(id)]));
@@ -269,9 +269,9 @@ async function main(): Promise<void> {
   const summary = summarize(corpusRecords);
   const outcomes = checkBounds(summary);
   const extraSummary = Object.fromEntries(extraWeights.map((weight) => [weight, summarize(records.filter((r) => r.font === extraSource.id && r.weight === weight))["latin"] ?? {}]));
-  // The errors of the model of the engine of this arm, with the rounding of its row
-  const engineSummary = summarize(engineRecords(corpusRecords, engineRounding));
-  const engineExtraSummary = Object.fromEntries(extraWeights.map((weight) => [weight, summarize(engineRecords(records.filter((r) => r.font === extraSource.id && r.weight === weight), engineRounding))["latin"] ?? {}]));
+  // The errors of the model of the engine of this arm, with the rounding and the sum of its row
+  const engineSummary = summarize(engineRecords(corpusRecords, engineRounding, engineSum));
+  const engineExtraSummary = Object.fromEntries(extraWeights.map((weight) => [weight, summarize(engineRecords(records.filter((r) => r.font === extraSource.id && r.weight === weight), engineRounding, engineSum))["latin"] ?? {}]));
   const features = { settings: featureSettings, summary: summarizeFeatures(featureRecords), records: featureRecords };
   const deltaErrors = exactDeltaErrors(records.filter((record) => record.font !== extraSource.id));
   const breakdown = breakdownOf(records, new Map(samples.map((sample) => [sample.id, sample.text])));
@@ -284,7 +284,7 @@ async function main(): Promise<void> {
     scale,
     devicePixelRatio,
     reference,
-    models: { engine, deltas: deltasMode, advances: advancesMode, metrics: metricsMode, rounding: engineRounding },
+    models: { engine, deltas: deltasMode, advances: advancesMode, metrics: metricsMode, rounding: engineRounding, sum: engineSum },
     platform: `${process.platform} ${release()} ${process.arch}`,
     chromium: version,
     fontKerning,
@@ -333,6 +333,8 @@ async function main(): Promise<void> {
     }),
     ``,
     `The model of the engine ${engine}, worst line error in px: ${[...Object.entries(engineSummary).map(([script, cells]) => `${script} ${format(cells.line?.worstPx ?? Number.NaN)}`), ...extraWeights.map((weight) => `${extraSource.id} ${weight} ${format(engineExtraSummary[weight]?.line?.worstPx ?? Number.NaN)}`)].join(", ")}.`,
+    ``,
+    `The model of the engine ${engine} (sum ${engineSum}), worst paragraph and page error in px: ${Object.entries(engineSummary).map(([script, cells]) => `${script} ${format(cells.paragraph?.worstPx ?? Number.NaN, 4)} and ${format(cells.page?.worstPx ?? Number.NaN, 4)}`).join(", ")}.`,
     ``,
     `| font | weight | model instance | probe found | tied | error at the weight px | matches |`,
     `|---|---|---|---|---|---|---|`,

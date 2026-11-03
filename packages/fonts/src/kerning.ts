@@ -6,6 +6,10 @@ import type { VariationStore } from "./variations.ts";
 export interface PairValue {
   readonly first: number;
   readonly second: number;
+  /** The part of `first` that comes from a VariationIndex table. HarfBuzz scales this part and the rest in different ways. */
+  readonly firstDelta?: number;
+  /** The part of `second` that comes from a VariationIndex table. */
+  readonly secondDelta?: number;
   /** It is true when the subtable has a value for the second glyph. Then the next pair starts after the second glyph. */
   readonly skipSecond: boolean;
 }
@@ -38,13 +42,19 @@ function valueSize(format: number): number {
  * is relative to `parent`. A VariationIndex table adds its delta from `store`, not rounded, as HarfBuzz adds it. A device
  * table of hinting deltas adds nothing, because the shaper of the browser does not set a ppem.
  */
-function xAdvance(table: Reader, offset: number, format: number, parent: Reader, store: VariationStore | undefined): number {
-  let value = (format & 0x4) === 0 ? 0 : table.i16(offset + valueSize(format & 0x3));
+function xAdvance(table: Reader, offset: number, format: number, parent: Reader, store: VariationStore | undefined): { value: number; delta: number } {
+  const value = (format & 0x4) === 0 ? 0 : table.i16(offset + valueSize(format & 0x3));
+  let delta = 0;
   if ((format & 0x40) !== 0 && store !== undefined) {
     const device = table.u16(offset + valueSize(format & 0x3f));
-    if (device !== 0 && parent.u16(device + 4) === 0x8000) value += store.delta(parent.u16(device), parent.u16(device + 2));
+    if (device !== 0 && parent.u16(device + 4) === 0x8000) delta = store.delta(parent.u16(device), parent.u16(device + 2));
   }
-  return value;
+  return { value: value + delta, delta };
+}
+
+/** This function makes the value of a pair from the XAdvance of its two glyphs. */
+function pairValue(first: { value: number; delta: number }, second: { value: number; delta: number }, skipSecond: boolean): PairValue {
+  return { first: first.value, second: second.value, firstDelta: first.delta, secondDelta: second.delta, skipSecond };
 }
 
 /** This function makes the pair function of one PairPos subtable. */
@@ -70,7 +80,7 @@ function pairSubtable(table: Reader, store: VariationStore | undefined): (first:
         const glyph = set.u16(at);
         if (second < glyph) high = middle - 1;
         else if (second > glyph) low = middle + 1;
-        else return { first: xAdvance(set, at + 2, format1, set, store), second: xAdvance(set, at + 2 + size1, format2, set, store), skipSecond };
+        else return pairValue(xAdvance(set, at + 2, format1, set, store), xAdvance(set, at + 2 + size1, format2, set, store), skipSecond);
       }
       return undefined;
     };
@@ -86,7 +96,7 @@ function pairSubtable(table: Reader, store: VariationStore | undefined): (first:
       const class2 = classOf(classes2, second);
       if (class1 >= count1 || class2 >= count2) return undefined;
       const at = 16 + (class1 * count2 + class2) * (size1 + size2);
-      return { first: xAdvance(table, at, format1, table, store), second: xAdvance(table, at + size1, format2, table, store), skipSecond };
+      return pairValue(xAdvance(table, at, format1, table, store), xAdvance(table, at + size1, format2, table, store), skipSecond);
     };
   }
   throw new Error(`the PairPos format ${format} is unknown`);

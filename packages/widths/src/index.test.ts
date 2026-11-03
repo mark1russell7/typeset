@@ -22,6 +22,8 @@ import {
   scoreEngines,
   scoreKana,
   scoreArabic,
+  scoreFloatSum,
+  floatSumScripts,
   allArms,
   scoreGsub,
   substitutionTrace,
@@ -301,6 +303,32 @@ describe("the model of the engine of an arm", () => {
     const records = [record(30.4, 30, 30), record(12.2, 13, 13)];
     expect(engineRecords(records, "pixel").map((r) => [r.tables, r.error])).toEqual([[30, 0], [13, 0]]);
     expect(engineRecords(records, "exact")).toEqual(records);
+  });
+
+  it("uses the width of the sum float32 for an engine with that sum, and keeps an older record", () => {
+    const records = [{ ...record(30.4, 30, 30.25), float32: 30.25 }, record(12.2, 13, 12.2)];
+    expect(engineRecords(records, "exact", "float32").map((r) => [r.tables, r.error])).toEqual([[30.25, 0], [12.2, 0]]);
+    expect(engineRecords(records, "exact", "exact")).toEqual(records);
+    expect(engineRecords(records, "pixel", "float32").map((r) => r.tables)).toEqual([30, 13]);
+  });
+
+  it("bounds the paragraphs and the pages on macOS and Windows, and the lines on each arm", () => {
+    const cells = (line: number, page: number) => ({ line: { worstPx: line } as never, paragraph: { worstPx: page / 10 } as never, page: { worstPx: page } as never });
+    const arm = (name: string, page: number, line = 0, extra = 0): ArmFile => ({ arm: name, instances: [], fractions: { line: fractionsOf([]) }, woff2Mismatches: null, summary: {}, extraSummary: {}, engineSummary: Object.fromEntries(floatSumScripts.map((script) => [script, cells(line, page)])), engineExtraSummary: { "400": { line: { worstPx: extra } as never }, "700": { line: { worstPx: extra } as never } } });
+    const files = new Map(allArms.map((name) => [name, arm(name, 0.004)]));
+    expect(Object.fromEntries(scoreFloatSum(files).map((o) => [o.outcome, o.holds]))).toEqual({ specificPageExact: true, specificNoRegression: true });
+    // A page error on Linux is not in the bound of the pages
+    files.set("linux-2", arm("linux-2", 5));
+    expect(Object.fromEntries(scoreFloatSum(files).map((o) => [o.outcome, o.holds]))).toEqual({ specificPageExact: true, specificNoRegression: true });
+    files.set("macos-2", arm("macos-2", 0.02, 0, 0.5));
+    expect(Object.fromEntries(scoreFloatSum(files).map((o) => [o.outcome, o.holds]))).toEqual({ specificPageExact: false, specificNoRegression: false });
+    // An absent arm or an absent cell is a miss
+    files.set("macos-2", arm("macos-2", 0));
+    files.delete("linux-1");
+    expect(Object.fromEntries(scoreFloatSum(files).map((o) => [o.outcome, o.holds]))).toEqual({ specificPageExact: true, specificNoRegression: false });
+    const { engineSummary: _, ...older } = arm("windows-1", 0);
+    files.set("windows-1", { ...older, engineSummary: { latin: { line: { worstPx: 0 } as never } } });
+    expect(scoreFloatSum(files).every((o) => !o.holds)).toBe(true);
   });
 
   it("bounds the scripts and the extra font of the engine model on each arm", () => {
