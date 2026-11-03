@@ -2,7 +2,8 @@ name: Fonts
 
 # The widths of the font tables against canvas measureText in headless Chromium, on the corpus, on four arms:
 # Linux at the device scale 1 and 2, macOS at the scale 2 and Windows at the scale 1. Each arm downloads the pinned
-# fonts and uploads font-widths-<arm>. The arm linux-1 also checks the WOFF2 files. The report job scores the outcomes.
+# fonts and uploads font-widths-<arm>. The arm linux-1 also checks the WOFF2 files and uploads harfbuzz-bounds (T4).
+# The report job scores the outcomes.
 
 on:
   pull_request:
@@ -93,6 +94,19 @@ jobs:
         run: pnpm --filter @typeset/widths exec vitest run src/measurer.test.ts
         env:
           TYPESET_FONTS: ${{ runner.temp }}/fonts
+      # T4: the error of the fast path against HarfBuzz. HarfBuzz and the model run in Node, so one arm is sufficient.
+      - name: Measure the error bounds against HarfBuzz
+        if: matrix.arm == 'linux-1'
+        run: pnpm --filter @typeset/widths exec vitest run src/bounds.test.ts
+        env:
+          TYPESET_FONTS: ${{ runner.temp }}/fonts
+          TYPESET_BOUNDS_OUT: ${{ github.workspace }}/harfbuzz-bounds.json
+      - if: matrix.arm == 'linux-1'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: harfbuzz-bounds
+          path: harfbuzz-bounds.json
+          if-no-files-found: error
       - name: Make the WOFF2 files
         if: matrix.woff2
         run: |

@@ -304,3 +304,61 @@ The diagnosis of T1d measures each Devanagari record of the fonts run 4156894983
 - The glyphs of the model are the same as the glyphs of HarfBuzz for each of the 24442 canvas words of the Devanagari corpus.
 - Without the shaper, the `dist` kerning does not change the fractions. With the shaper, the pages need it.
 - The other scripts and Source Sans 3 have no regression on the four arms. The pages of Latin Extended keep their error of 5 px.
+
+## Error bounds against HarfBuzz (T4)
+
+T4 measures the error of the fast path against HarfBuzz. The fast path is the table model of `@mark1russell7/typeset/fonts`. The prediction is `typeset-t4-harfbuzz-bounds`.
+
+The reference is HarfBuzz from the package `harfbuzzjs` at the exact version 1.6.4. Only the private package `@typeset/widths` has it, as a development dependency. The record gives the version of HarfBuzz from `versionString()`.
+
+### The tiers
+
+Each tier is a set of options of `measureWidth`. `packages/widths/src/bounds.ts` gives them.
+
+| Tier | Options | What it adds |
+|---|---|---|
+| `advances` | `kerning: false`, `features: []`, `joining: false`, `indic: false` | The sum of the advances only |
+| `kerned` | `features: []`, `joining: false`, `indic: false` | The pair kerning |
+| `model` | the defaults | The full model: GSUB, the Arabic joining, the Indic shaper and the kerning |
+
+Each tier has each row of the table `engines`: `freetype`, `coretext` and `directwrite`. The fields `deltas` and `metrics` of the row go to `readFont`. The fields `rounding` and `sum` go to `measureWidth`.
+
+### The measurement
+
+1. The test `packages/widths/src/bounds.test.ts` reads the line samples of the corpus (seed 1, 40 for each script).
+2. It measures each line with each font of `fontsFor` at the weight 400, and with Source Sans 3 at the weights 400 and 700.
+3. The sizes are 8, 10, 12, 13.5, 14, 15.333, 16, 24, 48, 72 and 96 px.
+4. HarfBuzz shapes each word of `canvasWords` alone, as Blink does for a canvas. The model uses the shaping `canvas`.
+5. HarfBuzz uses the instance `cssInstance(weight)`, the OpenType script tag of the sample and the direction of the script.
+6. The error is the model width minus the HarfBuzz width, in 1/64 px.
+
+The scale of HarfBuzz is the units per em of the font. Thus each HarfBuzz advance is a whole number of font units. The HarfBuzz width in px is `units × size / unitsPerEm`, with no rounding. A scale of `round(size × 64)` changes the scale at a fractional size, for example 15.333 px. The scale of the units per em does not change it, and one shaping then serves all the sizes.
+
+A line with a missing glyph stays in the statistics, because the model and HarfBuzz both use the glyph 0. The field `missing` of each cell gives the count of these lines.
+
+### The record
+
+The file `harfbuzz-bounds.json` (schema `typeset-harfbuzz-bounds/1`) has these fields:
+
+- `harfbuzz`: the version of HarfBuzz and of `harfbuzzjs`. `runId` is the value of `GITHUB_RUN_ID`.
+- `cells`: one cell for each script, font, weight, size, tier and engine row. A cell has `n`, `missing`, `worst` and `p99`.
+- `worst` is the error with the largest absolute value, with its sign. `p99` is the 0.99 quantile of the absolute errors.
+- Each statistic has a 95 % percentile bootstrap interval of `rigor-statistics`, with 2000 runs. A seed of `rigor-generators` comes from the name of the cell.
+- `glyphMatch`: for the tier `model`, the share of the canvas words that have the glyphs of HarfBuzz, for each script and each font. Each share has its Wilson interval.
+- `checks`: the results of the reference check and of the scaling check.
+- `knownOpen`: the scripts with an open error. Latin Extended is open (T1e). No test gates on it.
+
+### The reference check
+
+Before the record is read, two checks examine HarfBuzz as the reference:
+
+- Noto Emoji has no `GPOS` table and no `kern` table. At the default instance and at the scale of the units per em, HarfBuzz must give the `hmtx` advance of each glyph of the emoji corpus. The test reads `hmtx` directly, not through the model.
+- For each font of the set at the default instance, the HarfBuzz advance at the scale `round(size × 64)` must be `hmtx × size × 64 / unitsPerEm` at each size of the sweep. The tolerance is one unit of the scale and the rounding of the scale.
+
+### CI
+
+The workflow `fonts.yml` runs the test on the arm `linux-1` only, after the test of the measurer. HarfBuzz and the model run in Node, so the platform does not change the numbers. The step uploads `harfbuzz-bounds.json` as the artifact `harfbuzz-bounds`.
+
+### The result
+
+The record of the first CI run follows in this pull request.
