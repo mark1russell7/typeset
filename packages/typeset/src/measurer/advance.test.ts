@@ -31,10 +31,20 @@ describe("parseFont", () => {
     });
     expect(parseFont("  oblique 10deg normal 300 20.5px / 2 A ")).toMatchObject({ style: "oblique", angle: 10, weight: 300, size: 20.5, families: ["A"] });
     expect(parseFont("lighter 1e1px A")).toMatchObject({ weight: 100, size: 10 });
+    expect(parseFont("oblique .5deg .5px A")).toMatchObject({ angle: 0.5, size: 0.5 });
   });
 
   it("refuses the parts that it does not know", () => {
-    for (const font of ["small-caps 16px A", "1em A", "16px", "caption", "16 A", "1001 16px A", "16px ,"]) expect(() => parseFont(font), font).toThrow(RangeError);
+    for (const font of ["small-caps 16px A", "1em A", "16px", "caption", "16 A", "1001 16px A", "16px ,", "16.px A", "oblique 1.deg 16px A"]) {
+      expect(() => parseFont(font), font).toThrow(RangeError);
+    }
+  });
+
+  it("refuses a long run of digits in linear time", () => {
+    const digits = "9".repeat(100_000);
+    const start = performance.now();
+    for (const font of [`${digits}x 16px A`, `oblique ${digits}xdeg 16px A`, `${digits}.`]) expect(() => parseFont(font), "digits").toThrow(RangeError);
+    expect(performance.now() - start).toBeLessThan(1000);
   });
 });
 

@@ -64,7 +64,10 @@ const stretches: Readonly<Record<string, number>> = {
   "ultra-expanded": 200,
 };
 
-const sizePattern = /^(\d*\.?\d+(?:e[+-]?\d+)?)(px|pt)(\/.*)?$/i;
+// Each number pattern matches a text in one way only. Thus a long run of digits does not make the match slow.
+const sizePattern = /^((?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?)(px|pt)(\/.*)?$/i;
+const anglePattern = /^(-?(?:\d+(?:\.\d+)?|\.\d+))deg$/i;
+const weightPattern = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
 
 /**
  * This function reads a CSS font shorthand, for example `italic 700 16px/1.2 "Noto Sans", sans-serif`. The size must be in
@@ -86,14 +89,14 @@ export function parseFont(font: string): FontSpec {
     if (lower === "italic") style = "italic";
     else if (lower === "oblique") {
       style = "oblique";
-      const next = /^(-?\d*\.?\d+)deg$/i.exec(tokens[index + 1] ?? "");
+      const next = anglePattern.exec(tokens[index + 1] ?? "");
       if (next !== null) {
         angle = Number(next[1]);
         index++;
       }
     } else if (lower === "bold" || lower === "bolder") weight = 700;
     else if (lower === "lighter") weight = 100;
-    else if (/^\d*\.?\d+$/.test(token) && Number(token) >= 1 && Number(token) <= 1000) weight = Number(token);
+    else if (weightPattern.test(token) && Number(token) >= 1 && Number(token) <= 1000) weight = Number(token);
     else if (Object.hasOwn(stretches, lower)) stretch = stretches[lower]!;
     else throw new RangeError(`the font "${font}" has the part "${token}", which the measurer does not know`);
   }
