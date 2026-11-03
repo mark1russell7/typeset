@@ -1,5 +1,6 @@
 import type { ScriptId } from "@typeset/corpus";
-import { defaultFeatures, shapingWords, type Font } from "@mark1russell7/typeset/fonts/model";
+import type { Font } from "@mark1russell7/typeset/fonts";
+import { defaultFeatures, shapingWords } from "@mark1russell7/typeset/fonts/inspect";
 import type { WidthRecord } from "./compare.ts";
 
 /**

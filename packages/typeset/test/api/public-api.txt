@@ -40,18 +40,26 @@ totalFit: build/chunks/breaking.d.ts#totalFit
 
 ## ./fonts (build/fonts.d.ts): 12 names
 
-type Axis: build/chunks/fonts.d.ts#Axis
-type Decompress: build/chunks/engines.d.ts#Decompress
+type Axis: build/chunks/font.d.ts#Axis
+type Decompress: build/chunks/sfnt.d.ts#Decompress
 type EngineName: build/chunks/engines.d.ts#EngineName
 type EngineRules: build/chunks/engines.d.ts#EngineRules
-type Font: build/chunks/fonts.d.ts#Font
-type Instance: build/chunks/fonts.d.ts#Instance
-type MeasureOptions: build/chunks/fonts.d.ts#MeasureOptions
-type ReadOptions: build/chunks/fonts.d.ts#ReadOptions
+type Font: build/chunks/font.d.ts#Font
+type Instance: build/chunks/font.d.ts#Instance
+type MeasureOptions: build/chunks/font.d.ts#MeasureOptions
+type ReadOptions: build/chunks/font.d.ts#ReadOptions
 engines: build/chunks/engines.d.ts#engines
 isEngineName: build/chunks/engines.d.ts#isEngineName
-measureWidth: build/chunks/fonts.d.ts#measureWidth
-readFont: build/chunks/fonts.d.ts#readFont
+measureWidth: build/chunks/font.d.ts#measureWidth
+readFont: build/chunks/font.d.ts#readFont
+
+## ./fonts/inspect (build/fonts-inspect.d.ts): 5 names
+
+canvasWords: build/fonts-inspect.d.ts#canvasWords
+defaultFeatures: build/chunks/font.d.ts#defaultFeatures
+glyphAdvances: build/chunks/font.d.ts#glyphAdvances
+readTables: build/chunks/sfnt.d.ts#readTables
+shapingWords: build/chunks/font.d.ts#shapingWords
 
 ## ./measurer (build/measurer.d.ts): 6 names
 
@@ -115,9 +123,6 @@ declare function spread(lines: readonly Line[]): number;
 ### build/chunks/breaking.d.ts#totalFit
 declare function totalFit(options?: TotalFitOptions): Breaker;
 
-### build/chunks/engines.d.ts#Decompress
-type Decompress = (data: Uint8Array) => Uint8Array;
-
 ### build/chunks/engines.d.ts#EngineName
 type EngineName = keyof typeof engines;
 
@@ -139,7 +144,7 @@ declare const engines: {
 ### build/chunks/engines.d.ts#isEngineName
 declare function isEngineName(name: string): name is EngineName;
 
-### build/chunks/fonts.d.ts#Axis
+### build/chunks/font.d.ts#Axis
 interface Axis {
   readonly tag: string;
   readonly min: number;
@@ -147,7 +152,7 @@ interface Axis {
   readonly max: number;
 }
 
-### build/chunks/fonts.d.ts#Font
+### build/chunks/font.d.ts#Font
 interface Font {
   readonly epoch: string;
   readonly unitsPerEm: number;
@@ -164,10 +169,10 @@ interface Font {
   at(instance: Instance): Font;
 }
 
-### build/chunks/fonts.d.ts#Instance
+### build/chunks/font.d.ts#Instance
 type Instance = Readonly<Record<string, number>>;
 
-### build/chunks/fonts.d.ts#MeasureOptions
+### build/chunks/font.d.ts#MeasureOptions
 interface MeasureOptions {
   readonly script?: string;
   readonly rounding?: "exact" | "pixel";
@@ -179,7 +184,7 @@ interface MeasureOptions {
   readonly sum?: "exact" | "float32";
 }
 
-### build/chunks/fonts.d.ts#ReadOptions
+### build/chunks/font.d.ts#ReadOptions
 interface ReadOptions {
   readonly decompress?: Decompress;
   readonly instance?: Instance;
@@ -188,16 +193,28 @@ interface ReadOptions {
   readonly metrics?: "own" | "component";
 }
 
+### build/chunks/font.d.ts#defaultFeatures
+declare const defaultFeatures: readonly string[];
+
+### build/chunks/font.d.ts#glyphAdvances
+declare function glyphAdvances(font: Font, text: string, options?: MeasureOptions): {
+  glyphs: number[];
+  advances: number[];
+};
+
+### build/chunks/font.d.ts#measureWidth
+declare function measureWidth(font: Font, text: string, size: number, options?: MeasureOptions): number;
+
+### build/chunks/font.d.ts#readFont
+declare function readFont(bytes: Uint8Array, options?: ReadOptions): Font;
+
+### build/chunks/font.d.ts#shapingWords
+declare function shapingWords(text: string): string[];
+
 ### build/chunks/fonts.d.ts#fonts_d_exports
 declare namespace fonts_d_exports {
   export { Axis, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, engines, isEngineName, measureWidth, readFont };
 }
-
-### build/chunks/fonts.d.ts#measureWidth
-declare function measureWidth(font: Font, text: string, size: number, options?: MeasureOptions): number;
-
-### build/chunks/fonts.d.ts#readFont
-declare function readFont(bytes: Uint8Array, options?: ReadOptions): Font;
 
 ### build/chunks/measurer.d.ts#FontAdvanceOptions
 interface FontAdvanceOptions {
@@ -304,6 +321,12 @@ declare function linesOf(paragraph: Paragraph, breaks: readonly number[]): Line[
 ### build/chunks/paragraph.d.ts#paragraphOf
 declare function paragraphOf(text: string, options: ParagraphOptions): Paragraph;
 
+### build/chunks/sfnt.d.ts#Decompress
+type Decompress = (data: Uint8Array) => Uint8Array;
+
+### build/chunks/sfnt.d.ts#readTables
+declare function readTables(bytes: Uint8Array, decompress?: Decompress): TableMap;
+
 ### build/chunks/text.d.ts#Text
 declare class Text {
   private constructor();
@@ -331,3 +354,6 @@ interface TextOptions {
 declare namespace text_d_exports {
   export { Text, TextOptions };
 }
+
+### build/fonts-inspect.d.ts#canvasWords
+export declare function canvasWords(text: string): string[];
