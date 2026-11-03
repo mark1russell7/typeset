@@ -5,9 +5,9 @@ import type { Cell } from "@typeset/widths";
 import snapshotFile from "../data/ci-snapshot.json";
 import { armOfEngine, engineChoices, engineForAgent, fontChoice, fontChoices, scriptLabels, scriptOrder, shapedScripts, type FontChoice } from "./catalog.ts";
 import { formatPx, formatSigned, heatBins, heatLabel, heatLevel } from "./heat.ts";
-import { labResult, sampleText, sweepSummary, sweepTask, type LabResult, type WordView } from "./lab-model.ts";
+import { labResult, previewFit, sampleText, sweepSummary, sweepTask, type LabResult, type WordView } from "./lab-model.ts";
 import { loadFont, type LoadedFont } from "./load.ts";
-import { armMatrix, readSnapshot, statOf, type ModelChoice, type Statistic, type Summary } from "./snapshot.ts";
+import { allLeftOut, armMatrix, readSnapshot, statOf, type ModelChoice, type Statistic, type Summary } from "./snapshot.ts";
 
 const snapshot = readSnapshot(snapshotFile);
 
@@ -138,8 +138,8 @@ function update(): void {
   if (loaded === undefined || loaded.choice.id !== state.font) return;
   const font = loaded.model(state.engine, state.weight);
   measureContext.font = cssFont(loaded, state.weight, state.size);
-  const rounding = engines[state.engine].rounding;
-  const result = labResult({ font, text: state.text, size: state.size, script: state.script, rounding }, (text) => measureContext.measureText(text).width);
+  const { rounding, sum } = engines[state.engine];
+  const result = labResult({ font, text: state.text, size: state.size, script: state.script, rounding, sum }, (text) => measureContext.measureText(text).width);
   lastResult = result;
   $("r-canvas").textContent = formatPx(result.canvas);
   $("r-model").textContent = formatPx(result.model);
@@ -172,12 +172,17 @@ function drawPreview(result: LabResult): void {
   const width = Math.min(maxWidth, Math.ceil(textWidth + 2 * pad + 40));
   const lineHeight = Math.ceil(state.size * 1.5);
   const height = lineHeight + 54;
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
-  canvas.width = Math.round(width * scale);
-  canvas.height = Math.round(height * scale);
+  // The drawing fits the width of its box, so the text, the ticks and the bars keep one scale
+  const available = canvas.parentElement?.clientWidth ?? width;
+  const fit = previewFit(width, available);
+  canvas.style.width = `${width * fit}px`;
+  canvas.style.height = `${height * fit}px`;
+  canvas.width = Math.round(width * fit * scale);
+  canvas.height = Math.round(height * fit * scale);
+  const scaleNote = fit < 1 ? ` The drawing is at ${Math.round(fit * 100)} % to fit the box.` : "";
+  $("preview-scale").textContent = width * fit > available + 0.5 ? `${scaleNote} Scroll the box to see the rest.` : scaleNote;
   const context = canvas.getContext("2d")!;
-  context.setTransform(scale, 0, 0, scale, 0, 0);
+  context.setTransform(scale * fit, 0, 0, scale * fit, 0, 0);
   context.clearRect(0, 0, width, height);
   const rtl = state.script === "arabic" || state.script === "hebrew";
   const baseline = Math.round(lineHeight * 0.72);
@@ -275,7 +280,8 @@ function hideTip(): void {
 }
 
 function cellLines(title: string, cell: Cell | undefined): string[] {
-  if (cell === undefined || cell.n === 0) return [title, "No texts."];
+  if (cell === undefined) return [title, "No texts."];
+  if (cell.n === 0) return [title, cell.excluded > 0 ? `No widths: all ${cell.excluded} texts have a character with no glyph in the font, so the browser draws it with a fallback font.` : "No texts."];
   const lines = [title, `worst ${formatPx(cell.worstPx)} px, 90th percentile ${formatPx(cell.p90Px)} px, mean ${formatPx(cell.meanPx)} px`, `${cell.n} widths${cell.excluded > 0 ? `, ${cell.excluded} left out for a missing glyph` : ""}`];
   if (cell.worst !== undefined) lines.push(`worst text: ${cell.worst.sample} in ${cell.worst.font} at ${cell.worst.size} px`);
   return lines;
@@ -335,6 +341,7 @@ function renderCi(): void {
     const name = scriptLabels[script] ?? row.label;
     const th = make("th", "row-head", name);
     if (shapedScripts.has(script)) th.append(make("span", "flag", "needs a shaper"));
+    else if (allLeftOut(row.cells)) th.append(make("span", "flag", "glyphs not in the font"));
     tr.append(th);
     row.cells.forEach((cell, i) => {
       const arm = snapshot.arms[i]!;
@@ -419,7 +426,7 @@ async function sweepFont(choice: FontChoice, weight: number, engine: EngineName,
   }
   report(`Scoring ${choice.family}`, 0.85);
   await nextFrame();
-  const summary = sweepSummary(task, model, canvas, engines[engine].rounding);
+  const summary = sweepSummary(task, model, canvas, engines[engine].rounding, engines[engine].sum);
   const key = `${choice.id}/${used}/${engine}`;
   sweeps.set(key, { key, label: `${choice.family} ${used}`, engine, summary });
   renderSweep();
@@ -532,6 +539,11 @@ function bind(): void {
   for (const id of ["sweep-class", "sweep-stat"]) $(id).addEventListener("change", renderSweep);
   for (const id of ["ci-model", "ci-class", "ci-stat"]) $(id).addEventListener("change", renderCi);
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => lastResult !== undefined && drawPreview(lastResult));
+  let resizeFrame = 0;
+  window.addEventListener("resize", () => {
+    cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(() => lastResult !== undefined && drawPreview(lastResult));
+  });
   window.addEventListener("scroll", hideTip, { passive: true });
 }
 

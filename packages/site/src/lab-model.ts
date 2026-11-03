@@ -46,6 +46,8 @@ export interface LabInput {
   readonly size: number;
   readonly script: ScriptId;
   readonly rounding: "exact" | "pixel";
+  /** The sum of the engine. `float32` models the canvas of Blink on macOS and Windows. The default is `exact`. */
+  readonly sum?: "exact" | "float32";
 }
 
 /**
@@ -55,7 +57,7 @@ export interface LabInput {
 export function labResult(input: LabInput, canvas: (text: string) => number): LabResult {
   const { font, text, size, rounding } = input;
   const script = scriptTags[input.script];
-  const options = { script, shaping: "canvas", rounding } as const;
+  const options = { script, shaping: "canvas", rounding, sum: input.sum ?? "exact" } as const;
   const model = measureWidth(font, text, size, options);
   const measured = canvas(text);
   const scale = size / font.unitsPerEm;
@@ -92,8 +94,17 @@ export function sweepTask(font: string, weight: number, scripts: readonly Script
 
 /**
  * This function gives the summary of a sweep from its canvas widths, `canvas[s][i]` for the size `s` and the sample `i`.
- * It uses the code of the CI comparison, with the rounding of the engine.
+ * It uses the code of the CI comparison, with the rounding and the sum of the engine.
  */
-export function sweepSummary(task: FontTask, font: Font, canvas: readonly (readonly number[])[], rounding: "exact" | "pixel"): Summary {
-  return summarize(engineRecords(recordsOf(task, font, canvas), rounding));
+export function sweepSummary(task: FontTask, font: Font, canvas: readonly (readonly number[])[], rounding: "exact" | "pixel", sum: "exact" | "float32" = "exact"): Summary {
+  return summarize(engineRecords(recordsOf(task, font, canvas), rounding, sum));
+}
+
+/**
+ * This function gives the scale of the preview drawing, so that a drawing of `width` px fits in a box of `available` px.
+ * The scale is at most 1 and at least `minimum`. A wider drawing at the minimum scale scrolls in its box.
+ */
+export function previewFit(width: number, available: number, minimum = 0.5): number {
+  if (!(width > 0) || !(available > 0)) return 1;
+  return Math.max(minimum, Math.min(1, available / width));
 }

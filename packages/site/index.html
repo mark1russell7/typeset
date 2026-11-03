@@ -70,7 +70,7 @@
 
         <figure class="preview">
           <div class="preview-scroll"><canvas id="preview" aria-label="The text, drawn by the canvas, with the edge of each model glyph"></canvas></div>
-          <figcaption>The canvas draws the text. Each tick is the end of a glyph in the model. The bars give the two widths. The error is the gap between their ends.</figcaption>
+          <figcaption>The canvas draws the text. Each tick is the end of a glyph in the model. The bars give the two widths. The error is the gap between their ends.<span id="preview-scale"></span></figcaption>
         </figure>
 
         <h3>Canvas words</h3>
@@ -141,7 +141,8 @@
         <ul>
           <li><strong>The model</strong> reads <code>hmtx</code>, <code>HVAR</code>, <code>GSUB</code> and <code>GPOS</code> of the font file. It adds the advances and the kerning of each canvas word.</li>
           <li><strong>The reference</strong> is <code>measureText</code> of a canvas, with the same file loaded as a <code>FontFace</code>.</li>
-          <li><strong>An engine model</strong> is a row of rules for one text engine: the rounding of the variable-font deltas, the metrics of composite glyphs and the rounding of each advance.</li>
+          <li><strong>An engine model</strong> is a row of rules for one text engine: the rounding of the variable-font deltas, the metrics of composite glyphs, the rounding of each advance and the precision of the sum.</li>
+          <li><strong>On macOS and Windows</strong>, Blink adds the widths of the words in single precision. The CoreText and DirectWrite models do the same.</li>
           <li><strong>Arabic</strong> needs joining forms. The model applies them by the joining type of each letter, as HarfBuzz does.</li>
           <li><strong>Devanagari</strong> needs the Indic shaper, with its clusters and reordering. The model does not do this yet, so its errors are large.</li>
           <li>The fonts come from <code>google/fonts</code> at a pinned commit. Read <a href="https://github.com/mark1russell7/typeset/blob/main/docs/FONTS.md">docs/FONTS.md</a> for the measurements.</li>
