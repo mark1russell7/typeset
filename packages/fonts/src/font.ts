@@ -6,6 +6,7 @@ import { defaultFeatures, readGlyphFilter, readSubstitutions, type GlyphFilter, 
 import { readAdvances, readCharacterMap, readGlyphClasses, readHeader } from "./tables.ts";
 import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts, type GlyphPoints } from "./gvar.ts";
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
+import { indicScripts, indicShaper } from "./indic.ts";
 import { joiningFeatures, joiningForms, joiningScripts, joiningStages } from "./joining.ts";
 import { canvasSegments, canvasWords } from "./words.ts";
 
@@ -175,7 +176,7 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
       let found = lookups.get(script);
       if (found === undefined) {
         // HarfBuzz uses the kern table only when the font has no GPOS table
-        found = gpos !== undefined ? readGposKerning(gpos, script, store) : kern !== undefined ? readKernTable(kern) : [];
+        found = gpos !== undefined ? readGposKerning(gpos, script, store, parsed.filter) : kern !== undefined ? readKernTable(kern) : [];
         lookups.set(script, found);
       }
       return found;
@@ -251,6 +252,11 @@ export interface MeasureOptions {
    */
   readonly joining?: boolean;
   /**
+   * The Indic shaper of HarfBuzz. When it is `true` (the default), the scripts of `indicScripts` get the syllables, the
+   * reordering and the stages of `indicShaper`. When it is `false`, they use the one stage of the other scripts.
+   */
+  readonly indic?: boolean;
+  /**
    * The shaping of the browser to model. `dom` (the default) shapes the words of `shapingWords` and then kerns all the
    * text. `canvas` shapes and kerns each word of `canvasWords` alone, as Blink does for the text of a canvas.
    */
@@ -291,6 +297,8 @@ export function shapingWords(text: string): string[] {
 function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: string) => number[]; kerning: readonly PairLookup[] } {
   const script = options.script ?? "DFLT";
   const features = options.features ?? defaultFeatures;
+  const kerning = options.kerning === false ? [] : font.kerning(script);
+  if (options.indic !== false && indicScripts.includes(script)) return { substitute: indicShaper(font, script, features), kerning };
   const joins = options.joining !== false && joiningScripts.includes(script);
   const lookups = joins ? [] : font.substitutions(script, features);
   const stages = joins ? joiningStages(features, features.includes("rclt") && font.substitutions(script, ["rclt"]).length > 0).map((stage) => ({ stage, lookups: font.substitutions(script, stage.features) })) : [];
@@ -308,14 +316,14 @@ function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: str
     }
     return wordGlyphs;
   };
-  return { substitute, kerning: options.kerning === false ? [] : font.kerning(script) };
+  return { substitute, kerning };
 }
 
 /**
  * This function gives the glyphs of a text and their advances in font units. With the shaping `dom`, it applies the GSUB
  * substitutions to each word of `shapingWords`, and then the pair kerning to all the text. With the shaping `canvas`, it
  * applies the substitutions and the kerning to each word of `canvasWords` alone. A script of `joiningScripts` also gets
- * the joining forms of each word, in the stages of `joiningStages`.
+ * the joining forms of each word, in the stages of `joiningStages`. A script of `indicScripts` uses `indicShaper`.
  */
 export function glyphAdvances(font: Font, text: string, options: MeasureOptions = {}): { glyphs: number[]; advances: number[] } {
   const { substitute, kerning } = shaperOf(font, options);
@@ -365,7 +373,7 @@ function kerningPosition(value: number, delta: number, scale: PositionScale): nu
 function kern(font: Font, lookups: readonly PairLookup[], glyphs: readonly number[], advances: number[], positions?: number[], scale?: PositionScale): void {
   for (const lookup of lookups) {
     const next = (from: number): number => {
-      for (let j = from; j < glyphs.length; j++) if (!skips(lookup.flags, font.glyphClass(glyphs[j]!))) return j;
+      for (let j = from; j < glyphs.length; j++) if (!(lookup.skip?.(glyphs[j]!) ?? skips(lookup.flags, font.glyphClass(glyphs[j]!)))) return j;
       return -1;
     };
     let i = next(0);

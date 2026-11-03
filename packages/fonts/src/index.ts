@@ -1,9 +1,10 @@
 export { readFont, measureWidth, glyphAdvances, shapingWords, type AdvanceSource, type Font, type ReadOptions, type MeasureOptions } from "./font.ts";
 export { canvasSegments, canvasWords, isCjkIdeographOrSymbol } from "./words.ts";
 export { bidiLevels, visualOrder } from "./bidi.ts";
+export { indicScripts, indicShaper, indicSyllables, type IndicSyllableType } from "./indic.ts";
 export { joiningFeatures, joiningForms, joiningScripts, joiningStages, type JoiningForm, type JoiningStage } from "./joining.ts";
 export { engines, isEngineName, type EngineName, type EngineRules } from "./engines.ts";
 export { readTables, type Decompress, type TableMap } from "./sfnt.ts";
 export type { PairLookup, PairValue } from "./kerning.ts";
-export { defaultFeatures, type GlyphFilter, type SubstitutionLookup } from "./substitution.ts";
+export { defaultFeatures, LIGATED, MULTIPLIED, SUBSTITUTED, type GlyphFilter, type GlyphInfo, type SubstitutionLookup } from "./substitution.ts";
 export type { Axis, Instance } from "./variations.ts";

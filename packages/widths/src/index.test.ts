@@ -374,7 +374,7 @@ describe("the GSUB trace", () => {
       substitutions: () => [
         { index: 3, type: 4, flags: 0, features: ["liga"], apply: (glyphs: number[]) => void glyphs.splice(0, glyphs.length, ...(glyphs.join() === "102,105" ? [1] : glyphs)) },
         { index: 5, type: 1, flags: 0, features: ["calt"], apply: () => {} },
-      ],
+      ].map((lookup) => ({ ...lookup, applyInfos: () => {}, wouldApply: () => false })),
     } as Font;
     expect(substitutionTrace(font, "fi", "latn")).toEqual([{ lookup: 3, type: 4, flags: 0, features: ["liga"], glyphs: [2, 1], advance: -300, first: { at: 0, before: [102, 105], after: [1] } }]);
     expect(substitutionTrace(font, "ab", "latn")).toEqual([]);

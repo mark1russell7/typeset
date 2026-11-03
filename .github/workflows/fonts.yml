@@ -80,6 +80,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Download the fonts
         run: node packages/widths/src/fetch.ts "$RUNNER_TEMP/fonts"
+      # The tests of the Indic shaper need the real font. Without TYPESET_FONTS, they do not run.
+      - name: Test the shapers with the real fonts
+        run: pnpm --filter @typeset/fonts exec vitest run src/indic.test.ts
+        env:
+          TYPESET_FONTS: ${{ runner.temp }}/fonts
       - name: Make the WOFF2 files
         if: matrix.woff2
         run: |

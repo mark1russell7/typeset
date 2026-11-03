@@ -5,10 +5,10 @@
 ## What the reader reads
 
 - The reader reads TrueType, OpenType and WOFF2 files. A WOFF2 file needs a Brotli decompress function, for example `brotliDecompressSync` of `node:zlib`.
-- It reads `head`, `hhea`, `maxp`, `hmtx`, `cmap` (formats 4 and 12), `GDEF`, the `kern` table (format 0) and the pair adjustments of the `kern` feature of `GPOS`.
+- It reads `head`, `hhea`, `maxp`, `hmtx`, `cmap` (formats 4 and 12), `GDEF`, the `kern` table (format 0) and the pair adjustments of the `kern` and `dist` features of `GPOS`.
 - `measureWidth` adds the advances and the pair kerning, and scales the sum by the size divided by the units per em.
 - A mark of `GDEF` has the advance 0, as in HarfBuzz. A lookup that ignores marks skips them.
-- `measureWidth` applies the GSUB features and the joining forms of Arabic. It does not apply the Indic shaper, so it does not make the conjuncts of Devanagari.
+- `measureWidth` applies the GSUB features, the joining forms of Arabic and the Indic shaper of Devanagari.
 
 ## Instances of variable fonts
 
@@ -267,3 +267,40 @@ The fonts run 41553727572 on the head of typeset#34 confirms the diagnosis on th
 | `windows-1` | 240 of 240 | 0.0007 px | 0.0258 px | 1.2646 px |
 
 - The other scripts have no regression on the four arms.
+
+## The Indic shaper
+
+`indicShaper` gives the glyphs of a Devanagari word, as the Indic shaper of HarfBuzz gives them. The shaper uses the script tag `dev2` of the font. It has these steps:
+
+1. The shaper puts a dotted circle in a vowel sequence that looks like a different vowel, for example `अ` and `ा`.
+2. It normalizes the text. It decomposes the characters, and composes a nukta with its consonant again when the font has the glyph.
+3. The syllable machine of HarfBuzz divides the text into syllables: consonant, vowel, standalone, symbol, broken and other clusters.
+4. The shaper applies `locl` and `ccmp`. The lookups of `blwf`, `vatu`, `pstf` and `pref` then find the below-base and post-base consonants.
+5. A broken cluster gets a dotted circle at its start.
+6. The initial reordering finds the base consonant and the reph of each syllable. It sorts the glyphs by position and gives the masks of the features.
+7. The shaper applies each basic feature in a stage alone: `nukt`, `akhn`, `rphf`, `rkrf`, `pref`, `blwf`, `abvf`, `half`, `pstf`, `vatu` and `cjct`.
+8. The final reordering moves the pre-base matra after the last halant before the base. It moves the reph after the base.
+9. The shaper applies `init`, `pres`, `abvs`, `blws`, `psts`, `haln` and the other features of the page in one stage. It does not apply `liga`.
+
+- A lookup of an Indic feature matches only the glyphs of one syllable, as in HarfBuzz.
+- Each glyph keeps the properties `SUBSTITUTED`, `LIGATED` and `MULTIPLIED` of HarfBuzz. The reordering uses them. A ligature has no category.
+- The kerning also reads the `dist` feature of `GPOS`. Its pair lookup in Noto Sans Devanagari uses a mark filtering set.
+- The option `indic: false` stops the shaper. Then Devanagari uses the one stage of the other scripts.
+- HarfBuzz skips a ZWJ or a ZWNJ in some lookups. The model does not skip them. The corpus has no joiners.
+- `indicSyllables` gives the syllables of a text. The tests use it with no font.
+
+## The result of the Indic shaper
+
+The diagnosis of T1d measures each Devanagari record of the fonts run 41568949837 again, with the model of the engine of each arm. The table gives the records within 0.01 px.
+
+| Model | Arm | Words | Lines | Paragraphs | Pages |
+|---|---|---|---|---|---|
+| `main`, and the `dist` kerning alone | `linux-1` and `linux-2` | 216 of 240 | 187 of 240 | 7 of 240 | 1 of 240 |
+| `main`, and the `dist` kerning alone | `macos-2` and `windows-1` | 216 of 240 | 174 of 240 | 6 of 240 | 0 of 240 |
+| The shaper with no kerning | `linux-1` and `linux-2` | 240 of 240 | 234 of 240 | 210 of 240 | 56 of 240 |
+| The shaper with no kerning | `macos-2` and `windows-1` | 240 of 240 | 234 of 240 | 192 of 240 | 30 of 240 |
+| The shaper and the `dist` kerning | each arm | 240 of 240 | 240 of 240 | 240 of 240 | 240 of 240 |
+
+- The glyphs of the model are the same as the glyphs of HarfBuzz for each of the 24442 canvas words of the Devanagari corpus.
+- Without the shaper, the `dist` kerning does not change the fractions. With the shaper, the pages need it.
+- The other scripts and Source Sans 3 have no regression on the four arms. The pages of Latin Extended keep their error of 5 px.
