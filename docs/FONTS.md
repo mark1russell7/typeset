@@ -191,3 +191,20 @@ The fonts run 41527566935 measures single characters at 1000 px against each mod
 - The phantom points of `gvar` give the advances of `HVAR` in each of the 12 fonts. The worst difference is 0 font units.
 - The glyph `i` of Source Sans 3 is a composite glyph of `ı`. DirectWrite uses the advance of `ı`, 247 units at 400. The glyph `i` has 246 units.
 - The scripts of Windows and macOS have no regression. Each line error stays at 0.0014 px or less.
+
+## The result of the engine table and the canvas words
+
+The fonts run 41547699014 on the head of typeset#29 measures the model of the engine of each arm. The fonts run 41548747569 on the head of typeset#31 adds the canvas words.
+
+| Arm | Engine | Worst line error of the 8 scripts and Source Sans 3 | Kana before | Kana after |
+|---|---|---|---|---|
+| `linux-1` | `freetype` | 0.0000 px | 4.0000 px | 0.0000 px |
+| `linux-2` | `freetype` | 0.0000 px | 4.0000 px | 0.0000 px |
+| `macos-2` | `coretext` | 0.0010 px | 3.8400 px | 0.0003 px |
+| `windows-1` | `directwrite` | 0.0014 px | 3.8400 px | 0.0002 px |
+
+- The 8 scripts are Latin, Latin Extended, Greek, Cyrillic, Hebrew, Thai, Han and Hangul.
+- The kana error came from the shaping of the canvas. Blink shapes each kana as a word alone, so no kerning goes from one kana to the next kana.
+- The DOM shapes all the run and kerns the kana. The model with `shaping: "dom"` stays at 0.0150 px on Windows.
+- Arabic and Devanagari stay open. T1d adds the joining forms and an Indic shaper.
+
