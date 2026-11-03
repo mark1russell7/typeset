@@ -1,6 +1,6 @@
 import type { Reader } from "./binary.ts";
 import { IGNORE_BASE, IGNORE_LIGATURES, IGNORE_MARKS, scriptTags } from "./kerning.ts";
-import { classOf, coverageIndex } from "./tables.ts";
+import { classOf, coverageGlyphs, coverageIndex } from "./tables.ts";
 
 /**
  * The GSUB features that the default model applies: the features that HarfBuzz and Chromium apply to horizontal text
@@ -66,6 +66,16 @@ export interface GlyphInfo {
   readonly codePoint: number;
 }
 
+/** One substitution that a lookup can do, with no context. */
+export interface SubstitutionRule {
+  /** The glyph that the rule replaces. The first glyph of a ligature is this glyph. */
+  readonly from: number;
+  /** The glyphs that replace it. A multiple substitution can give no glyph. */
+  readonly to: readonly number[];
+  /** The other glyphs of a ligature, in order. Another rule has no such glyphs. */
+  readonly components?: readonly number[];
+}
+
 /** A lookup of GSUB for one script and one set of features. */
 export interface SubstitutionLookup {
   /** The index of the lookup in the lookup list of GSUB. */
@@ -93,6 +103,12 @@ export interface SubstitutionLookup {
    * `hb_ot_layout_lookup_would_substitute` with zero context tells it. A context rule with backtrack or lookahead does not apply.
    */
   wouldApply(glyphs: readonly number[]): boolean;
+  /**
+   * This function gives the rules of the lookup, and the rules of each lookup that it nests in a context rule. Each lookup
+   * has one list, and the list of this lookup is the first. The lists do not tell a context, so each nested rule counts.
+   * An alternate substitution gives one rule for each alternate.
+   */
+  rules(): readonly (readonly SubstitutionRule[])[];
 }
 
 /** One lookup of the lookup list, with the subtables of an extension lookup resolved. */
@@ -111,6 +127,71 @@ interface SequenceRecord {
 
 function records(table: Reader, at: number, count: number): SequenceRecord[] {
   return Array.from({ length: count }, (_, k) => ({ sequenceIndex: table.u16(at + k * 4), lookupIndex: table.u16(at + k * 4 + 2) }));
+}
+
+/** This function gives each rule table of the rule sets at `at` of a context subtable of format 1 or 2. An offset 0 is an empty set. */
+function ruleTables(t: Reader, at: number): Reader[] {
+  const tables: Reader[] = [];
+  for (let s = 0; s < t.u16(at); s++) {
+    const offset = t.u16(at + 2 + s * 2);
+    if (offset === 0) continue;
+    const set = t.part(offset);
+    for (let r = 0; r < set.u16(0); r++) tables.push(set.part(set.u16(2 + r * 2)));
+  }
+  return tables;
+}
+
+/** This function gives the records of each rule of a context subtable (lookup type 5). */
+function contextRecords(t: Reader): SequenceRecord[] {
+  const format = t.u16(0);
+  if (format === 3) return records(t, 6 + t.u16(2) * 2, t.u16(4));
+  return ruleTables(t, format === 2 ? 6 : 4).flatMap((rule) => records(rule, 4 + (rule.u16(0) - 1) * 2, rule.u16(2)));
+}
+
+/** This function gives the records of each rule of a chained context subtable (lookup type 6). */
+function chainRecords(t: Reader): SequenceRecord[] {
+  const format = t.u16(0);
+  if (format === 3) {
+    const inputAt = 4 + t.u16(2) * 2;
+    const aheadAt = inputAt + 2 + t.u16(inputAt) * 2;
+    const recordsAt = aheadAt + 2 + t.u16(aheadAt) * 2;
+    return records(t, recordsAt + 2, t.u16(recordsAt));
+  }
+  return ruleTables(t, format === 2 ? 10 : 4).flatMap((rule) => {
+    const inputAt = 2 + rule.u16(0) * 2;
+    const aheadAt = inputAt + 2 + Math.max(0, rule.u16(inputAt) - 1) * 2;
+    const recordsAt = aheadAt + 2 + rule.u16(aheadAt) * 2;
+    return records(rule, recordsAt + 2, rule.u16(recordsAt));
+  });
+}
+
+/** This function adds the rules of one subtable of a lookup type to `rules`, and each nested lookup to `nested`. */
+function readRules(type: number, t: Reader, rules: SubstitutionRule[], nested: number[]): void {
+  if (type === 5 || type === 6) {
+    for (const record of type === 5 ? contextRecords(t) : chainRecords(t)) nested.push(record.lookupIndex);
+    return;
+  }
+  if (type < 1 || type > 8 || type === 7) return;
+  const format = t.u16(0);
+  for (const [from, index] of coverageGlyphs(t.part(t.u16(2)))) {
+    if (type === 1) rules.push({ from, to: [format === 1 ? (from + t.i16(4)) & 0xffff : t.u16(6 + index * 2)] });
+    else if (type === 2) {
+      const sequence = t.part(t.u16(6 + index * 2));
+      rules.push({ from, to: Array.from({ length: sequence.u16(0) }, (_, k) => sequence.u16(2 + k * 2)) });
+    } else if (type === 3) {
+      const set = t.part(t.u16(6 + index * 2));
+      for (let k = 0; k < set.u16(0); k++) rules.push({ from, to: [set.u16(2 + k * 2)] });
+    } else if (type === 4) {
+      const set = t.part(t.u16(6 + index * 2));
+      for (let l = 0; l < set.u16(0); l++) {
+        const ligature = set.part(set.u16(2 + l * 2));
+        rules.push({ from, to: [ligature.u16(0)], components: Array.from({ length: ligature.u16(2) - 1 }, (_, k) => ligature.u16(4 + k * 2)) });
+      }
+    } else {
+      const aheadAt = 6 + t.u16(4) * 2;
+      rules.push({ from, to: [t.u16(aheadAt + 2 + t.u16(aheadAt) * 2 + 2 + index * 2)] });
+    }
+  }
 }
 
 /** The lookups of one GSUB table. It reads each lookup at its first use. */
@@ -392,6 +473,24 @@ class Gsub {
     });
   }
 
+  /** This function gives the rules of a lookup and of each lookup that it nests, as `rules` of `SubstitutionLookup` tells. */
+  rulesOf(index: number): SubstitutionRule[][] {
+    const lists: SubstitutionRule[][] = [];
+    const seen = new Set<number>();
+    const visit = (at: number): void => {
+      const lookup = this.lookup(at);
+      if (seen.has(at) || lookup === undefined) return;
+      seen.add(at);
+      const rules: SubstitutionRule[] = [];
+      const nested: number[] = [];
+      for (const subtable of lookup.subtables) readRules(lookup.type, subtable, rules, nested);
+      lists.push(rules);
+      nested.forEach(visit);
+    };
+    visit(index);
+    return lists;
+  }
+
   /** This function applies one subtable at `i`. It gives the next position, or -1 when the subtable does not match. */
   private subtable(lookup: Lookup, t: Reader, glyphs: number[], i: number, depth: number): number {
     const glyph = glyphs[i]!;
@@ -580,6 +679,7 @@ export function readSubstitutions(gsub: Reader, script: string, features: readon
       apply: (glyphs: number[], masks?: number[], mask?: number) => table.applyAll(index, glyphs, masks, mask),
       applyInfos: (glyphs: number[], infos: GlyphInfo[], mask: number, perSyllable: boolean) => table.applyRun(index, glyphs, infos, mask, perSyllable),
       wouldApply: (glyphs: readonly number[]) => table.wouldApply(index, glyphs),
+      rules: () => table.rulesOf(index),
     });
   }
   return result;

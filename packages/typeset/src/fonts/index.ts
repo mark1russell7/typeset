@@ -1,4 +1,5 @@
 export { readFont, measureWidth, glyphAdvances, shapingWords, type AdvanceSource, type Font, type ReadOptions, type MeasureOptions } from "./font.ts";
+export { widthBound, type WidthBound } from "./bound.ts";
 export { canvasSegments, canvasWords, isCjkIdeographOrSymbol } from "./words.ts";
 export { bidiLevels, visualOrder } from "./bidi.ts";
 export { indicScripts, indicShaper, indicSyllables, type IndicSyllableType } from "./indic.ts";

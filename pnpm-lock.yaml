@@ -305,6 +305,9 @@ importers:
 
   packages/widths:
     dependencies:
+      '@mark1russell7/rigor-generators':
+        specifier: ^0.1.0
+        version: 0.1.1
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.0
         version: 0.1.5
