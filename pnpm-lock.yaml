@@ -208,6 +208,9 @@ importers:
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.0
         version: 0.1.0
+      '@typeset/breaking':
+        specifier: workspace:*
+        version: link:../breaking
       '@typeset/corpus':
         specifier: workspace:*
         version: link:../corpus
@@ -218,6 +221,27 @@ importers:
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.5(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/breaking:
+    devDependencies:
+      '@mark1russell7/cue':
+        specifier: ^1.0.2
+        version: 1.1.0
+      '@mark1russell7/layout-contract':
+        specifier: ^0.2.21
+        version: 0.2.21
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.6
+      '@typeset/corpus':
+        specifier: workspace:*
+        version: link:../corpus
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -493,6 +517,10 @@ packages:
     resolution: {integrity: sha512-R9pjuWNFqd/LSfOI8uY7w8E2Dri8UQFGLodBuV4d2E0pwzWM5ISVXWVhC7+aYgrR1GXSMzbyo5ZLWvqyQCwdIg==}
     engines: {node: '>=22'}
     hasBin: true
+
+  '@mark1russell7/layout-contract@0.2.21':
+    resolution: {integrity: sha512-Mls2V7uo5zGS6o5apBCJAKN3T4oZ3A2yuxUJUBzICDzIWT+YiIP+yOcBfVpjf22cPG5GMr+/abC7UJ4u4bXTlA==}
+    engines: {node: '>=22.12'}
 
   '@mark1russell7/rigor-generators@0.1.0':
     resolution: {integrity: sha512-xhXvLzZQlDH6ysAbqEjbha6fs1GbvO9RflSXwYbA3QMryxu4zEikbxahEDQCIxVSis+2pfX/18PHU3+X+jJmPw==}
@@ -1439,6 +1467,8 @@ snapshots:
   '@mark1russell7/conventions@0.15.0': {}
 
   '@mark1russell7/cue@1.1.0': {}
+
+  '@mark1russell7/layout-contract@0.2.21': {}
 
   '@mark1russell7/rigor-generators@0.1.0': {}
 
