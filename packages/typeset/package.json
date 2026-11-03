@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/typeset",
-  "version": "0.1.0",
-  "description": "Text measurement and line breaking. The subpath ./breaking has the greedy, total fit and balanced line breakers, for any width function.",
+  "version": "0.1.1",
+  "description": "Text measurement and line breaking. The subpath ./breaking has the line breakers, and ./text has a rope with the width of each part, for any width function.",
   "keywords": [
     "typeset",
     "line-breaking",
@@ -28,6 +28,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./breaking": "./src/breaking.ts",
+    "./text": "./src/text.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -52,6 +53,10 @@
         "types": "./build/breaking.d.ts",
         "default": "./build/breaking.js"
       },
+      "./text": {
+        "types": "./build/text.d.ts",
+        "default": "./build/text.js"
+      },
       "./package.json": "./package.json"
     }
   },
@@ -64,6 +69,7 @@
   "devDependencies": {
     "@mark1russell7/cue": "^1.0.2",
     "@mark1russell7/layout-contract": "^0.3.2",
+    "@mark1russell7/rigor-generators": "^0.1.0",
     "@types/node": "^26.6.5",
     "@typeset/corpus": "workspace:*",
     "tsdown": "^0.23.1",
