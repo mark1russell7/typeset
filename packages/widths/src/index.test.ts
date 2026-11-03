@@ -1,5 +1,5 @@
 import { fonts, generateCorpus, scriptIds, type Sample } from "@typeset/corpus";
-import type { Font } from "@typeset/fonts";
+import type { Font } from "@mark1russell7/typeset/fonts";
 import { describe, expect, it } from "vitest";
 import {
   advanceModelRow,

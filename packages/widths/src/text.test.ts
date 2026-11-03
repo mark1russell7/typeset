@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Text } from "@mark1russell7/typeset/text";
 import { fontsFor, generateEdits, generateSample, scriptIds, type Edit, type ScriptId } from "@typeset/corpus";
-import { measureWidth, readFont, type Font, type MeasureOptions } from "@typeset/fonts";
+import { measureWidth, readFont, type Font, type MeasureOptions } from "@mark1russell7/typeset/fonts";
 import { describe, expect, it } from "vitest";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
 

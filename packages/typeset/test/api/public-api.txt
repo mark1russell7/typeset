@@ -4,9 +4,11 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (build/index.d.ts): 2 names
+## . (build/index.d.ts): 4 names
 
 breaking: build/chunks/breaking.d.ts#breaking_d_exports
+fonts: build/chunks/fonts.d.ts#fonts_d_exports
+measurer: build/chunks/measurer.d.ts#measurer_d_exports
 text: build/chunks/text.d.ts#text_d_exports
 
 ## ./breaking (build/breaking.d.ts): 24 names
@@ -35,6 +37,30 @@ paragraphOf: build/chunks/paragraph.d.ts#paragraphOf
 raggedness: build/chunks/breaking.d.ts#raggedness
 spread: build/chunks/breaking.d.ts#spread
 totalFit: build/chunks/breaking.d.ts#totalFit
+
+## ./fonts (build/fonts.d.ts): 12 names
+
+type Axis: build/chunks/fonts.d.ts#Axis
+type Decompress: build/chunks/engines.d.ts#Decompress
+type EngineName: build/chunks/engines.d.ts#EngineName
+type EngineRules: build/chunks/engines.d.ts#EngineRules
+type Font: build/chunks/fonts.d.ts#Font
+type Instance: build/chunks/fonts.d.ts#Instance
+type MeasureOptions: build/chunks/fonts.d.ts#MeasureOptions
+type ReadOptions: build/chunks/fonts.d.ts#ReadOptions
+engines: build/chunks/engines.d.ts#engines
+isEngineName: build/chunks/engines.d.ts#isEngineName
+measureWidth: build/chunks/fonts.d.ts#measureWidth
+readFont: build/chunks/fonts.d.ts#readFont
+
+## ./measurer (build/measurer.d.ts): 6 names
+
+type FontAdvanceOptions: build/chunks/measurer.d.ts#FontAdvanceOptions
+type FontFace: build/chunks/measurer.d.ts#FontFace
+type FontSpec: build/chunks/measurer.d.ts#FontSpec
+fontAdvance: build/chunks/measurer.d.ts#fontAdvance
+parseFont: build/chunks/measurer.d.ts#parseFont
+scriptTag: build/chunks/measurer.d.ts#scriptTag
 
 ## ./text (build/text.d.ts): 2 names
 
@@ -88,6 +114,130 @@ declare function spread(lines: readonly Line[]): number;
 
 ### build/chunks/breaking.d.ts#totalFit
 declare function totalFit(options?: TotalFitOptions): Breaker;
+
+### build/chunks/engines.d.ts#Decompress
+type Decompress = (data: Uint8Array) => Uint8Array;
+
+### build/chunks/engines.d.ts#EngineName
+type EngineName = keyof typeof engines;
+
+### build/chunks/engines.d.ts#EngineRules
+interface EngineRules {
+  readonly deltas: "round" | "exact";
+  readonly metrics: "own" | "component";
+  readonly rounding: "exact" | "pixel";
+  readonly sum: "exact" | "float32";
+}
+
+### build/chunks/engines.d.ts#engines
+declare const engines: {
+  readonly freetype: EngineRules;
+  readonly coretext: EngineRules;
+  readonly directwrite: EngineRules;
+};
+
+### build/chunks/engines.d.ts#isEngineName
+declare function isEngineName(name: string): name is EngineName;
+
+### build/chunks/fonts.d.ts#Axis
+interface Axis {
+  readonly tag: string;
+  readonly min: number;
+  readonly default: number;
+  readonly max: number;
+}
+
+### build/chunks/fonts.d.ts#Font
+interface Font {
+  readonly epoch: string;
+  readonly unitsPerEm: number;
+  readonly axes: readonly Axis[];
+  readonly instance: Instance;
+  readonly coordinates: readonly number[];
+  readonly advanceSource: AdvanceSource;
+  readonly numGlyphs: number;
+  glyph(codePoint: number): number;
+  advance(glyph: number): number;
+  glyphClass(glyph: number): number;
+  kerning(script: string): readonly PairLookup[];
+  substitutions(script: string, features: readonly string[]): readonly SubstitutionLookup[];
+  at(instance: Instance): Font;
+}
+
+### build/chunks/fonts.d.ts#Instance
+type Instance = Readonly<Record<string, number>>;
+
+### build/chunks/fonts.d.ts#MeasureOptions
+interface MeasureOptions {
+  readonly script?: string;
+  readonly rounding?: "exact" | "pixel";
+  readonly kerning?: boolean;
+  readonly features?: readonly string[];
+  readonly joining?: boolean;
+  readonly indic?: boolean;
+  readonly shaping?: "dom" | "canvas";
+  readonly sum?: "exact" | "float32";
+}
+
+### build/chunks/fonts.d.ts#ReadOptions
+interface ReadOptions {
+  readonly decompress?: Decompress;
+  readonly instance?: Instance;
+  readonly deltas?: "round" | "exact";
+  readonly advances?: "auto" | "gvar";
+  readonly metrics?: "own" | "component";
+}
+
+### build/chunks/fonts.d.ts#fonts_d_exports
+declare namespace fonts_d_exports {
+  export { Axis, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, engines, isEngineName, measureWidth, readFont };
+}
+
+### build/chunks/fonts.d.ts#measureWidth
+declare function measureWidth(font: Font, text: string, size: number, options?: MeasureOptions): number;
+
+### build/chunks/fonts.d.ts#readFont
+declare function readFont(bytes: Uint8Array, options?: ReadOptions): Font;
+
+### build/chunks/measurer.d.ts#FontAdvanceOptions
+interface FontAdvanceOptions {
+  readonly faces: readonly FontFace[];
+  readonly engine?: EngineName | EngineRules;
+  readonly shaping?: "dom" | "canvas";
+}
+
+### build/chunks/measurer.d.ts#FontFace
+interface FontFace {
+  readonly family: string;
+  readonly data: Uint8Array;
+  readonly weight?: number | readonly [number, number];
+  readonly style?: "normal" | "italic" | "oblique";
+  readonly decompress?: Decompress;
+}
+
+### build/chunks/measurer.d.ts#FontSpec
+interface FontSpec {
+  readonly style: "normal" | "italic" | "oblique";
+  readonly angle: number;
+  readonly weight: number;
+  readonly stretch: number;
+  readonly size: number;
+  readonly families: readonly string[];
+}
+
+### build/chunks/measurer.d.ts#fontAdvance
+declare function fontAdvance(options: FontAdvanceOptions): (text: string, font: string) => number;
+
+### build/chunks/measurer.d.ts#measurer_d_exports
+declare namespace measurer_d_exports {
+  export { FontAdvanceOptions, FontFace, FontSpec, fontAdvance, parseFont, scriptTag };
+}
+
+### build/chunks/measurer.d.ts#parseFont
+declare function parseFont(font: string): FontSpec;
+
+### build/chunks/measurer.d.ts#scriptTag
+declare function scriptTag(text: string): string;
 
 ### build/chunks/paragraph.d.ts#Box
 interface Box {

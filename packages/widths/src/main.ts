@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { brotliDecompressSync } from "node:zlib";
 import { fingerprint, fontSizes, generateCorpus, type FontId } from "@typeset/corpus";
-import { engines, isEngineName, measureWidth, readFont, readTables, type Font } from "@typeset/fonts";
+import { engines, isEngineName, measureWidth, readFont, readTables, type Font } from "@mark1russell7/typeset/fonts/model";
 import { chromium, type Page } from "playwright";
 import { advanceModelRow, diagnosticWeights, type AdvanceModelName, type AdvanceModelRow } from "./advances.ts";
 import { checkBounds, engineRecords, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";

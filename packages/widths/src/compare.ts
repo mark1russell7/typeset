@@ -1,6 +1,6 @@
 import { quantile } from "@mark1russell7/rigor-statistics";
 import { fontsFor, type FontId, type LengthClass, type Sample, type ScriptId } from "@typeset/corpus";
-import { measureWidth, type Font } from "@typeset/fonts";
+import { measureWidth, type Font } from "@mark1russell7/typeset/fonts";
 import { scriptTags } from "./sources.ts";
 
 /** One width of one text, from the tables and from the canvas. */

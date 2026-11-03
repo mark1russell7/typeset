@@ -17,3 +17,14 @@ describe("the entry of the rope", () => {
     expect(text.Text).toBe(textEntry.Text);
   });
 });
+
+describe("the entries of the font model and the measurer", () => {
+  it("gives the subpaths ./fonts and ./measurer as the namespaces fonts and measurer", async () => {
+    const { fonts, measurer } = await import("./index.ts");
+    const fontsEntry = await import("./fonts.ts");
+    const measurerEntry = await import("./measurer.ts");
+    expect(Object.keys(fonts).sort()).toEqual(Object.keys(fontsEntry).sort());
+    expect(Object.keys(measurer).sort()).toEqual(Object.keys(measurerEntry).sort());
+    expect(measurer.fontAdvance).toBe(measurerEntry.fontAdvance);
+  });
+});

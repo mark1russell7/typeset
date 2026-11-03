@@ -4,7 +4,7 @@
  * rope uses it only for the leaves and for the windows at the seams. Thus an edit uses it of the order of `log n` times.
  *
  * The seams are exact when the width function obeys the separator law. For each text `p + s + q` with a separator `s`:
- * `width(p + s + q) = width(p + s) + width(s + q) - width(s)`. The model of `@typeset/fonts` obeys it for a space and a
+ * `width(p + s + q) = width(p + s) + width(s + q) - width(s)`. The model of `@mark1russell7/typeset/fonts` obeys it for a space and a
  * tab. It shapes each word alone, and its kerning goes only between two adjacent glyphs.
  */
 import type { WidthOf } from "../breaking/paragraph.ts";

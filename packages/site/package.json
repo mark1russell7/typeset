@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@typeset/corpus": "workspace:*",
-    "@typeset/fonts": "workspace:*",
+    "@mark1russell7/typeset": "workspace:*",
     "@typeset/widths": "workspace:*"
   },
   "devDependencies": {

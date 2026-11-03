@@ -1,6 +1,6 @@
 /** The pure logic of the lab: the model width of a text, its canvas words and its glyphs, against the canvas widths. */
 import { fontSizes, generateCorpus, generateSample, type LengthClass, type ScriptId } from "@typeset/corpus";
-import { canvasWords, glyphAdvances, measureWidth, type Font } from "@typeset/fonts";
+import { canvasWords, glyphAdvances, measureWidth, type Font } from "@mark1russell7/typeset/fonts/model";
 import { engineRecords, missingGlyphs, recordsOf, scriptTags, summarize, type FontTask } from "@typeset/widths";
 import type { Summary } from "./snapshot.ts";
 

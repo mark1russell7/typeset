@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { measureWidth, type Font } from "@typeset/fonts";
+import { measureWidth, type Font } from "@mark1russell7/typeset/fonts";
 import type { Cell } from "@typeset/widths";
 import { fontsCommit, scriptTags } from "@typeset/widths";
 import { describe, expect, it } from "vitest";
