@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@mark1russell7/rigor-statistics": "^0.1.0",
+    "@mark1russell7/typeset": "workspace:*",
     "@typeset/corpus": "workspace:*"
   }
 }
