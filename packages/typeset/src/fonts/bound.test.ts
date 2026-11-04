@@ -1,42 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { Bytes, advances, assembleTtf, buildTtf, characters, lookup, substitutionTable, tableSet, variationStore } from "../../test/fonts.ts";
+import { Bytes, assembleTtf, buildTtf, coverage, fontOf, lookup, pairs, single, substitutionTable, tableSet, variationStore } from "../../test/fonts.ts";
 import { measureWidth, readFont, widthBound, type Font, type MeasureOptions } from "./index.ts";
 
-/** This function builds a test font from the fixture. The value `null` of `gpos` removes the table. */
-function fontOf({ gsub, gpos, kern, map = characters, widths = advances }: { gsub?: Bytes; gpos?: Bytes | null; kern?: Bytes; map?: readonly (readonly [number, number])[]; widths?: readonly number[] }): Font {
-  const hmtx = new Bytes();
-  for (const width of widths) hmtx.u16(width, 0);
-  const replaced: Record<string, Bytes | undefined> = { hmtx, maxp: new Bytes().u32(0x00005000).u16(widths.length), GSUB: gsub, GPOS: gpos ?? undefined };
-  const tables = tableSet(false, gsub !== undefined, "hvar", [...map].sort((a, b) => a[0] - b[0]))
-    .filter(([tag]) => tag !== "GPOS" || gpos !== null)
-    .map(([tag, body]): [string, Bytes] => [tag, replaced[tag] ?? body]);
-  return readFont(assembleTtf(kern === undefined ? tables : [...tables, ["kern", kern]]));
-}
-
-const coverage = (...glyphs: number[]): Bytes => new Bytes().u16(1, glyphs.length, ...glyphs);
-const single = (from: number, to: number): Bytes => new Bytes().u16(2, 8, 1, to).bytes(coverage(from));
 /** This function builds a multiple substitution or an alternate substitution of one glyph. */
 const multiple = (from: number, ...to: number[]): Bytes => new Bytes().u16(1, 8, 1, 14).bytes(coverage(from)).u16(to.length, ...to);
 const ligature = (first: number, component: number, to: number): Bytes => new Bytes().u16(1, 8, 1, 14).bytes(coverage(first)).u16(1, 4).u16(to, 2, component);
 const string = (...codePoints: number[]): string => String.fromCodePoint(...codePoints);
-
-/** This function builds a GPOS table of one PairPos subtable of format 1, with the value of the first glyph. */
-function pairs(entries: readonly (readonly [first: number, second: number, value: number])[]): Bytes {
-  const firsts = [...new Set(entries.map(([first]) => first))].sort((a, b) => a - b);
-  const sets = firsts.map((first) => {
-    const records = entries.filter((entry) => entry[0] === first).sort((a, b) => a[1] - b[1]);
-    return new Bytes().u16(records.length, ...records.flatMap(([, second, value]) => [second, value & 0xffff]));
-  });
-  const cover = coverage(...firsts);
-  let at = 10 + firsts.length * 2 + cover.length;
-  const offsets = sets.map((set) => (at += set.length) - set.length);
-  const pair = new Bytes().u16(1, 10 + firsts.length * 2, 0x4, 0, firsts.length, ...offsets).bytes(cover);
-  for (const set of sets) pair.bytes(set);
-  const lookupList = new Bytes().u16(1, 4).bytes(lookup(2, 0, pair));
-  const featureList = new Bytes().u16(1).tag("kern").u16(8).u16(0, 1, 0);
-  const scriptList = new Bytes().u16(1).tag("latn").u16(8).u16(4, 0).u16(0, 0xffff, 1, 0);
-  return new Bytes().u32(0x00010000).u16(10, 10 + scriptList.length, 10 + scriptList.length + featureList.length).bytes(scriptList).bytes(featureList).bytes(lookupList);
-}
 
 const latin: MeasureOptions = { script: "latn" };
 const plain: MeasureOptions = { ...latin, features: [] };

@@ -8,7 +8,7 @@ import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts, type Gl
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
 import { indicScripts, indicShaper } from "./indic.ts";
 import { joiningFeatures, joiningForms, joiningScripts, joiningStages } from "./joining.ts";
-import { hasMark, normalizeCodePoints } from "./normalize.ts";
+import { hasDefaultIgnorable, hasMark, isHidden, normalizeCodePoints } from "./normalize.ts";
 import { canvasSegments, canvasWords } from "./words.ts";
 
 /** The options of `readFont`. */
@@ -312,6 +312,19 @@ export function shapingOf(font: Font, options: MeasureOptions): Shaping {
   return { script, features, shaper: options.joining !== false && joiningScripts.includes(script) ? "joining" : "plain", kerning };
 }
 
+/** The bit of a mask for the features of all the glyphs. */
+const GLOBAL_MASK = 0x80;
+/** The bit of a mask for a default ignorable. */
+const IGNORABLE_MASK = 0x100;
+
+/**
+ * This function gives the advance of a glyph of `shaperOf`. HarfBuzz hides a default ignorable after the GSUB pass, if no
+ * substitution changed it. The value `~glyph` marks a hidden glyph. It has the advance 0, and the kerning skips it.
+ */
+function shapedAdvance(font: Font, glyph: number): number {
+  return glyph < 0 ? 0 : font.advance(glyph);
+}
+
 /** The GSUB pass of one set of options: a function that gives the glyphs of one word, and the kerning lookups. */
 function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: string) => number[]; kerning: readonly PairLookup[] } {
   const { script, features, shaper, kerning } = shapingOf(font, options);
@@ -329,16 +342,18 @@ function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: str
       codePoints = normalizeCodePoints(codePoints, rules);
       wordGlyphs = codePoints.map((codePoint) => font.glyph(codePoint));
     }
-    for (const lookup of lookups) lookup.apply(wordGlyphs);
-    if (joins) {
-      // Each glyph has the bit of its joining form, and the bit 7 for the features of all the glyphs
-      const masks = joiningForms(codePoints).map((form) => 0x80 | (form === undefined ? 0 : 1 << joiningFeatures.indexOf(form)));
-      for (const { stage, lookups: stageLookups } of stages) {
-        const mask = stage.form === undefined ? 0x80 : 1 << joiningFeatures.indexOf(stage.form);
-        for (const lookup of stageLookups) lookup.apply(wordGlyphs, masks, mask);
-      }
+    const hides = hasDefaultIgnorable(word);
+    const forms = joins ? joiningForms(codePoints) : [];
+    // Each glyph has the bit of its joining form, and the bits of `GLOBAL_MASK` and `IGNORABLE_MASK`
+    const masks = joins || hides ? codePoints.map((codePoint, i) => GLOBAL_MASK | (forms[i] === undefined ? 0 : 1 << joiningFeatures.indexOf(forms[i])) | (hides && isHidden(font, codePoint) ? IGNORABLE_MASK : 0)) : undefined;
+    const before = hides ? [...wordGlyphs] : [];
+    for (const lookup of lookups) lookup.apply(wordGlyphs, masks, GLOBAL_MASK);
+    for (const { stage, lookups: stageLookups } of stages) {
+      const mask = stage.form === undefined ? GLOBAL_MASK : 1 << joiningFeatures.indexOf(stage.form);
+      for (const lookup of stageLookups) lookup.apply(wordGlyphs, masks, mask);
     }
-    return wordGlyphs;
+    // A substitution gives a new glyph the mask of its source. Thus a glyph with the bit and a new id is not hidden
+    return hides ? wordGlyphs.map((glyph, i) => (((masks![i] ?? 0) & IGNORABLE_MASK) !== 0 && before.includes(glyph) ? ~glyph : glyph)) : wordGlyphs;
   };
   return { substitute, kerning };
 }
@@ -350,13 +365,19 @@ function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: str
  * the joining forms of each word, in the stages of `joiningStages`. A script of `indicScripts` uses `indicShaper`.
  */
 export function glyphAdvances(font: Font, text: string, options: MeasureOptions = {}): { glyphs: number[]; advances: number[] } {
+  const { glyphs, advances } = shapedAdvances(font, text, options);
+  return { glyphs: glyphs.map((glyph) => (glyph < 0 ? ~glyph : glyph)), advances };
+}
+
+/** This function is `glyphAdvances` with the hidden glyphs of `shapedAdvance`. */
+function shapedAdvances(font: Font, text: string, options: MeasureOptions): { glyphs: number[]; advances: number[] } {
   const { substitute, kerning } = shaperOf(font, options);
   const canvas = options.shaping === "canvas";
   const glyphs: number[] = [];
   const advances: number[] = [];
   for (const word of canvas ? canvasWords(text) : shapingWords(text)) {
     const wordGlyphs = substitute(word);
-    const wordAdvances = wordGlyphs.map((glyph) => font.advance(glyph));
+    const wordAdvances = wordGlyphs.map((glyph) => shapedAdvance(font, glyph));
     if (canvas) kern(font, kerning, wordGlyphs, wordAdvances);
     glyphs.push(...wordGlyphs);
     advances.push(...wordAdvances);
@@ -397,7 +418,7 @@ function kerningPosition(value: number, delta: number, scale: PositionScale): nu
 function kern(font: Font, lookups: readonly PairLookup[], glyphs: readonly number[], advances: number[], positions?: number[], scale?: PositionScale): void {
   for (const lookup of lookups) {
     const next = (from: number): number => {
-      for (let j = from; j < glyphs.length; j++) if (!(lookup.skip?.(glyphs[j]!) ?? skips(lookup.flags, font.glyphClass(glyphs[j]!)))) return j;
+      for (let j = from; j < glyphs.length; j++) if (glyphs[j]! >= 0 && !(lookup.skip?.(glyphs[j]!) ?? skips(lookup.flags, font.glyphClass(glyphs[j]!)))) return j;
       return -1;
     };
     let i = next(0);
@@ -434,8 +455,8 @@ function float32Width(font: Font, text: string, size: number, options: MeasureOp
   for (const segment of canvasSegments(text)) {
     const glyphs = substitute(segment);
     // Skia gives each advance in single precision, and Blink cuts it to the 16.16 fixed point of HarfBuzz
-    const positions = glyphs.map((glyph) => Math.trunc(Math.fround(font.advance(glyph) * pxPerUnit) * 65536));
-    kern(font, kerning, glyphs, glyphs.map((glyph) => font.advance(glyph)), positions, scale);
+    const positions = glyphs.map((glyph) => Math.trunc(Math.fround(shapedAdvance(font, glyph) * pxPerUnit) * 65536));
+    kern(font, kerning, glyphs, glyphs.map((glyph) => shapedAdvance(font, glyph)), positions, scale);
     let units = 0;
     for (const position of positions) units += position;
     total = Math.fround(total + Math.fround(units / 65536));
@@ -449,12 +470,12 @@ function float32Width(font: Font, text: string, size: number, options: MeasureOp
  */
 export function measureWidth(font: Font, text: string, size: number, options: MeasureOptions = {}): number {
   if (options.sum === "float32" && options.rounding !== "pixel") return float32Width(font, text, size, options);
-  const { glyphs, advances } = glyphAdvances(font, text, options);
+  const { glyphs, advances } = shapedAdvances(font, text, options);
   if (options.rounding === "pixel") {
     const scale = size / font.unitsPerEm;
     let px = 0;
     glyphs.forEach((glyph, i) => {
-      const base = font.advance(glyph);
+      const base = shapedAdvance(font, glyph);
       // FreeType gives the advance in 26.6 fixed point, and Skia rounds it to whole px
       px += Math.round(Math.round(base * scale * 64) / 64) + Math.round((advances[i]! - base) * scale);
     });

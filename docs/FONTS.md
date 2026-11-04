@@ -330,9 +330,9 @@ An example: the text `u` and U+031B has two glyphs before this step. The font ha
 - The form NFD of JavaScript gives the canonical order, so the module has a table only for Hebrew and Arabic.
 - `widthBound` counts each part and each composite of the normalization, so it stays sound.
 
-Two differences from HarfBuzz stay, and neither changes a width:
+Two differences from HarfBuzz stay:
 
-- HarfBuzz hides U+034F with a zero-width space glyph. The model keeps its own glyph with the advance 0.
+- HarfBuzz hides U+034F with a zero-width space glyph, and its kerning skips the glyph. The model keeps its own glyph with the advance 0, and its kerning stops at the glyph. This changes a width only when a kerning pair goes across U+034F. The T6 section tells the size.
 - HarfBuzz moves some Arabic marks to the start of a mark run after the sort. The model keeps them in the sorted order. The glyphs are the same, in another order.
 
 ## The result of the Indic shaper

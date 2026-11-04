@@ -16,6 +16,27 @@ const sortClasses: ReadonlyMap<number, number> = new Map([
   [0x651, 27], [0x652, 34], [0x670, 35], [0x8f0, 28], [0x8f1, 29], [0x8f2, 30],
 ]);
 
+/**
+ * The default-ignorable code points of HarfBuzz, from `hb-unicode.hh`. This set is not the Unicode property: the Hangul fillers
+ * are not in it, so they keep their advance.
+ */
+const defaultIgnorable = /[\u00ad\u034f\u061c\u17b4\u17b5\u180b-\u180f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\ufff0-\ufff8\u{1d173}-\u{1d17a}\u{e0000}-\u{e0fff}]/u;
+
+/** This function tells if a text has a default-ignorable code point of HarfBuzz. */
+export function hasDefaultIgnorable(text: string): boolean {
+  return defaultIgnorable.test(text);
+}
+
+/**
+ * This function tells if the model hides a code point after the GSUB pass. A hidden code point has no advance and no kerning.
+ * U+034F with its own glyph of advance 0 stays visible to the kerning. This keeps the widths of the T4 corpus.
+ */
+export function isHidden(font: { glyph(codePoint: number): number; advance(glyph: number): number }, codePoint: number): boolean {
+  if (!hasDefaultIgnorable(String.fromCodePoint(codePoint))) return false;
+  const glyph = font.glyph(codePoint);
+  return codePoint !== 0x34f || glyph === 0 || font.advance(glyph) !== 0;
+}
+
 /** This function tells if a code point is a mark of Unicode. The first mark of Unicode is U+0300. */
 function isMark(codePoint: number): boolean {
   return codePoint >= 0x300 && unicodeMark.test(String.fromCodePoint(codePoint));
