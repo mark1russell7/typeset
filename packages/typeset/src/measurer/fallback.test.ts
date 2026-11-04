@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { random } from "@mark1russell7/rigor-generators";
 import { generateEdits, generateSample, type Edit, type LengthClass, type ScriptId } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
 import { buildTtf, characters } from "../../test/fonts.ts";
@@ -33,6 +34,30 @@ describe("scriptRuns", () => {
 
   it("keeps a mark in the run of its base", () => {
     expect(scriptRuns("éж")).toEqual(["é", "ж"]);
+  });
+});
+
+describe("a list of 2 fonts in the canvas shaping", () => {
+  const noO = buildTtf(false, false, "hvar", characters.filter(([code]) => code !== 0x6f));
+  const advance = fontAdvance({ faces: [{ family: "Base", data: noO }, { family: "Full", data: buildTtf() }], engine: exact });
+  const widthOf = (text: string): number => advance(text, "16px Base, Full");
+
+  it("keeps the separator law at each edit", () => {
+    const parts = ["A", "T", "V", "o", "A\u0301", " ", "o ", " o"];
+    for (let index = 0; index < 200; index++) {
+      const source = random(2026 + index);
+      const textOf = (length: number): string => Array.from({ length }, () => source.pick(parts)).join("");
+      let text = Text.from(textOf(source.int(4, 40)), widthOf, { chunk: 8 });
+      for (let edit = 0; edit < 4; edit++) {
+        const flat = text.toString();
+        const start = source.int(0, flat.length);
+        // An edit keeps a mark with its base, so the text stays valid at each offset
+        const at = flat[start] === "\u0301" ? start + 1 : start;
+        text = text.insert(at, textOf(source.int(1, 4)));
+        const value = text.toString();
+        expect(Math.abs(text.width - widthOf(value)), JSON.stringify(value)).toBeLessThanOrEqual(1e-6);
+      }
+    }
   });
 });
 

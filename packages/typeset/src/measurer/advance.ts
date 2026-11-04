@@ -191,8 +191,17 @@ export function scriptTag(text: string): string {
   return "DFLT";
 }
 
-/** A character that stays in the run of the character before it: a mark, a joiner, a variation selector, a tag or a skin tone. */
-const attached = /^[\p{M}‌‍︀-️\u{e0020}-\u{e007f}\u{e0100}-\u{e01ef}\u{1f3fb}-\u{1f3ff}]$/u;
+/** The clusters of a font list: a font takes a whole cluster, as the second pass of Blink does. */
+const clusters = new Intl.Segmenter("und", { granularity: "grapheme" });
+
+/** This pattern finds a character with no ink. A font needs no glyph for it, because HarfBuzz hides it. */
+const ignorable = /^\p{Default_Ignorable_Code_Point}$/u;
+
+/** This function tells if a font has a glyph for each code point of a cluster that needs one. */
+function holds(font: Font, cluster: string): boolean {
+  for (const character of cluster) if (font.glyph(character.codePointAt(0)!) === 0 && !ignorable.test(character)) return false;
+  return true;
+}
 
 const styleOrder: Readonly<Record<FontSpec["style"], readonly FontSpec["style"][]>> = {
   normal: ["normal", "oblique", "italic"],
@@ -227,9 +236,9 @@ function weightRank(range: readonly [number, number], weight: number): number {
 }
 
 /**
- * This function gives the advance function of the faces of the host: the width in px of a text in a CSS font. Each run
- * of the text gets the first family of the font with a glyph for its first character. When no family has a glyph, the
- * run gets the first family that has a face. The width of a run is `measureWidth` with the size of the font, the script
+ * This function gives the advance function of the faces of the host: the width in px of a text in a CSS font. Each cluster
+ * of the text gets the first family of the font with a glyph for each of its code points. When no family has them all, the
+ * cluster gets the first family with its first code point, or else the font before it. The width of a run is `measureWidth` with the size of the font, the script
  * of `scriptTag` and the rules of the engine. The instance of a variable face takes the weight and the stretch as `wdth`.
  * It takes the style as `ital` or `slnt`, and the size as `opsz`, as `font-optical-sizing: auto` does.
  */
@@ -326,23 +335,23 @@ export function fontAdvance(options: FontAdvanceOptions): (text: string, font: s
       });
     };
     if (fonts.length === 1) return measure(text, fonts[0]!);
-    let width = 0;
-    let run = "";
-    let current: Font | undefined;
-    let joined = false;
-    for (const character of text) {
-      const code = character.codePointAt(0)!;
-      const stays = current !== undefined && (joined || attached.test(character));
-      const face = stays ? current! : (fonts.find((value) => value.glyph(code) !== 0) ?? fonts[0]!);
-      if (face !== current && run.length > 0) {
-        width += measure(run, current!);
-        run = "";
+    /** This function gives each cluster the first font that holds it, and measures each run of one font. */
+    const listed = (part: string): number => {
+      let width = 0;
+      let run = "";
+      let current: Font | undefined;
+      for (const { segment } of clusters.segment(part)) {
+        const face = fonts.find((value) => holds(value, segment)) ?? fonts.find((value) => value.glyph(segment.codePointAt(0)!) !== 0) ?? current ?? fonts[0]!;
+        if (face !== current && run.length > 0) {
+          width += measure(run, current!);
+          run = "";
+        }
+        current = face;
+        run += segment;
       }
-      current = face;
-      run += character;
-      joined = code === 0x200d;
-    }
-    if (run.length > 0) width += measure(run, current!);
-    return width;
+      return run.length > 0 ? width + measure(run, current!) : width;
+    };
+    // The width of a word comes from the word alone. This keeps the separator law of the rope at a change of font
+    return shaping === "canvas" ? sum(canvasWords(text), listed) : listed(text);
   };
 }
