@@ -31,7 +31,7 @@ export const boundSizes: readonly number[] = [...fontSizes, 8, 13.5, 15.333, 72,
 export const bootstrapRuns: number = 2000;
 
 /** The scripts with a known open error. The record marks them, and no test gates on them. */
-export const knownOpen: Readonly<Record<string, string>> = { "latin-extended": "T1e" };
+export const knownOpen: Readonly<Record<string, string>> = {};
 
 /** One statistic and its 95 % bootstrap interval. */
 export interface Estimate {

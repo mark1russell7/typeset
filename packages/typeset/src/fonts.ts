@@ -4,6 +4,7 @@
  */
 export { measureWidth, readFont, type Font, type MeasureOptions, type ReadOptions } from "./fonts/font.ts";
 export { widthBound, type WidthBound } from "./fonts/bound.ts";
+export { shapingRisks, type ShapingRisk, type ShapingRiskCode } from "./fonts/risks.ts";
 export { engines, isEngineName, type EngineName, type EngineRules } from "./fonts/engines.ts";
 export type { Decompress } from "./fonts/sfnt.ts";
 export type { Axis, Instance } from "./fonts/variations.ts";

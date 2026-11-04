@@ -1,7 +1,7 @@
 /**
  * The `Text` rope: a persistent balanced tree of strings with the width and the length of each subtree. An edit makes a
  * new rope. The new rope shares the subtrees that do not change. The tree is the `SummaryTree` of
- * `@procedures/collections`, and this module gives it the summary of a text.
+ * `@mark1russell7/collections`, and this module gives it the summary of a text.
  *
  * A width function gives the width of a run of text. The rope uses it only for the leaves and for the windows at the
  * seams. Thus an edit uses it of the order of `log n` times. The rope keeps the widths of the short windows, so an edit
@@ -11,7 +11,7 @@
  * `width(p + s + q) = width(p + s) + width(s + q) - width(s)`. The model of `@mark1russell7/typeset/fonts` obeys it for a space and a
  * tab. It shapes each word alone, and its kerning goes only between two adjacent glyphs.
  */
-import { SummaryTree, type SummarySpec } from "@procedures/collections";
+import { SummaryTree, type SummarySpec } from "@mark1russell7/collections";
 import type { WidthOf } from "../breaking/paragraph.ts";
 
 /** The options of a rope. */
