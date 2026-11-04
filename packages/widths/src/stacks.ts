@@ -56,9 +56,9 @@ export function mixedTexts(stack: FontStack, seed: number): StackText[] {
 }
 
 /**
- * This function gives the `mark` texts of a stack. Each text has a base that the first font has and a mark that the first
- * font does not have, and a later font has both of them. Blink gives such a cluster to the later font. The marks come from
- * the fonts in the order of their code points, evenly over the marks that fit, so the result does not change between runs.
+ * This function gives the `mark` texts of a stack. Each text has a base and a mark. The first font has the base and not
+ * the mark, and a later font has both. Blink gives such a cluster to the later font. The marks come in the order of their
+ * code points, evenly over the marks that fit. So the result does not change between runs.
  */
 export function markTexts(stack: FontStack, fonts: readonly Font[]): StackText[] {
   const first = fonts[0]!;
