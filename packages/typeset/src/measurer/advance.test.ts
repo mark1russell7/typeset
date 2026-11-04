@@ -144,7 +144,7 @@ describe("fontAdvance", () => {
     expect(advance("A\u200dT", "13px Base, Full")).toBe(base("A\u200dT"));
   });
 
-  it("measures each word alone at a change of family", () => {
+  it("adds the widths of the runs of each family", () => {
     const advance = fontAdvance({
       faces: [
         { family: "Base", data: noO },

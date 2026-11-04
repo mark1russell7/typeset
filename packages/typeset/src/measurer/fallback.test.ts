@@ -40,10 +40,12 @@ describe("scriptRuns", () => {
 describe("a list of 2 fonts in the canvas shaping", () => {
   const noO = buildTtf(false, false, "hvar", characters.filter(([code]) => code !== 0x6f));
   const advance = fontAdvance({ faces: [{ family: "Base", data: noO }, { family: "Full", data: buildTtf() }], engine: exact });
-  const widthOf = (text: string): number => advance(text, "16px Base, Full");
+  const listed = (text: string): number => advance(text, "16px Base, Full");
+  const parts = ["A", "T", "V", "o", "Á", " ", "o ", " o"];
 
-  it("keeps the separator law at each edit", () => {
-    const parts = ["A", "T", "V", "o", "A\u0301", " ", "o ", " o"];
+  /** This function gives the largest difference of the rope and one measure over seeded texts and edits. */
+  const worstGap = (widthOf: (text: string) => number): number => {
+    let worst = 0;
     for (let index = 0; index < 200; index++) {
       const source = random(2026 + index);
       const textOf = (length: number): string => Array.from({ length }, () => source.pick(parts)).join("");
@@ -52,12 +54,19 @@ describe("a list of 2 fonts in the canvas shaping", () => {
         const flat = text.toString();
         const start = source.int(0, flat.length);
         // An edit keeps a mark with its base, so the text stays valid at each offset
-        const at = flat[start] === "\u0301" ? start + 1 : start;
-        text = text.insert(at, textOf(source.int(1, 4)));
-        const value = text.toString();
-        expect(Math.abs(text.width - widthOf(value)), JSON.stringify(value)).toBeLessThanOrEqual(1e-6);
+        text = text.insert(flat[start] === "́" ? start + 1 : start, textOf(source.int(1, 4)));
+        worst = Math.max(worst, Math.abs(text.width - widthOf(text.toString())));
       }
     }
+    return worst;
+  };
+
+  it("keeps the separator law at each edit", () => {
+    expect(worstGap(listed)).toBeLessThanOrEqual(1e-6);
+  });
+
+  it("finds a break of the law in a measure that looks over a space", () => {
+    expect(worstGap((text) => listed(text) + (text.includes("o A") ? 1 : 0))).toBeGreaterThan(0.5);
   });
 });
 
