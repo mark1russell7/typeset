@@ -48,7 +48,7 @@ jobs:
       - id: runs
         run: echo "list=[$(seq -s, 1 "$RUNS")]" >> "$GITHUB_OUTPUT"
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@4df6a2d5a4de464ab3f8b50c20df52c234794af6 # main
+        uses: mark1russell7/template/.github/actions/changes@35488f7ab12bb5d452fe8307ebb05f77bb3f0f6f # main
         with:
           paths: |
             packages/corpus/src/**
@@ -95,6 +95,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@4df6a2d5a4de464ab3f8b50c20df52c234794af6 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@35488f7ab12bb5d452fe8307ebb05f77bb3f0f6f # main
         with:
           needs: ${{ toJSON(needs) }}
