@@ -1,6 +1,7 @@
 import { shapingOf, type Font, type MeasureOptions } from "./font.ts";
 import { indicFeatures, indicForms } from "./indic.ts";
 import { joiningStages } from "./joining.ts";
+import { normalForms } from "./normalize.ts";
 import type { SubstitutionRule } from "./substitution.ts";
 
 /** The limit of `widthBound` for the width of a text over a declared set of characters. It needs no measurement. */
@@ -106,15 +107,16 @@ function expansionsOf(font: Font, reached: ReadonlySet<number>, lookups: readonl
  * A text with another character has no limit from this function.
  *
  * The limit is sound, not tight. It follows the widest character of the set. It includes each glyph of the GSUB closure, each
- * dotted circle, each part or composite of the Indic normalization, and the largest positive kerning.
+ * dotted circle, each part or composite of the normalization, and the largest positive kerning.
  */
 export function widthBound(font: Font, characters: string, options: MeasureOptions = {}): WidthBound {
   const { script, features, shaper, kerning: pairLookups } = shapingOf(font, options);
   const set = new Set(Array.from(characters, (character) => character.codePointAt(0)!));
-  const indic = shaper === "indic" ? indicForms(set, (codePoint) => font.glyph(codePoint) !== 0) : undefined;
+  const hasGlyph = (codePoint: number): boolean => font.glyph(codePoint) !== 0;
+  const forms = shaper === "indic" ? indicForms(set, hasGlyph) : normalForms(set, hasGlyph);
 
   // The roots: the glyph of each code point that the shaper can see. A character with no glyph gives the glyph 0
-  const reached = new Set([...(indic?.codePoints ?? set)].map((codePoint) => font.glyph(codePoint)));
+  const reached = new Set([...forms.codePoints].map((codePoint) => font.glyph(codePoint)));
   // A union of the features gives the same lookups as the union of the stages. Each stage then counts, in the rounds
   const tags = shaper === "indic" ? indicFeatures(features) : shaper === "joining" ? joiningStages(features, true).flatMap((stage) => stage.features) : features;
   const lookups = font.substitutions(script, tags).map((lookup) => lookup.rules());
@@ -122,14 +124,15 @@ export function widthBound(font: Font, characters: string, options: MeasureOptio
   // The plain shaper is one stage: it applies each lookup once, in the order of the list
   const expansions = expansionsOf(font, reached, lookups, shaper === "plain" ? 1 : ROUNDS);
 
-  const form = (codePoint: number): Expansion => (indic?.composites.get(codePoint) ?? []).reduce((best, composite) => larger(best, form(composite)), expansions.get(font.glyph(codePoint))!);
+  const form = (codePoint: number): Expansion => (forms.composites.get(codePoint) ?? []).reduce((best, composite) => larger(best, form(composite)), expansions.get(font.glyph(codePoint))!);
   // The Indic shaper can insert a dotted circle before each code point. Without a glyph, the code point U+25CC gives the glyph 0.
   // One code point gets at most one: a circle of the vowel constraints takes the next matra, so that syllable is not broken
-  const inserted = indic === undefined ? { advance: 0, glyphs: 0 } : expansions.get(font.glyph(0x25cc))!;
+  const inserted = shaper === "indic" ? expansions.get(font.glyph(0x25cc))! : { advance: 0, glyphs: 0 };
   let largest: Expansion = { advance: 0, glyphs: 0 };
   for (const codePoint of set) {
-    const parts = indic?.parts.get(codePoint) ?? [codePoint];
-    largest = larger(largest, parts.reduce((total, part) => sum(total, sum(form(part), inserted)), { advance: 0, glyphs: 0 }));
+    // A character with a mark decomposes, and a character with no mark near it keeps its form. So the larger of the two counts
+    const decomposed = forms.parts.get(codePoint)!.reduce((total, part) => sum(total, sum(form(part), inserted)), { advance: 0, glyphs: 0 });
+    largest = larger(largest, larger(decomposed, sum(form(codePoint), inserted)));
   }
 
   // One glyph gets at most one first value and one second value from each lookup, and each subtable of a lookup is an alternative
