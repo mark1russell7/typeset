@@ -378,7 +378,7 @@ The file `harfbuzz-bounds.json` (schema `typeset-harfbuzz-bounds/1`) has these f
 - Each statistic has a 95 % percentile bootstrap interval of `rigor-statistics`, with 2000 runs. A seed of `rigor-generators` comes from the name of the cell.
 - `glyphMatch`: for the tier `model`, the share of the canvas words that have the glyphs of HarfBuzz, for each script and each font. Each share has its Wilson interval.
 - `checks`: the results of the reference check, of the scaling check, of `engineRowsEqual`, of `ruleReplica`, of `roundingSameForEachTier` and of `readSum`. The check `readSum` gives the largest difference of the model error plus the read effect and the total error. HarfBuzz has no tiers, so the rounding effect of a cell does not change with its tier.
-- `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f decides the rule.
+- `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f gives the decision on the one rule.
 - `knownOpen`: the scripts with an open error. Latin Extended is open (T1e). No test gates on it.
 
 ### The precision of the reference
@@ -422,7 +422,30 @@ The source is the record of the CI run 41731795116.
 The Fonts run 41731795116 gave this record, with HarfBuzz 15.0.0:
 
 - The worst model error of the tier `model` is 0.13 in 1/64 px for each script except Devanagari.
-- The worst error of Devanagari comes from one word. The two references disagree on that word, and T1f decides it.
+- The worst error of Devanagari comes from one word. The two references disagree on that word. The model is correct, and the next section tells why.
 - The glyph ids agree on 783 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. T1e examines Latin Extended.
 - The largest precision error of the reference stays in its bound in all 2277 cells.
 - The read effect has no external reference until T4b.
+
+## The dotted circle after an independent vowel (T1f)
+
+T1f examined U+0906 U+0948, the one word on which the model and Chrome disagree with HarfBuzz of the T4 record.
+
+**The decision: the dotted circle is correct, and the model does not change.** The difference comes from the build of harfbuzzjs, and not from a version of HarfBuzz.
+
+- **The rule exists.** `hb-ot-shaper-vowel-constraints.cc` of HarfBuzz 15.0.0 lists 21 Devanagari pairs, and U+0906 U+0948 is one of them. The commit that Chromium uses has the same entry.
+- **harfbuzzjs does not run the rule.** Its `Makefile` sets `HB_TINY`. In `hb-config.hh`, that option sets `HB_MINI`, `HB_NO_LEGACY`, `HB_NO_OT_SHAPE_FALLBACK` and `HB_NO_OT_SHAPER_VOWEL_CONSTRAINTS`. `config-override.h` of harfbuzzjs 1.6.4 does not change them.
+- **A local run agrees.** harfbuzzjs 1.6.4 puts no dotted circle on any of the 21 pairs. It puts one before a lone vowel sign, because that step of the Indic shaper is separate.
+- **Chromium has the rule.** Chromium 156.0.8078.4 pins HarfBuzz at `f5efbbef`, 334 commits before 15.0.0. Its `BUILD.gn` does not set these options. Blink uses the shaper `ot`, because the flag `HarfRustShaping` has the status `test`.
+
+Nobody ran a full build of HarfBuzz 15.0.0 for this work. The evidence for the full build is its source text and the result of Chrome.
+
+`HB_TINY` also removes other rules. They do not change a width of the T4 record:
+
+- The `kern` table and the AAT tables: none of the 12 fonts has them.
+- The Hebrew fallback: it needs a font with no GPOS `mark`, and Noto Sans Hebrew has `mark`.
+- The Thai fallback: it needs a font with no GSUB script `thai`, and Noto Sans Thai has it.
+- The Arabic fallback: it needs a font with no joining forms, and Noto Sans Arabic has them.
+- The fallback mark positions: they run only for a font with no GPOS, and they set the advance of a mark to 0. Noto Emoji is the one font with no GPOS. The 160 emoji samples of the corpus have no marks, so T4 does not examine this case.
+
+The Devanagari row of the T4 table keeps this one word, so its worst error is a limit of the reference. A test in `indic.test.ts` pins the glyphs of the pair.
