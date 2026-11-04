@@ -1,8 +1,8 @@
-import type { Failure, Score } from "./parse.ts";
+import type { Failure } from "./parse.ts";
 
 /** The reasons of `data/reasons.json`. */
 export interface Reasons {
-  /** The reason for a failed test, with the key `<file>:<line>`, for example `line:2599`. */
+  /** The reason for a failed test, with the key `<score>:<line>`, for example `line:2599` or `bidiCharacter.rtl.order:300`. */
   readonly failures: Readonly<Record<string, string>>;
   /** The reason for each class of difference of `canvasWords` from UAX #29. */
   readonly canvasWords: Readonly<Record<string, string>>;
@@ -15,7 +15,7 @@ export function offsetsOf(parts: readonly string[]): readonly number[] {
 }
 
 /** This function gives the key of each failed test that has no reason. */
-export function unlistedFailures(scores: Readonly<Record<string, Score>>, reasons: Reasons): readonly string[] {
+export function unlistedFailures(scores: Readonly<Record<string, { readonly failures: readonly { readonly line: number }[] }>>, reasons: Reasons): readonly string[] {
   return Object.entries(scores).flatMap(([name, score]) => score.failures.map((failure) => `${name}:${failure.line}`).filter((key) => reasons.failures[key] === undefined));
 }
 

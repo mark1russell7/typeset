@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { cases as bidiCases } from "./cases/bidi.ts";
 import { cases as breakingCases } from "./cases/breaking.ts";
 import { cases as corpusCases } from "./cases/corpus.ts";
 import { measure, roundOrder, runBench } from "./index.ts";
@@ -21,7 +22,7 @@ describe("roundOrder", () => {
 
 describe("the cases of the corpus and the breakers", () => {
   it("each case runs and gives a result", () => {
-    for (const [name, benchCase] of Object.entries({ ...corpusCases, ...breakingCases })) {
+    for (const [name, benchCase] of Object.entries({ ...corpusCases, ...breakingCases, ...bidiCases })) {
       const result = measure(name, benchCase, { samples: 2, minSampleMs: 0, warmupMs: 0 });
       expect(result.samples).toHaveLength(2);
       expect(result.samples.every((s) => s > 0)).toBe(true);
