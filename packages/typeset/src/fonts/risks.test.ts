@@ -129,9 +129,9 @@ describe("shapingRisks", () => {
 
     it("flags a value on a mark in a script whose shaper keeps the advance", () => {
       expect(codes(contextFont(XADVANCE, 4), "ABC", { ...canvas, script: "DFLT" })).toEqual([]);
-      expect(contextFont(XADVANCE, 4).contextKerning("hang")).toHaveLength(1);
-      expect(contextFont(XADVANCE, 4).contextKerning("hang")[0]!([1, 4, 3])).toBe(true);
-      expect(contextFont(XADVANCE, 4).contextKerning("latn")[0]!([1, 4, 3])).toBe(false);
+      expect(contextFont(XADVANCE, 4).contextKerning!("hang")).toHaveLength(1);
+      expect(contextFont(XADVANCE, 4).contextKerning!("hang")[0]!([1, 4, 3])).toBe(true);
+      expect(contextFont(XADVANCE, 4).contextKerning!("latn")[0]!([1, 4, 3])).toBe(false);
     });
 
     it("does not flag PairPos, which the model applies", () => {
