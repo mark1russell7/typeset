@@ -330,9 +330,8 @@ An example: the text `u` and U+031B has two glyphs before this step. The font ha
 - The form NFD of JavaScript gives the canonical order, so the module has a table only for Hebrew and Arabic.
 - `widthBound` counts each part and each composite of the normalization, so it stays sound.
 
-Two differences from HarfBuzz stay. The first changes a width, and the second does not:
+One difference from HarfBuzz stays, and it does not change a width:
 
-- HarfBuzz hides U+034F with a zero-width space glyph, and its kerning skips that glyph. The model keeps its own glyph with the advance 0, and its kerning stops at the glyph. In Source Sans 3 at 1000 units, `w` U+034F `ō` is 1257 in HarfBuzz and 1261 in the model. T6 examines this difference.
 - HarfBuzz moves some Arabic marks to the start of a mark run after the sort. The model keeps them in the sorted order. The glyphs are the same, in another order.
 
 ## The result of the Indic shaper
@@ -473,3 +472,86 @@ Nobody ran a full build of HarfBuzz 15.0.0 for this work. The evidence for the f
 - The fallback mark positions: they run only for a font with no GPOS, and they set the advance of a mark to 0. Noto Emoji is the one font with no GPOS. The 160 emoji samples of the corpus have no marks, so T4 does not examine this case.
 
 The Devanagari row of the T4 table keeps this one word, so its worst error is a limit of the reference. A test in `indic.test.ts` pins the glyphs of the pair.
+
+## The shaper fallback (T6)
+
+The fast path does not shape all text. T6 detects text that the model cannot measure with trust, and it gives that text to a shaper of the host.
+
+`packages/typeset` has no wasm and no new dependency for this work. The host supplies the shaper.
+
+### Two corrections of the model
+
+- A default ignorable takes no advance, and the kerning skips it. The set comes from `hb-unicode.hh`. It is not the Unicode property.
+- A substitution that changes the glyph of a default ignorable keeps the glyph visible, as in HarfBuzz.
+- A nonspacing mark takes no advance when the font has no GDEF glyph classes. This is the rule of the synthetic classes of HarfBuzz.
+- A mark with a combining class after a base takes no advance when the font has no GPOS. This is the rule of the fallback mark position.
+- Each rule uses the shaper of the script. The tables `noMarkZero` and `noFallbackPosition` in `font.ts` list the exceptions.
+
+Noto Emoji is the one font of the 12 with no GPOS. Its script is `Zyyy`, so HarfBuzz uses the default shaper, and the fallback mark position is on.
+
+The cmap of Noto Emoji has only three marks. U+FE0E and U+FE0F take no advance. U+20E3 has the class 0, so it keeps its advance of 2600. A mark that is not in the font takes no advance in both shapers.
+
+A probe compared the model with HarfBuzz on fonts with their GPOS or GDEF removed. These are the results:
+
+- 115 of 135 rows are equal under the default flags of the probe.
+- Each of the 20 other rows starts with a mark. `HB_BUFFER_FLAG_BOT` makes HarfBuzz insert U+25CC there, and the model does not.
+- With no flags, HarfBuzz and the model are equal on 615 of 615 rows.
+- The Blink flags for U+25CC are not verified.
+
+### What stays different from HarfBuzz
+
+- The input of a GSUB rule does not skip a joiner. So a ligature across U+200D does not form in the model. The backtrack and the lookahead skip each joiner, except in the Indic shaper.
+- The Indic path has no mark rule. A mark at the start of a word in the shaping `dom` has no base.
+- The shaper of HarfBuzz for a script with no fallback position does not apply the `kern` table. The model applies it.
+- HarfBuzz keeps the advance of a GDEF mark under the Hangul shaper. `Font.advance` gives 0.
+
+### Shaping risks
+
+The function `shapingRisks(font, text, options)` gives a list of `ShapingRisk`. Each risk has a code, an offset and a length in UTF-16 units.
+
+| Code | Meaning |
+| --- | --- |
+| `missing-glyph` | The font has no glyph for a cluster after normalization. |
+| `unshaped-script` | The model has no shaper for the script. |
+| `emoji-zwj` | A pictograph sequence has U+200D. |
+| `variation-selector` | A selector is present. The model does not read cmap format 14. |
+| `keycap` | A digit, `#` or `*` comes before U+20E3. |
+| `flag` | Two regional indicators are adjacent. |
+| `tag` | A pictograph has a tag sequence. |
+| `positioning` | A `kern` or `dist` lookup outside PairPos changes the width of a word. |
+
+The list of scripts is Bengali, Gurmukhi, Gujarati, Oriya, Tamil, Telugu, Kannada, Malayalam, Sinhala, Khmer, Myanmar, Tibetan, Mongolian, NKo and Mandaic. The list does not have other scripts of the Universal Shaping Engine, for example Balinese and Javanese.
+
+An empty list is not a proof of a correct width.
+
+The code `positioning` fires on no local font. In the six local fonts, one such lookup changes an advance, and it changes the advance of a mark. HarfBuzz zeroes that mark after GPOS, so the width stays the same. Only synthetic fixtures show this code.
+
+### The fallback of `fontAdvance`
+
+The option `fallback` of `fontAdvance` is a function with the form of `AdvanceFn`. Under the shaping `canvas`, it measures each word that `shapingRisks` flags.
+
+- The model measures each other word. A flagged word goes whole to the fallback.
+- A dispatch for each word keeps the separator law of the rope. A dispatch for each run breaks it.
+- The shaping `dom` does not use the fallback. There, one word changes the shape of its neighbors.
+- In a mixed text, the script tag of a word comes from the word alone. So one face measures `Hello नमस्ते` with `latn` and `deva`.
+- A text of one script keeps one measurement and one tag when it has no risk.
+
+### What is measured
+
+- The file `packages/widths/src/sequences.ts` has the sequence list: joiners, variation selectors, keycaps, flags, tags, bidi controls, U+034F next to a kerning pair, and words of Bengali, Khmer and Mongolian.
+- The first run against HarfBuzz found 5 words with no risk and a wrong width, all in Noto Sans Arabic. U+2066 to U+2069 did not break a join, and a joiner stopped the context of a GSUB rule. The model now does what HarfBuzz does.
+
+- Six of the 12 fonts are the local record: Noto Emoji, Noto Sans, Noto Sans Arabic, Noto Sans Devanagari, Noto Sans Hebrew and Source Sans 3.
+- The model now hides U+034F, as HarfBuzz does. On 5040 corpus values, 8 values changed. Each is in Source Sans 3 and moves toward HarfBuzz. The largest change is 0.415 px at 12 px.
+- In 1440 runs of 480 samples, no risk other than `missing-glyph` fired.
+- `missing-glyph` fires on real samples. It flagged 94 runs of emoji in Noto Emoji, and 64 runs of `latin-extended` in Source Sans 3.
+- So those samples go to the fallback when the host supplies one. A stub fallback got no call on samples with no risk.
+- With a fallback, 200 edit sequences on mixed text stay within 1e-6 px of the flat width under the rules that `text.test.ts` covers. These rules have no `float32` sum.
+
+### What is not measured
+
+- The six other fonts are not examined. So Thai, Han, kana and Hangul have no false alarm record.
+- A rope with the `float32` sum of `coretext` and `directwrite` goes above 1e-6 px. The worst value is 1.53e-4 px on mixed text.
+- That drift is not from T6. A plain `measureWidth` of Latin text drifts to 2.29e-4 px with no fallback.
+- There is no record of a real shaper as the fallback. The tests use a stub.
+- The accuracy of a host shaper against Chrome is not measured. A later part of T6 gives that record.

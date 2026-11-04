@@ -4,6 +4,7 @@
  */
 
 const unicodeMark = /\p{M}/u;
+const nonspacingMark = /\p{Mn}/u;
 
 /**
  * The classes of HarfBuzz for the marks of Hebrew and Arabic, from `hb-unicode.hh`. Their order is not the canonical order:
@@ -16,6 +17,19 @@ const sortClasses: ReadonlyMap<number, number> = new Map([
   [0x651, 27], [0x652, 34], [0x670, 35], [0x8f0, 28], [0x8f1, 29], [0x8f2, 30],
 ]);
 
+/** The default ignorables of `hb-unicode.hh`. This set is not the Unicode property: it does not have the Hangul fillers. */
+const defaultIgnorable = /[\u00ad\u034f\u061c\u17b4\u17b5\u180b-\u180f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\ufff0-\ufff8\u{1d173}-\u{1d17a}\u{e0000}-\u{e0fff}]/u;
+
+/** This function tells if a text has a default ignorable. */
+export function hasDefaultIgnorable(text: string): boolean {
+  return defaultIgnorable.test(text);
+}
+
+/** This function tells if the model hides a code point. A hidden code point takes no advance, and the kerning skips it. */
+export function isHidden(codePoint: number): boolean {
+  return hasDefaultIgnorable(String.fromCodePoint(codePoint));
+}
+
 /** This function tells if a code point is a mark of Unicode. The first mark of Unicode is U+0300. */
 function isMark(codePoint: number): boolean {
   return codePoint >= 0x300 && unicodeMark.test(String.fromCodePoint(codePoint));
@@ -24,6 +38,19 @@ function isMark(codePoint: number): boolean {
 /** This function tells if a text has a mark of Unicode. */
 export function hasMark(text: string): boolean {
   return unicodeMark.test(text);
+}
+
+/** This function tells which code points take no advance: nonspacing marks with `classes`, marks with a class after a base with `fallback`. */
+export function zeroedMarks(codePoints: readonly number[], classes: boolean, fallback: boolean): boolean[] {
+  let base = false;
+  return codePoints.map((codePoint) => {
+    const character = String.fromCodePoint(codePoint);
+    if (!isMark(codePoint)) {
+      base = true;
+      return false;
+    }
+    return (classes && nonspacingMark.test(character) && !hasDefaultIgnorable(character)) || (fallback && base && !isStarter(codePoint));
+  });
 }
 
 function decomposed(codePoint: number): string {

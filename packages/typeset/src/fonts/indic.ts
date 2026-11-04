@@ -6,6 +6,7 @@
 import type { Font } from "./font.ts";
 import { normalForms, normalizeCodePoints, type NormalForms } from "./normalize.ts";
 import { LIGATED, MULTIPLIED, SUBSTITUTED, type GlyphInfo } from "./substitution.ts";
+import { isHidden } from "./normalize.ts";
 
 /** The OpenType script tags that use the Indic shaper in this model. */
 export const indicScripts: readonly string[] = ["deva"];
@@ -524,6 +525,6 @@ export function indicShaper(font: Font, script: string, features: readonly strin
     for (const { lookups, mask } of basic) for (const lookup of lookups) lookup.applyInfos(run.glyphs, run.infos, mask, true);
     for (const [start, end] of syllables(run.infos)) finalReordering(run, start, end);
     for (const { lookup, mask, perSyllable } of last) lookup.applyInfos(run.glyphs, run.infos, mask, perSyllable);
-    return run.glyphs;
+    return run.glyphs.map((glyph, i) => ((run.infos[i]!.props & SUBSTITUTED) === 0 && isHidden(run.infos[i]!.codePoint) ? ~glyph : glyph));
   };
 }

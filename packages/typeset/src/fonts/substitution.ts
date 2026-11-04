@@ -1,5 +1,5 @@
 import type { Reader } from "./binary.ts";
-import { IGNORE_BASE, IGNORE_LIGATURES, IGNORE_MARKS, scriptTags } from "./kerning.ts";
+import { languageSystem, lookupSkip, subtablesOf } from "./kerning.ts";
 import { classOf, coverageGlyphs, coverageIndex } from "./tables.ts";
 
 /**
@@ -8,8 +8,6 @@ import { classOf, coverageGlyphs, coverageIndex } from "./tables.ts";
  */
 export const defaultFeatures: readonly string[] = ["ccmp", "locl", "rlig", "liga", "clig", "calt", "rclt"];
 
-/** The lookup flag that selects a mark filtering set of GDEF. */
-const USE_MARK_FILTERING_SET = 0x10;
 /** The largest depth of nested lookups, as in HarfBuzz. */
 const MAX_NESTING = 64;
 
@@ -21,6 +19,8 @@ export interface GlyphFilter {
   markAttachClass(glyph: number): number;
   /** This function tells if a glyph is in the mark filtering set `set`. */
   inMarkSet(set: number, glyph: number): boolean;
+  /** The glyphs of the joiners that the backtrack and the lookahead of a context rule skip. */
+  readonly joiners?: readonly number[];
 }
 
 /** This function reads the glyph classes, the mark attachment classes and the mark filtering sets of GDEF. */
@@ -142,14 +142,14 @@ function ruleTables(t: Reader, at: number): Reader[] {
 }
 
 /** This function gives the records of each rule of a context subtable (lookup type 5). */
-function contextRecords(t: Reader): SequenceRecord[] {
+export function contextRecords(t: Reader): SequenceRecord[] {
   const format = t.u16(0);
   if (format === 3) return records(t, 6 + t.u16(2) * 2, t.u16(4));
   return ruleTables(t, format === 2 ? 6 : 4).flatMap((rule) => records(rule, 4 + (rule.u16(0) - 1) * 2, rule.u16(2)));
 }
 
 /** This function gives the records of each rule of a chained context subtable (lookup type 6). */
-function chainRecords(t: Reader): SequenceRecord[] {
+export function chainRecords(t: Reader): SequenceRecord[] {
   const format = t.u16(0);
   if (format === 3) {
     const inputAt = 4 + t.u16(2) * 2;
@@ -210,30 +210,11 @@ class Gsub {
     let found = this.cache.get(index);
     if (found === undefined) {
       const table = this.lookups.part(this.lookups.u16(2 + index * 2));
-      const type = table.u16(0);
       const flags = table.u16(2);
-      const count = table.u16(4);
-      const markSet = (flags & USE_MARK_FILTERING_SET) !== 0 ? table.u16(6 + count * 2) : -1;
-      const subtables: Reader[] = [];
-      let subtype = type;
-      for (let s = 0; s < count; s++) {
-        const subtable = table.part(table.u16(6 + s * 2));
-        if (type === 7) {
-          subtype = subtable.u16(2);
-          subtables.push(subtable.part(subtable.u32(4)));
-        } else subtables.push(subtable);
-      }
-      const { glyphClass, markAttachClass, inMarkSet } = this.filter;
-      const skip = (glyph: number): boolean => {
-        const kind = glyphClass(glyph);
-        if ((flags & IGNORE_BASE) !== 0 && kind === 1) return true;
-        if ((flags & IGNORE_LIGATURES) !== 0 && kind === 2) return true;
-        if (kind !== 3) return false;
-        if ((flags & IGNORE_MARKS) !== 0) return true;
-        if (markSet >= 0) return !inMarkSet(markSet, glyph);
-        const attach = flags >> 8;
-        return attach !== 0 && markAttachClass(glyph) !== attach;
-      };
+      const parts = subtablesOf(table, 7);
+      const subtables = parts.map((part) => part[1]);
+      const subtype = parts.at(-1)?.[0] ?? table.u16(0);
+      const skip = lookupSkip(table, flags, this.filter);
       found = { type: subtype, flags, subtables, skip };
       this.cache.set(index, found);
     }
@@ -349,8 +330,9 @@ class Gsub {
     return -1;
   }
 
-  private previousOf(lookup: Lookup, glyphs: readonly number[], from: number): number {
-    for (let j = from; j >= 0; j--) if (!lookup.skip(glyphs[j]!)) return j;
+  /** This function finds the next glyph of a backtrack or a lookahead. As in HarfBuzz, a joiner does not stop the context. */
+  private contextOf(lookup: Lookup, glyphs: readonly number[], from: number, step: 1 | -1): number {
+    for (let j = from; j >= 0 && j < glyphs.length; j += step) if (!lookup.skip(glyphs[j]!) && !this.filter.joiners?.includes(glyphs[j]!)) return j;
     return -1;
   }
 
@@ -372,7 +354,7 @@ class Gsub {
   private matchBacktrack(lookup: Lookup, glyphs: readonly number[], i: number, count: number, test: (k: number, glyph: number) => boolean): boolean {
     let at = i;
     for (let k = 0; k < count; k++) {
-      at = this.previousOf(lookup, glyphs, at - 1);
+      at = this.contextOf(lookup, glyphs, at - 1, -1);
       if (at < 0 || !this.admits(at, i, false) || !test(k, glyphs[at]!)) return false;
     }
     return true;
@@ -381,7 +363,7 @@ class Gsub {
   private matchLookahead(lookup: Lookup, glyphs: readonly number[], first: number, last: number, count: number, test: (k: number, glyph: number) => boolean): boolean {
     let at = last;
     for (let k = 0; k < count; k++) {
-      at = this.nextOf(lookup, glyphs, at + 1);
+      at = this.contextOf(lookup, glyphs, at + 1, 1);
       if (at < 0 || !this.admits(at, first, false) || !test(k, glyphs[at]!)) return false;
     }
     return true;
@@ -634,19 +616,8 @@ class Gsub {
  * HarfBuzz applies them. The lookups include the lookups of the necessary feature of the language system.
  */
 export function readSubstitutions(gsub: Reader, script: string, features: readonly string[], filter: GlyphFilter): SubstitutionLookup[] {
-  const scripts = gsub.part(gsub.u16(4));
   const featureList = gsub.part(gsub.u16(6));
-  const scriptCount = scripts.u16(0);
-  let langSys: Reader | undefined;
-  for (const wanted of scriptTags(script)) {
-    for (let i = 0; i < scriptCount && langSys === undefined; i++) {
-      if (scripts.tag(2 + i * 6) !== wanted) continue;
-      const table = scripts.part(scripts.u16(2 + i * 6 + 4));
-      const fallback = table.u16(0);
-      if (fallback !== 0) langSys = table.part(fallback);
-    }
-    if (langSys !== undefined) break;
-  }
+  const langSys = languageSystem(gsub, script);
   if (langSys === undefined || features.length === 0) return [];
   const wanted = new Set(features);
   const indices = new Map<number, string[]>();

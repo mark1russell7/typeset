@@ -38,7 +38,7 @@ raggedness: build/chunks/breaking.d.ts#raggedness
 spread: build/chunks/breaking.d.ts#spread
 totalFit: build/chunks/breaking.d.ts#totalFit
 
-## ./fonts (build/fonts.d.ts): 14 names
+## ./fonts (build/fonts.d.ts): 17 names
 
 type Axis: build/chunks/font.d.ts#Axis
 type Decompress: build/chunks/sfnt.d.ts#Decompress
@@ -48,11 +48,14 @@ type Font: build/chunks/font.d.ts#Font
 type Instance: build/chunks/font.d.ts#Instance
 type MeasureOptions: build/chunks/font.d.ts#MeasureOptions
 type ReadOptions: build/chunks/font.d.ts#ReadOptions
+type ShapingRisk: build/chunks/fonts.d.ts#ShapingRisk
+type ShapingRiskCode: build/chunks/fonts.d.ts#ShapingRiskCode
 type WidthBound: build/chunks/fonts.d.ts#WidthBound
 engines: build/chunks/engines.d.ts#engines
 isEngineName: build/chunks/engines.d.ts#isEngineName
 measureWidth: build/chunks/font.d.ts#measureWidth
 readFont: build/chunks/font.d.ts#readFont
+shapingRisks: build/chunks/fonts.d.ts#shapingRisks
 widthBound: build/chunks/fonts.d.ts#widthBound
 
 ## ./fonts/inspect (build/fonts-inspect.d.ts): 6 names
@@ -64,8 +67,9 @@ glyphAdvances: build/chunks/font.d.ts#glyphAdvances
 readTables: build/chunks/sfnt.d.ts#readTables
 shapingWords: build/chunks/font.d.ts#shapingWords
 
-## ./measurer (build/measurer.d.ts): 6 names
+## ./measurer (build/measurer.d.ts): 7 names
 
+type AdvanceFn: build/chunks/measurer.d.ts#AdvanceFn
 type FontAdvanceOptions: build/chunks/measurer.d.ts#FontAdvanceOptions
 type FontFace: build/chunks/measurer.d.ts#FontFace
 type FontSpec: build/chunks/measurer.d.ts#FontSpec
@@ -164,10 +168,13 @@ interface Font {
   readonly coordinates: readonly number[];
   readonly advanceSource: AdvanceSource;
   readonly numGlyphs: number;
+  readonly hasPositioning?: boolean;
+  readonly hasGlyphClasses?: boolean;
   glyph(codePoint: number): number;
   advance(glyph: number): number;
   glyphClass(glyph: number): number;
   kerning(script: string): readonly PairLookup[];
+  contextKerning?(script: string): readonly ((glyphs: readonly number[]) => boolean)[];
   substitutions(script: string, features: readonly string[]): readonly SubstitutionLookup[];
   at(instance: Instance): Font;
 }
@@ -214,6 +221,16 @@ declare function readFont(bytes: Uint8Array, options?: ReadOptions): Font;
 ### build/chunks/font.d.ts#shapingWords
 declare function shapingWords(text: string): string[];
 
+### build/chunks/fonts.d.ts#ShapingRisk
+interface ShapingRisk {
+  readonly code: ShapingRiskCode;
+  readonly index: number;
+  readonly length: number;
+}
+
+### build/chunks/fonts.d.ts#ShapingRiskCode
+type ShapingRiskCode = "missing-glyph" | "unshaped-script" | "emoji-zwj" | "variation-selector" | "keycap" | "flag" | "tag" | "positioning";
+
 ### build/chunks/fonts.d.ts#WidthBound
 interface WidthBound {
   readonly advance: number;
@@ -224,17 +241,24 @@ interface WidthBound {
 
 ### build/chunks/fonts.d.ts#fonts_d_exports
 declare namespace fonts_d_exports {
-  export { Axis, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, WidthBound, engines, isEngineName, measureWidth, readFont, widthBound };
+  export { Axis, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, ShapingRisk, ShapingRiskCode, WidthBound, engines, isEngineName, measureWidth, readFont, shapingRisks, widthBound };
 }
+
+### build/chunks/fonts.d.ts#shapingRisks
+declare function shapingRisks(font: Font, text: string, options?: MeasureOptions): ShapingRisk[];
 
 ### build/chunks/fonts.d.ts#widthBound
 declare function widthBound(font: Font, characters: string, options?: MeasureOptions): WidthBound;
+
+### build/chunks/measurer.d.ts#AdvanceFn
+type AdvanceFn = (text: string, font: string) => number;
 
 ### build/chunks/measurer.d.ts#FontAdvanceOptions
 interface FontAdvanceOptions {
   readonly faces: readonly FontFace[];
   readonly engine?: EngineName | EngineRules;
   readonly shaping?: "dom" | "canvas";
+  readonly fallback?: AdvanceFn;
 }
 
 ### build/chunks/measurer.d.ts#FontFace
@@ -261,7 +285,7 @@ declare function fontAdvance(options: FontAdvanceOptions): (text: string, font: 
 
 ### build/chunks/measurer.d.ts#measurer_d_exports
 declare namespace measurer_d_exports {
-  export { FontAdvanceOptions, FontFace, FontSpec, fontAdvance, parseFont, scriptTag };
+  export { AdvanceFn, FontAdvanceOptions, FontFace, FontSpec, fontAdvance, parseFont, scriptTag };
 }
 
 ### build/chunks/measurer.d.ts#parseFont
