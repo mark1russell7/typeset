@@ -168,13 +168,13 @@ interface Font {
   readonly coordinates: readonly number[];
   readonly advanceSource: AdvanceSource;
   readonly numGlyphs: number;
-  readonly hasPositioning: boolean;
-  readonly hasGlyphClasses: boolean;
+  readonly hasPositioning?: boolean;
+  readonly hasGlyphClasses?: boolean;
   glyph(codePoint: number): number;
   advance(glyph: number): number;
   glyphClass(glyph: number): number;
   kerning(script: string): readonly PairLookup[];
-  contextKerning(script: string): readonly ((glyphs: readonly number[]) => boolean)[];
+  contextKerning?(script: string): readonly ((glyphs: readonly number[]) => boolean)[];
   substitutions(script: string, features: readonly string[]): readonly SubstitutionLookup[];
   at(instance: Instance): Font;
 }

@@ -330,9 +330,8 @@ An example: the text `u` and U+031B has two glyphs before this step. The font ha
 - The form NFD of JavaScript gives the canonical order, so the module has a table only for Hebrew and Arabic.
 - `widthBound` counts each part and each composite of the normalization, so it stays sound.
 
-Two differences from HarfBuzz stay:
+One difference from HarfBuzz stays, and it does not change a width:
 
-- HarfBuzz hides U+034F with a zero-width space glyph, and its kerning skips the glyph. The model keeps its own glyph with the advance 0, and its kerning stops at the glyph. This changes a width only when a kerning pair goes across U+034F. The T6 section tells the size.
 - HarfBuzz moves some Arabic marks to the start of a mark run after the sort. The model keeps them in the sorted order. The glyphs are the same, in another order.
 
 ## The result of the Indic shaper
@@ -400,7 +399,7 @@ The file `harfbuzz-bounds.json` (schema `typeset-harfbuzz-bounds/1`) has these f
 - Each statistic has a 95 % percentile bootstrap interval of `rigor-statistics`, with 2000 runs. A seed of `rigor-generators` comes from the name of the cell.
 - `glyphMatch`: for the tier `model`, the share of the canvas words that have the glyphs of HarfBuzz, for each script and each font. Each share has its Wilson interval.
 - `checks`: the results of the reference check, of the scaling check, of `engineRowsEqual`, of `ruleReplica`, of `roundingSameForEachTier` and of `readSum`. The check `readSum` gives the largest difference of the model error plus the read effect and the total error. HarfBuzz has no tiers, so the rounding effect of a cell does not change with its tier.
-- `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f decides the rule.
+- `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f gives the decision on the one rule.
 - `knownOpen`: the scripts with an open error. No script is open now. No test gates on it.
 
 ### The precision of the reference
@@ -435,21 +434,44 @@ The committed record is `packages/widths/data/harfbuzz-bounds.json`, with one li
 | hebrew | 1984.0 [1408.0, 1984.0] (noto-sans-hebrew 400, 96 px, freetype) | -0.1 [-0.1, 0.0] (noto-sans-hebrew 400, 48 px, coretext) | -0.1 [-0.1, 0.0] (noto-sans-hebrew 400, 48 px, coretext) | -933.6 [-933.6, -527.6] (noto-sans-hebrew 400, 24 px, freetype) | -50.0 [-50.0, -42.2] (noto-sans-hebrew 400, 96 px, coretext) |
 | kana | 832.0 [448.0, 832.0] (noto-sans-jp 400, 96 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 8 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 8 px, coretext) | 2489.9 [2400.0, 2489.9] (noto-sans-jp 400, 13.5 px, freetype) | 31.6 [15.8, 31.6] (noto-sans-jp 400, 96 px, coretext) |
 | latin | 1728.0 [1408.0, 1728.0] (source-sans-3 700, 96 px, freetype) | 344.0 [184.3, 344.0] (noto-serif 400, 96 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 96 px, coretext) | -2022.4 [-2022.4, -1996.8] (noto-sans-mono 400, 14 px, freetype) | 40.6 [20.0, 40.6] (source-sans-3 700, 96 px, coretext) |
-| latin-extended (open: T1e) | 1216.0 [640.0, 1216.0] (noto-serif 400, 96 px, freetype) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -2022.4 [-2022.4, -1920.0] (noto-sans-mono 400, 14 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 8 px, freetype) |
+| latin-extended | 1216.0 [640.0, 1216.0] (noto-serif 400, 96 px, freetype) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -2022.4 [-2022.4, -1920.0] (noto-sans-mono 400, 14 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 8 px, freetype) |
 | thai | 256.0 [128.0, 256.0] (noto-sans-thai 400, 96 px, freetype) | 256.0 [128.0, 256.0] (noto-sans-thai 400, 96 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 96 px, coretext) | -754.7 [-754.7, -563.7] (noto-sans-thai 400, 72 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 8 px, freetype) |
 
-The source is the record of the CI run 41731795116.
+The source is the record of the CI run 41766190315.
 <!-- bounds-table:end -->
 
-The Fonts run 41731795116 gave this record, with HarfBuzz 15.0.0:
+The Fonts run 41766190315 gave this record, with HarfBuzz 15.0.0:
 
 - The worst model error of the tier `model` is 0.13 in 1/64 px for each script except Devanagari.
-- The worst error of Devanagari comes from one word. The two references disagree on that word, and T1f decides it.
-- The glyph ids agree on 783 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. T1e examines Latin Extended.
+- The worst error of Devanagari comes from one word. The two references disagree on that word. The model is correct, and the next section tells why.
+- The glyph ids agree on 795 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. The run 41731795116 gave 783 of 795 before T1e.
 - In 198 of the 2277 cells, each line sample has a missing glyph. These are all the cells of emoji, and the cells of Han in Noto Sans JP.
 - HarfBuzz and the model both use the glyph 0 for a missing glyph. So a zero error in those cells tells less than in other cells.
 - The largest precision error of the reference stays in its bound in all 2277 cells.
 - The read effect has no external reference until T4b.
+
+## The dotted circle after an independent vowel (T1f)
+
+T1f examined U+0906 U+0948, the one word on which the model and Chrome disagree with HarfBuzz of the T4 record.
+
+**The decision: the dotted circle is correct, and the model does not change.** The difference comes from the build of harfbuzzjs, and not from a version of HarfBuzz.
+
+- **The rule exists.** `hb-ot-shaper-vowel-constraints.cc` of HarfBuzz 15.0.0 lists 21 Devanagari pairs, and U+0906 U+0948 is one of them. The commit that Chromium uses has the same entry.
+- **harfbuzzjs does not run the rule.** Its `Makefile` sets `HB_TINY`. In `hb-config.hh`, that option sets `HB_MINI`, `HB_NO_LEGACY`, `HB_NO_OT_SHAPE_FALLBACK` and `HB_NO_OT_SHAPER_VOWEL_CONSTRAINTS`. `config-override.h` of harfbuzzjs 1.6.4 does not change them.
+- **A local run agrees.** harfbuzzjs 1.6.4 puts no dotted circle on any of the 21 pairs. It puts one before a lone vowel sign, because that step of the Indic shaper is separate.
+- **Chromium has the rule.** Chromium 156.0.8078.4 pins HarfBuzz at `f5efbbef`, 334 commits before 15.0.0. Its `BUILD.gn` does not set these options. Blink uses the shaper `ot`, because the flag `HarfRustShaping` has the status `test`.
+
+Nobody ran a full build of HarfBuzz 15.0.0 for this work. The evidence for the full build is its source text and the result of Chrome.
+
+`HB_TINY` also removes other rules. They do not change a width of the T4 record:
+
+- The `kern` table and the AAT tables: none of the 12 fonts has them.
+- The Hebrew fallback: it needs a font with no GPOS `mark`, and Noto Sans Hebrew has `mark`.
+- The Thai fallback: it needs a font with no GSUB script `thai`, and Noto Sans Thai has it.
+- The Arabic fallback: it needs a font with no joining forms, and Noto Sans Arabic has them.
+- The fallback mark positions: they run only for a font with no GPOS, and they set the advance of a mark to 0. Noto Emoji is the one font with no GPOS. The 160 emoji samples of the corpus have no marks, so T4 does not examine this case.
+
+The Devanagari row of the T4 table keeps this one word, so its worst error is a limit of the reference. A test in `indic.test.ts` pins the glyphs of the pair.
 
 ## The shaper fallback (T6)
 
