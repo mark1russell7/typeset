@@ -59,9 +59,9 @@ export interface Font {
   readonly advanceSource: AdvanceSource;
   readonly numGlyphs: number;
   /** This value tells if the font has a GPOS table. */
-  readonly hasPositioning: boolean;
+  readonly hasPositioning?: boolean;
   /** This value tells if GDEF has glyph classes. */
-  readonly hasGlyphClasses: boolean;
+  readonly hasGlyphClasses?: boolean;
   /** This function gives the glyph of a code point, or 0 when the font has no glyph for it. */
   glyph(codePoint: number): number;
   /** This function gives the advance of a glyph in font units, as the shaper uses it. A mark has the advance 0. */
@@ -71,7 +71,7 @@ export interface Font {
   /** This function gives the pair lookups of the kerning for an OpenType script tag, for example `latn`. */
   kerning(script: string): readonly PairLookup[];
   /** This function gives a test for each lookup of `kern` and `dist` that the model does not apply. */
-  contextKerning(script: string): readonly ((glyphs: readonly number[]) => boolean)[];
+  contextKerning?(script: string): readonly ((glyphs: readonly number[]) => boolean)[];
   /** This function gives the GSUB lookups of a list of feature tags for an OpenType script tag, in the order of the lookup list. */
   substitutions(script: string, features: readonly string[]): readonly SubstitutionLookup[];
   /** This function gives the same font at another instance. It uses the tables that are already read. */
@@ -167,7 +167,7 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
   const kern = tables.get("kern");
   const gsub = tables.get("GSUB");
   const lookups = new Map<string, readonly PairLookup[]>();
-  const contexts = new Map<string, ReturnType<Font["contextKerning"]>>();
+  const contexts = new Map<string, ReturnType<NonNullable<Font["contextKerning"]>>>();
   const substitutions = new Map<string, readonly SubstitutionLookup[]>();
   const hashed = [tables.get("cmap"), gdef, gpos, kern, tables.get("fvar"), tables.get("avar"), tables.get("HVAR"), gsub];
   return {
@@ -340,8 +340,8 @@ const noMarkZero: readonly string[] = ["hang", "khmr", ...indicScripts];
 function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: string) => number[]; kerning: readonly PairLookup[] } {
   const { script, features, shaper, kerning } = shapingOf(font, options);
   if (shaper === "indic") return { substitute: indicShaper(font, script, features), kerning };
-  const classes = !font.hasGlyphClasses && !noMarkZero.includes(script);
-  const fallback = !font.hasPositioning && !noFallbackPosition.includes(script);
+  const classes = font.hasGlyphClasses === false && !noMarkZero.includes(script);
+  const fallback = font.hasPositioning === false && !noFallbackPosition.includes(script);
   const joins = shaper === "joining";
   const lookups = joins ? [] : font.substitutions(script, features);
   const stages = joins ? joiningStages(features, features.includes("rclt") && font.substitutions(script, ["rclt"]).length > 0).map((stage) => ({ stage, lookups: font.substitutions(script, stage.features) })) : [];

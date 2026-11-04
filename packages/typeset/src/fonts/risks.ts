@@ -35,7 +35,7 @@ export function shapingRisks(font: Font, text: string, options: MeasureOptions =
   }
   for (const { 0: part, index } of text.matchAll(unshaped)) add("unshaped-script", index, part);
   for (const match of text.matchAll(sequences)) add(sequenceCodes[match.slice(1).findIndex(Boolean)]!, match.index, match[0]);
-  const tests = options.kerning === false ? [] : font.contextKerning(shapingOf(font, options).script);
+  const tests = options.kerning === false ? [] : font.contextKerning?.(shapingOf(font, options).script) ?? [];
   if (tests.length > 0) {
     let index = 0;
     for (const word of options.shaping === "canvas" ? canvasWords(text) : [text]) {
