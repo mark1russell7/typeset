@@ -125,7 +125,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Compare the weight of each entry with the last release
-        run: pnpm weight --tag v0.1.4 --out "$GITHUB_WORKSPACE/weight-record.json"
+        run: pnpm weight --out "$GITHUB_WORKSPACE/weight-record.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

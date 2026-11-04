@@ -1,5 +1,69 @@
 {
   "schema": 1,
   "limitGzipBytes": 1792,
-  "limitRun": "41788686638"
+  "limitRun": "41788686638",
+  "measure": {
+    "runId": "41794942191",
+    "head": "633eaa9d5b3d6519facac78bbe1d2a24ea9ec713",
+    "tag": "v0.1.4",
+    "esbuild": "0.28.2",
+    "gzipLevel": 9,
+    "repeat": true,
+    "rows": [
+      {
+        "entry": ".",
+        "minified": 64639,
+        "gzip": 25962,
+        "releaseMinified": 60901,
+        "releaseGzip": 24344,
+        "growth": 1618,
+        "over": false
+      },
+      {
+        "entry": "./breaking",
+        "minified": 2973,
+        "gzip": 1390,
+        "releaseMinified": 2973,
+        "releaseGzip": 1390,
+        "growth": 0,
+        "over": false
+      },
+      {
+        "entry": "./fonts",
+        "minified": 52176,
+        "gzip": 21018,
+        "releaseMinified": 48898,
+        "releaseGzip": 19548,
+        "growth": 1470,
+        "over": false
+      },
+      {
+        "entry": "./fonts/inspect",
+        "minified": 22535,
+        "gzip": 9888,
+        "releaseMinified": 21542,
+        "releaseGzip": 9440,
+        "growth": 448,
+        "over": false
+      },
+      {
+        "entry": "./measurer",
+        "minified": 54741,
+        "gzip": 22253,
+        "releaseMinified": 51021,
+        "releaseGzip": 20634,
+        "growth": 1619,
+        "over": false
+      },
+      {
+        "entry": "./text",
+        "minified": 4023,
+        "gzip": 1496,
+        "releaseMinified": 4023,
+        "releaseGzip": 1496,
+        "growth": 0,
+        "over": false
+      }
+    ]
+  }
 }

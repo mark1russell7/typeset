@@ -80,4 +80,5 @@ Source bytes do not show this cost. A file in the import closure of an entry giv
 - The limit is one value for all the entries. Thus `./breaking`, at 1390 bytes, can more than double under it.
 - Both sides use the dependencies of the head. Thus the growth shows only the source of typeset.
 - The job measures the head two times, and it fails when the two measures differ.
+- The field `measure` of `packages/bench/weight.json` is the committed record: run 41794942191 against `v0.1.4`, with minified and `gzip` bytes at the head and at the tag.
 - The artifact `weight-record` has the bytes of each input file in each entry.
