@@ -24,6 +24,8 @@ type ParagraphOptions: build/chunks/paragraph.d.ts#ParagraphOptions
 type Penalty: build/chunks/paragraph.d.ts#Penalty
 type TotalFitOptions: build/chunks/breaking.d.ts#TotalFitOptions
 type WidthOf: build/chunks/paragraph.d.ts#WidthOf
+adjustmentRatio: build/chunks/paragraph.d.ts#adjustmentRatio
+adjustmentRatios: build/chunks/breaking.d.ts#adjustmentRatios
 balanced: build/chunks/breaking.d.ts#balanced
 balancedBreaker: build/chunks/breaking.d.ts#balancedBreaker
 breakers: build/chunks/breaking.d.ts#breakers
@@ -37,6 +39,7 @@ paragraphOf: build/chunks/paragraph.d.ts#paragraphOf
 raggedness: build/chunks/breaking.d.ts#raggedness
 spread: build/chunks/breaking.d.ts#spread
 totalFit: build/chunks/breaking.d.ts#totalFit
+worstRatio: build/chunks/breaking.d.ts#worstRatio
 
 ## ./fonts (build/fonts.d.ts): names
 
@@ -68,6 +71,27 @@ glyphAdvances: build/chunks/font.d.ts#glyphAdvances
 indicSyllables: build/fonts-inspect.d.ts#indicSyllables
 readTables: build/chunks/sfnt.d.ts#readTables
 shapingWords: build/chunks/font.d.ts#shapingWords
+
+## ./hyphen (build/hyphen.d.ts): names
+
+type HyphenSource: build/chunks/hyphen.d.ts#HyphenSource
+type PatternSet: build/chunks/hyphen.d.ts#PatternSet
+hyphenator: build/chunks/hyphen.d.ts#hyphenator
+
+## ./hyphen/en-us (build/hyphen/en-us.d.ts): names
+
+hyphenate: build/hyphen/en-us.d.ts#hyphenate
+source: build/hyphen/en-us.d.ts#source
+
+## ./hyphen/de (build/hyphen/de.d.ts): names
+
+hyphenate: build/hyphen/de.d.ts#hyphenate
+source: build/hyphen/de.d.ts#source
+
+## ./hyphen/fr (build/hyphen/fr.d.ts): names
+
+hyphenate: build/hyphen/fr.d.ts#hyphenate
+source: build/hyphen/fr.d.ts#source
 
 ## ./measurer (build/measurer.d.ts): names
 
@@ -172,6 +196,9 @@ interface TotalFitOptions {
   readonly flaggedCost?: number;
 }
 
+### build/chunks/breaking.d.ts#adjustmentRatios
+declare function adjustmentRatios(paragraph: Paragraph, lines: readonly Line[], width: number): number[];
+
 ### build/chunks/breaking.d.ts#balanced
 declare const balanced: Breaker;
 
@@ -183,7 +210,7 @@ declare const breakers: Readonly<Record<"greedy" | "total-fit" | "balanced", Bre
 
 ### build/chunks/breaking.d.ts#breaking_d_exports
 declare namespace breaking_d_exports {
-  export { BalancedOptions, Box, Breaker, Glue, Item, Line, Paragraph, ParagraphOptions, Penalty, TotalFitOptions, WidthOf, balanced, balancedBreaker, breakers, greedy, isBreak, knuthPlass, lineStart, lineWidth, linesOf, paragraphOf, raggedness, spread, totalFit };
+  export { BalancedOptions, Box, Breaker, Glue, Item, Line, Paragraph, ParagraphOptions, Penalty, TotalFitOptions, WidthOf, adjustmentRatio, adjustmentRatios, balanced, balancedBreaker, breakers, greedy, isBreak, knuthPlass, lineStart, lineWidth, linesOf, paragraphOf, raggedness, spread, totalFit, worstRatio };
 }
 
 ### build/chunks/breaking.d.ts#greedy
@@ -200,6 +227,9 @@ declare function spread(lines: readonly Line[]): number;
 
 ### build/chunks/breaking.d.ts#totalFit
 declare function totalFit(options?: TotalFitOptions): Breaker;
+
+### build/chunks/breaking.d.ts#worstRatio
+declare function worstRatio(paragraph: Paragraph, lines: readonly Line[], width: number): number;
 
 ### build/chunks/engines.d.ts#EngineName
 type EngineName = keyof typeof engines;
@@ -321,6 +351,33 @@ declare function shapingRisks(font: Font, text: string, options?: MeasureOptions
 ### build/chunks/fonts.d.ts#widthBound
 declare function widthBound(font: Font, characters: string, options?: MeasureOptions): WidthBound;
 
+### build/chunks/hyphen.d.ts#HyphenSource
+interface HyphenSource {
+  readonly language: string;
+  readonly file: string;
+  readonly commit: string;
+  readonly sha256: string;
+  readonly license: string;
+  readonly words: {
+    readonly list: string;
+    readonly independent: boolean;
+    readonly count: number;
+    readonly found: number;
+    readonly confirmed: number;
+  };
+}
+
+### build/chunks/hyphen.d.ts#PatternSet
+interface PatternSet {
+  readonly patterns: string;
+  readonly exceptions: string;
+  readonly left: number;
+  readonly right: number;
+}
+
+### build/chunks/hyphen.d.ts#hyphenator
+declare function hyphenator(set: PatternSet): (word: string) => readonly number[];
+
 ### build/chunks/measurer.d.ts#AdvanceFn
 type AdvanceFn = (text: string, font: string) => number;
 
@@ -377,6 +434,8 @@ interface Glue {
   readonly type: "glue";
   readonly text: string;
   readonly width: number;
+  readonly stretch?: number;
+  readonly shrink?: number;
 }
 
 ### build/chunks/paragraph.d.ts#Item
@@ -402,6 +461,8 @@ interface ParagraphOptions {
   readonly breaks?: (word: string) => readonly number[];
   readonly hyphen?: string;
   readonly hyphenCost?: number;
+  readonly stretch?: number;
+  readonly shrink?: number;
 }
 
 ### build/chunks/paragraph.d.ts#Penalty
@@ -415,6 +476,9 @@ interface Penalty {
 
 ### build/chunks/paragraph.d.ts#WidthOf
 type WidthOf = (text: string) => number;
+
+### build/chunks/paragraph.d.ts#adjustmentRatio
+declare function adjustmentRatio(items: readonly Item[], start: number, end: number, width: number): number;
 
 ### build/chunks/paragraph.d.ts#isBreak
 declare function isBreak(items: readonly Item[], index: number): boolean;
@@ -479,6 +543,24 @@ export declare function indicSyllables(text: string): {
   readonly text: string;
   readonly type: IndicSyllableType;
 }[];
+
+### build/hyphen/de.d.ts#hyphenate
+export declare const hyphenate: (word: string) => readonly number[];
+
+### build/hyphen/de.d.ts#source
+export declare const source: HyphenSource;
+
+### build/hyphen/en-us.d.ts#hyphenate
+export declare const hyphenate: (word: string) => readonly number[];
+
+### build/hyphen/en-us.d.ts#source
+export declare const source: HyphenSource;
+
+### build/hyphen/fr.d.ts#hyphenate
+export declare const hyphenate: (word: string) => readonly number[];
+
+### build/hyphen/fr.d.ts#source
+export declare const source: HyphenSource;
 
 ### build/segmentation.d.ts#LineBreak
 interface LineBreak {
