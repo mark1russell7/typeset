@@ -82,7 +82,8 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
   },
   "dependencies": {
-    "@mark1russell7/rigor-generators": "^0.1.0"
+    "@mark1russell7/rigor-generators": "^0.1.0",
+    "@procedures/collections": "^0.47.1"
   },
   "devDependencies": {
     "@mark1russell7/cue": "^2.0.0",

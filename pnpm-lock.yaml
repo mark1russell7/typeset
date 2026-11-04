@@ -280,6 +280,9 @@ importers:
       '@mark1russell7/rigor-generators':
         specifier: ^0.1.0
         version: 0.1.1
+      '@procedures/collections':
+        specifier: ^0.47.1
+        version: 0.47.1
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.0.0
@@ -516,6 +519,15 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@mark1russell7/algebra@0.8.1':
+    resolution: {integrity: sha512-lpuX4jO56Ht7F6ugymJwPCoL1F6fMVX/HAfuWaxfxBUCTrZxpSwD8qVk6O9M0fqaiyj2XUE+D5fz1XQP6BQlRA==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
   '@mark1russell7/api-report@0.2.2':
     resolution: {integrity: sha512-5Res2AutTOsfAnvUy1HeAwI0wHwF96GOyO92a59nhVdE7nRxa4evp1wQSez1KTzRLFkJ2k4hzJhkfCusZ6xnaA==}
     engines: {node: '>=22'}
@@ -533,6 +545,9 @@ packages:
       dependency-cruiser:
         optional: true
 
+  '@mark1russell7/coeval@0.18.0':
+    resolution: {integrity: sha512-eOK4wHB/sPLk/TSqwe6Q1HcqGL5RuDBj624NWotQuA/zGH5Err2myHOpUveyg7GVBds2uht2gNOHbrtcF1w0xg==}
+
   '@mark1russell7/conventions@0.24.1':
     resolution: {integrity: sha512-4FATOd/MOOMHFBZtrRP+ZFeEUHwgannQD9FjWH81wVT6TbMJVNbFNH/uXSb3cP+0f+jM/xV9tT6jZ4ZOPfrMEg==}
     engines: {node: '>=22'}
@@ -547,6 +562,28 @@ packages:
     resolution: {integrity: sha512-8eWFSLMnXIKfqu5572BulrxM0dUFgc1u8tKEEnZRJACN8KsxB1mbwZ9IoFpK5YiengNkEZshXSZAG7DM600j4w==}
     engines: {node: '>=22.12'}
 
+  '@mark1russell7/quantity@0.2.0':
+    resolution: {integrity: sha512-pE2OganjbhstZgoeLVu5YRVQq6bOnV/5T4GYuJhIu0+PF77+DwpfrIZonhNNfEZHz/P4ioiwFowbIwxPq9VkSA==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
+  '@mark1russell7/quantity@0.3.0':
+    resolution: {integrity: sha512-psfyKmVrOz5ynHgr2ED7WM5Pa/XVy6DR28jCaSGY42gvV0CJEq7HJRpV6sgkvWx8s3Et7evJWR56aG5tjCHZIw==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
+  '@mark1russell7/rational@0.1.1':
+    resolution: {integrity: sha512-bVpsMxiNi3CKjEVbL7bcQG2daR5nVY47Wz5MIQxI/9fpkuvlB/EwkJ30jw15BcBEiAfvoLjtWqLC00wrU7tsZQ==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/rigor-generators@0.1.1':
     resolution: {integrity: sha512-N5o3II0AClHgsWCWtzuBzckQdReydJnLUS8Kdt9hWXVpTzb0dxucrN1bWdDN+75YompOR1rAmsIX8zuHqoQdqA==}
     engines: {node: '>=22'}
@@ -554,6 +591,33 @@ packages:
   '@mark1russell7/rigor-statistics@0.1.5':
     resolution: {integrity: sha512-dGglFXiUGindagWAGLGpHjncvv/+DDdw+4ClFqAnNUTHXvNVbUZtBAA1reV8TY1q6iR6BsWCSV+vQoHIO3s7FA==}
     engines: {node: '>=22'}
+
+  '@mark1russell7/service@0.6.5':
+    resolution: {integrity: sha512-USBAaZX8lQ3nmBzaTycF+6xQJyIQ51ZTWIxw9rZnZ5bhaqZe5FydTgVPYr92/gb8VWcOG4jxWsPnLPBBEaxzSA==}
+    engines: {node: '>=22.19'}
+    peerDependencies:
+      '@grpc/grpc-js': ^1.14.6
+      amqplib: ^2.2.0
+      ioredis: ^6.0.0
+      mongodb: ^7.7.0
+      pg: ^8.23.1
+      ws: ^8.22.0
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      '@grpc/grpc-js':
+        optional: true
+      amqplib:
+        optional: true
+      ioredis:
+        optional: true
+      mongodb:
+        optional: true
+      pg:
+        optional: true
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   '@mark1russell7/ste-lint@0.1.2':
     resolution: {integrity: sha512-Gq7XrLLBbuaGp+a6HbmikoPR2KmU06w/XZh8TFVmG9qbMsknMjOhh50lcZ1kEpYStI++uhlxrNv+sOkOqgnN5w==}
@@ -571,6 +635,19 @@ packages:
 
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
+
+  '@procedures/client@0.47.1':
+    resolution: {integrity: sha512-V7gv75NVe7Uby5I0WyMYzg1TzEn3RWkKphFf+AFWMr2x3hs1H8KHmB+QN1BQphwU7a4BjOQIOjIsaukzJPpiPQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      express: ^4.0.0 || ^5.0.0
+    peerDependenciesMeta:
+      express:
+        optional: true
+
+  '@procedures/collections@0.47.1':
+    resolution: {integrity: sha512-IC23p+EMu0NR6LewAENZ6Pd8Dv7XrPHD4bOcAf51/quq7cdRaiW5hxvhsr/rn6E941DrzqKzmzFpuzDBEdAB3g==}
+    engines: {node: '>=22'}
 
   '@publint/pack@0.1.7':
     resolution: {integrity: sha512-4EDEmvxWtgsCnnVeBvtFIFZtUhPPt1+bA9JrSwU4Sa//6oKtzCSlGGXYJr44OD9aGISymbieJ4mCKHUygUDU+g==}
@@ -782,6 +859,9 @@ packages:
 
   '@types/node@26.6.6':
     resolution: {integrity: sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==}
+
+  '@types/ws@8.18.2':
+    resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
@@ -1563,6 +1643,18 @@ packages:
     engines: {node: '>=20.11'}
     hasBin: true
 
+  ws@8.22.1:
+    resolution: {integrity: sha512-oyL6OPYme/CmiFvNuGzeoxCJ4nOrZE2O1FwM9MWM1AsGri6nLXB2pg+lNA8aLeXMSav0J6eIVS1j6vUPzUtK9g==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   yuku-ast@0.19.0:
     resolution: {integrity: sha512-PyCsiScaelhxBGzL8dyeJkLqvRZycoh78R31Vrt/WqYrm0hMFoKwIw/X7Dx5mBKLWAMlV9I9HEyBOHnj2gZVyw==}
     engines: {node: '>=14.18.0'}
@@ -1578,6 +1670,9 @@ packages:
   yuku-parser@0.19.0:
     resolution: {integrity: sha512-XrBh9ZiQK5mJVRxZBAvD6LwRyAYrK3MFtH3+onyuxFL5hFD44EC3QOmIC1FjTj6H2MMwq46/NAI+NZxLZPZgxg==}
     engines: {node: '>=14.18.0'}
+
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
 
@@ -1680,12 +1775,20 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  '@mark1russell7/algebra@0.8.1(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
+    optionalDependencies:
+      zod: 4.6.7
+
   '@mark1russell7/api-report@0.2.2': {}
 
   '@mark1russell7/boundaries@0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)':
     optionalDependencies:
       '@swc/core': 1.16.20
       dependency-cruiser: 18.7.0
+
+  '@mark1russell7/coeval@0.18.0': {}
 
   '@mark1russell7/conventions@0.24.1': {}
 
@@ -1696,11 +1799,32 @@ snapshots:
       '@mark1russell7/rigor-generators': 0.1.1
       '@mark1russell7/typeset': 0.1.0
 
+  '@mark1russell7/quantity@0.2.0(zod@4.6.7)':
+    optionalDependencies:
+      zod: 4.6.7
+
+  '@mark1russell7/quantity@0.3.0(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/rational': 0.1.1
+    optionalDependencies:
+      zod: 4.6.7
+
+  '@mark1russell7/rational@0.1.1': {}
+
   '@mark1russell7/rigor-generators@0.1.1': {}
 
   '@mark1russell7/rigor-statistics@0.1.5':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.1
+
+  '@mark1russell7/service@0.6.5(ws@8.22.1)(zod@4.6.7)':
+    dependencies:
+      '@mark1russell7/algebra': 0.8.1(zod@4.6.7)
+      '@mark1russell7/quantity': 0.3.0(zod@4.6.7)
+      '@mark1russell7/rigor-generators': 0.1.1
+    optionalDependencies:
+      ws: 8.22.1
+      zod: 4.6.7
 
   '@mark1russell7/ste-lint@0.1.2':
     dependencies:
@@ -1713,6 +1837,37 @@ snapshots:
   '@mark1russell7/typeset@0.1.0': {}
 
   '@oxc-project/types@0.156.0': {}
+
+  '@procedures/client@0.47.1':
+    dependencies:
+      '@mark1russell7/algebra': 0.8.1(zod@4.6.7)
+      '@mark1russell7/coeval': 0.18.0
+      '@mark1russell7/quantity': 0.2.0(zod@4.6.7)
+      '@mark1russell7/service': 0.6.5(ws@8.22.1)(zod@4.6.7)
+      '@types/ws': 8.18.2
+      ws: 8.22.1
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - '@grpc/grpc-js'
+      - amqplib
+      - bufferutil
+      - ioredis
+      - mongodb
+      - pg
+      - utf-8-validate
+
+  '@procedures/collections@0.47.1':
+    dependencies:
+      '@procedures/client': 0.47.1
+    transitivePeerDependencies:
+      - '@grpc/grpc-js'
+      - amqplib
+      - bufferutil
+      - express
+      - ioredis
+      - mongodb
+      - pg
+      - utf-8-validate
 
   '@publint/pack@0.1.7':
     dependencies:
@@ -1841,6 +1996,10 @@ snapshots:
   '@types/node@26.6.6':
     dependencies:
       undici-types: 8.9.0
+
+  '@types/ws@8.18.2':
+    dependencies:
+      '@types/node': 26.6.6
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
@@ -2425,6 +2584,8 @@ snapshots:
 
   why-is-node-running@3.2.1: {}
 
+  ws@8.22.1: {}
+
   yuku-ast@0.19.0:
     dependencies:
       '@yuku-toolchain/types': 0.19.0
@@ -2454,3 +2615,5 @@ snapshots:
     dependencies:
       '@yuku-toolchain/types': 0.19.0
       yuku-core: 0.19.0
+
+  zod@4.6.7: {}
