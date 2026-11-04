@@ -458,6 +458,8 @@ T4 compares the model with HarfBuzz. T4b compares each engine row with the real 
 - `engineBoundCells` gives one cell for each arm, script, font, weight and size. Each cell has the worst error and the 0.99 quantile in 1/64 px, with 95 % intervals.
 - The records have the 6 sizes of the corpus. The 5 other sizes of T4 have no canvas width, so T4b does not examine them.
 - The model and Chrome agree on the word of T1f, so T4b keeps that word.
+- The statistics leave out the records with a missing glyph, because the canvas then uses a fallback font. These are 2070 records on each arm, 8280 in all.
+- All 552 cells give a worst error of 0 in 1/64 px. The pixel rounding of `linux-1` and `linux-2` hides small differences, so these 2 arms are a weaker test.
 
 ### The read effect
 
@@ -479,6 +481,22 @@ The record gives the check for each arm in the field `readCheckOfArm`.
 ### The result
 
 <!-- engine-table:start -->
+| Script | `linux-1` | `linux-2` | `macos-2` | `windows-1` | Read effect |
+|---|---|---|---|---|---|
+| arabic | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, freetype) |
+| cyrillic | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) |
+| devanagari | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, freetype) |
+| emoji | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, freetype) |
+| greek | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) |
+| han | 0.0 [0.0, 0.0] (noto-sans-sc 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-sc 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-sc 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-sc 400, 10 px, directwrite) | -231.9 [-231.9, -58.2] (noto-sans-sc 400, 48 px, freetype) |
+| hangul | 0.0 [0.0, 0.0] (noto-sans-kr 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-kr 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-kr 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-kr 400, 10 px, directwrite) | 2030.4 [1936.6, 2030.4] (noto-sans-kr 400, 48 px, freetype) |
+| hebrew | 0.0 [0.0, 0.0] (noto-sans-hebrew 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-hebrew 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-hebrew 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-hebrew 400, 10 px, directwrite) | 1245.7 [1048.3, 1245.7] (noto-sans-hebrew 400, 48 px, freetype) |
+| kana | 0.0 [0.0, 0.0] (noto-sans-jp 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 10 px, directwrite) | -214.2 [-214.2, -192.5] (noto-sans-jp 400, 48 px, freetype) |
+| latin | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, directwrite) | 440.9 [405.0, 440.9] (source-sans-3 400, 48 px, directwrite) |
+| latin-extended | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) |
+| thai | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, freetype) |
+
+The source is the record of the CI run 41787004366.
 <!-- engine-table:end -->
 
 ## The dotted circle after an independent vowel (T1f)
