@@ -80,7 +80,7 @@ const checks: Record<string, unknown> = {};
 
 /**
  * Each rule names a cluster on which two references disagree. The model matched Chrome on it (T1d), and HarfBuzz of the
- * record gives other glyphs. The rule of the specification decides it in a separate item. Until then, no reference is the truth.
+ * record gives other glyphs. T1f decided the rule below: Chrome is correct, and the build of harfbuzzjs leaves out the rule.
  */
 const disagreementRules = [
   {
@@ -88,8 +88,8 @@ const disagreementRules = [
     script: "devanagari",
     cluster: "आै",
     model: "a dotted circle before the vowel sign",
-    chrome: "Chromium 156.0.8078.4 gives the glyphs of the model (T1d, docs/FONTS.md). Its HarfBuzz version is not known yet.",
-    harfbuzz: "no dotted circle",
+    chrome: "Chromium 156.0.8078.4 gives the glyphs of the model (T1d, docs/FONTS.md). It uses HarfBuzz f5efbbef, a full build of the rule.",
+    harfbuzz: "no dotted circle: HB_TINY of harfbuzzjs sets HB_NO_OT_SHAPER_VOWEL_CONSTRAINTS (T1f)",
   },
 ];
 /** The largest difference between ruledWidth on the advances of the model and measureWidth, for each engine row, in 1/64 px. */

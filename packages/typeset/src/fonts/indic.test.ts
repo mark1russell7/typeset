@@ -44,6 +44,8 @@ describe.skipIf(!present)("the Indic shaper with Noto Sans Devanagari", () => {
     expect(glyphs([0x94d, 0x915])).toEqual([789, 103, 56]);
     // uni0905 uni25CC uni093E: the vowel constraint stops a sequence that looks like the letter aa
     expect(glyphs([0x905, 0x93e])).toEqual([5, 789, 31]);
+    // uni0906 uni25CC uni0948: Chrome gives this result, and harfbuzzjs does not because its build leaves out the rule (T1f)
+    expect(glyphs([0x906, 0x948])).toEqual([6, 789, 41]);
   });
 
   it("makes the reph and moves it after the base", () => {
