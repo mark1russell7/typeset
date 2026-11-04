@@ -36,5 +36,4 @@ Write all prose of this repository in the style of ASD-STE100 Simplified Technic
 
 ## Roadmap tracker
 
-- The tracker of this repository is the folder `~/git/fleet/artifacts/typeset/`. Its page is `http://127.0.0.1:4731/a/typeset/`.
 - Change `docs/ROADMAP.md` and the tracker items together.

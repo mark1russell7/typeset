@@ -10,6 +10,7 @@
   "scripts": {
     "package": "template package",
     "template": "template repo",
+    "conformance": "pnpm --filter @typeset/conformance conformance",
     "test": "pnpm -r run test && pnpm run test:actions",
     "test:actions": "node --test \".github/actions/*.test.ts\"",
     "typecheck": "pnpm -r run typecheck && pnpm run typecheck:scripts",

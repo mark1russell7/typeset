@@ -77,6 +77,14 @@ fontAdvance: build/chunks/measurer.d.ts#fontAdvance
 parseFont: build/chunks/measurer.d.ts#parseFont
 scriptTag: build/chunks/measurer.d.ts#scriptTag
 
+## ./segmentation (build/segmentation.d.ts): 5 names
+
+type LineBreak: build/segmentation.d.ts#LineBreak
+graphemes: build/segmentation.d.ts#graphemes
+lineBreaks: build/segmentation.d.ts#lineBreaks
+unicodeVersion: build/segmentation.d.ts#unicodeVersion
+wordBreaks: build/segmentation.d.ts#wordBreaks
+
 ## ./text (build/text.d.ts): 2 names
 
 Text: build/chunks/text.d.ts#Text
@@ -328,6 +336,7 @@ interface Paragraph {
 interface ParagraphOptions {
   readonly widthOf: WidthOf;
   readonly hyphenate?: (word: string) => readonly number[];
+  readonly breaks?: (word: string) => readonly number[];
   readonly hyphen?: string;
   readonly hyphenCost?: number;
 }
@@ -398,3 +407,21 @@ export declare function canvasSegments(text: string): string[];
 
 ### build/fonts-inspect.d.ts#canvasWords
 export declare function canvasWords(text: string): string[];
+
+### build/segmentation.d.ts#LineBreak
+interface LineBreak {
+  readonly offset: number;
+  readonly required: boolean;
+}
+
+### build/segmentation.d.ts#graphemes
+export declare function graphemes(text: string): readonly string[];
+
+### build/segmentation.d.ts#lineBreaks
+export declare function lineBreaks(text: string): readonly LineBreak[];
+
+### build/segmentation.d.ts#unicodeVersion
+export declare const unicodeVersion = "17.0.0";
+
+### build/segmentation.d.ts#wordBreaks
+export declare function wordBreaks(text: string): readonly number[];

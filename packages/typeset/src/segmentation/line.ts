@@ -115,7 +115,7 @@ function afterNumber(items: readonly Item[], index: number): boolean {
   return isName(items[i], "NU");
 }
 
-/** This function applies the rules LB4 to LB31 at the start of the item `i`. It gives 0 for no break, 1 for a break and 2 for a required break. */
+/** This function applies the rules LB4 to LB31 at the start of the item `i`. It gives 0 for no break, 1 for a break and 2 for a necessary break. */
 function ruleAt(items: readonly Item[], i: number): 0 | 1 | 2 {
   const a = items[i - 1]!;
   const b = items[i]!;
