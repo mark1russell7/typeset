@@ -130,6 +130,28 @@ export function coverageIndex(table: Reader, glyph: number): number {
   throw new Error(`the Coverage format ${format} is unknown`);
 }
 
+/** This function gives each glyph of a Coverage table with its coverage index, in the order of the table. */
+export function coverageGlyphs(table: Reader): (readonly [glyph: number, index: number])[] {
+  const format = table.u16(0);
+  const count = table.u16(2);
+  const glyphs: (readonly [number, number])[] = [];
+  if (format === 1) {
+    for (let k = 0; k < count; k++) glyphs.push([table.u16(4 + k * 2), k]);
+    return glyphs;
+  }
+  if (format === 2) {
+    for (let k = 0; k < count; k++) {
+      const at = 4 + k * 6;
+      const start = table.u16(at);
+      const end = table.u16(at + 2);
+      const index = table.u16(at + 4);
+      for (let glyph = start; glyph <= end; glyph++) glyphs.push([glyph, index + glyph - start]);
+    }
+    return glyphs;
+  }
+  throw new Error(`the Coverage format ${format} is unknown`);
+}
+
 /** The GDEF glyph classes: 1 base, 2 ligature, 3 mark, 4 component. */
 export function readGlyphClasses(gdef: Reader | undefined): ((glyph: number) => number) {
   if (gdef === undefined) return () => 0;

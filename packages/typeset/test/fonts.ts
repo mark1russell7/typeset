@@ -112,7 +112,11 @@ export function gsub(): Bytes {
   const single2 = new Bytes().u16(2, 8, 1, 6).u16(1, 1, 1);
   // Lookup 4: an Extension to a multiple substitution, a space to two spaces.
   const multiple = new Bytes().u16(1, 2).u32(8).u16(1, 8, 1, 14).u16(1, 1, 5).u16(2, 5, 5);
-  const lookups = [lookup(4, 0x8, ligature), lookup(6, 0, chain), lookup(1, 0, single1), lookup(1, 0, single2), lookup(7, 0, multiple)];
+  return substitutionTable([["calt", 1], ["ccmp", 4], ["liga", 0], ["smcp", 3]], [lookup(4, 0x8, ligature), lookup(6, 0, chain), lookup(1, 0, single1), lookup(1, 0, single2), lookup(7, 0, multiple)]);
+}
+
+/** This function builds a GSUB table for the script latn. Each feature, in the order of its tag, has one lookup. */
+export function substitutionTable(tags: readonly (readonly [string, number])[], lookups: readonly Bytes[]): Bytes {
   const lookupList = new Bytes().u16(lookups.length);
   let at = 2 + lookups.length * 2;
   for (const l of lookups) {
@@ -120,11 +124,10 @@ export function gsub(): Bytes {
     at += l.length;
   }
   for (const l of lookups) lookupList.bytes(l);
-  const tags: [string, number][] = [["calt", 1], ["ccmp", 4], ["liga", 0], ["smcp", 3]];
   const featureList = new Bytes().u16(tags.length);
   tags.forEach(([tag], i) => featureList.tag(tag).u16(2 + tags.length * 6 + i * 6));
   for (const [, index] of tags) featureList.u16(0, 1, index);
-  const scriptList = new Bytes().u16(1).tag("latn").u16(8).u16(4, 0).u16(0, 0xffff, 4, 0, 1, 2, 3);
+  const scriptList = new Bytes().u16(1).tag("latn").u16(8).u16(4, 0).u16(0, 0xffff, tags.length, ...tags.map((_, i) => i));
   const s = 10;
   const f = s + scriptList.length;
   const l = f + featureList.length;
@@ -200,7 +203,11 @@ export function tableSet(variable = false, substitutions = false, outlines: Outl
 
 /** This function builds a TrueType file of the test tables. */
 export function buildTtf(variable = false, substitutions = false, outlines: Outlines = "hvar", map: readonly (readonly [number, number])[] = characters): Uint8Array {
-  const tables = tableSet(variable, substitutions, outlines, map);
+  return assembleTtf(tableSet(variable, substitutions, outlines, map));
+}
+
+/** This function builds a TrueType file of the tables `tables`. */
+export function assembleTtf(tables: readonly (readonly [string, Bytes])[]): Uint8Array {
   const out = new Bytes().u32(0x00010000).u16(tables.length, 0, 0, 0);
   let offset = 12 + tables.length * 16;
   const bodies: Bytes[] = [];

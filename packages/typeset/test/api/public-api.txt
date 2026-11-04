@@ -38,7 +38,7 @@ raggedness: build/chunks/breaking.d.ts#raggedness
 spread: build/chunks/breaking.d.ts#spread
 totalFit: build/chunks/breaking.d.ts#totalFit
 
-## ./fonts (build/fonts.d.ts): 12 names
+## ./fonts (build/fonts.d.ts): 14 names
 
 type Axis: build/chunks/font.d.ts#Axis
 type Decompress: build/chunks/sfnt.d.ts#Decompress
@@ -48,10 +48,12 @@ type Font: build/chunks/font.d.ts#Font
 type Instance: build/chunks/font.d.ts#Instance
 type MeasureOptions: build/chunks/font.d.ts#MeasureOptions
 type ReadOptions: build/chunks/font.d.ts#ReadOptions
+type WidthBound: build/chunks/fonts.d.ts#WidthBound
 engines: build/chunks/engines.d.ts#engines
 isEngineName: build/chunks/engines.d.ts#isEngineName
 measureWidth: build/chunks/font.d.ts#measureWidth
 readFont: build/chunks/font.d.ts#readFont
+widthBound: build/chunks/fonts.d.ts#widthBound
 
 ## ./fonts/inspect (build/fonts-inspect.d.ts): 5 names
 
@@ -211,10 +213,21 @@ declare function readFont(bytes: Uint8Array, options?: ReadOptions): Font;
 ### build/chunks/font.d.ts#shapingWords
 declare function shapingWords(text: string): string[];
 
+### build/chunks/fonts.d.ts#WidthBound
+interface WidthBound {
+  readonly advance: number;
+  readonly kerning: number;
+  readonly glyphs: number;
+  width(length: number, size: number): number;
+}
+
 ### build/chunks/fonts.d.ts#fonts_d_exports
 declare namespace fonts_d_exports {
-  export { Axis, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, engines, isEngineName, measureWidth, readFont };
+  export { Axis, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, WidthBound, engines, isEngineName, measureWidth, readFont, widthBound };
 }
+
+### build/chunks/fonts.d.ts#widthBound
+declare function widthBound(font: Font, characters: string, options?: MeasureOptions): WidthBound;
 
 ### build/chunks/measurer.d.ts#FontAdvanceOptions
 interface FontAdvanceOptions {

@@ -142,17 +142,7 @@ function vowelConstraints(codePoints: readonly number[]): number[] {
  */
 function normalize(codePoints: readonly number[], hasGlyph: (codePoint: number) => boolean): number[] {
   const allSimple = !codePoints.some((codePoint, i) => i > 0 && isMark(codePoint));
-  const decomposed: number[] = [];
-  for (const codePoint of codePoints) {
-    const parts = codePoint === 0x931 ? [codePoint] : [...String.fromCodePoint(codePoint).normalize("NFD")].map((part) => part.codePointAt(0)!);
-    if (parts.length > 1 || parts[0] !== codePoint) {
-      if (parts.every(hasGlyph)) {
-        decomposed.push(...parts);
-        continue;
-      }
-    }
-    decomposed.push(codePoint);
-  }
+  const decomposed = codePoints.flatMap((codePoint) => decomposition(codePoint, hasGlyph));
   if (allSimple) return decomposed;
   // A stable sort of each run of marks with a class that is not 0
   for (let i = 1; i < decomposed.length; i++) {
@@ -178,6 +168,48 @@ function normalize(codePoints: readonly number[], hasGlyph: (codePoint: number) 
     if (combiningClass(codePoint) === 0) starter = out.length - 1;
   }
   return out;
+}
+
+/** This function gives the code points of a character after the decomposition of `normalize`. */
+function decomposition(codePoint: number, hasGlyph: (codePoint: number) => boolean): number[] {
+  const parts = codePoint === 0x931 ? [codePoint] : [...String.fromCodePoint(codePoint).normalize("NFD")].map((part) => part.codePointAt(0)!);
+  return (parts.length > 1 || parts[0] !== codePoint) && parts.every(hasGlyph) ? parts : [codePoint];
+}
+
+/** The code points that `normalize` and `vowelConstraints` can give for a set of characters. */
+export interface IndicForms {
+  /** The parts of each character of the set after the decomposition. A character with no decomposition is its one part. */
+  readonly parts: ReadonlyMap<number, readonly number[]>;
+  /** The composites of each code point: the code points that it becomes when a mark composes with it. */
+  readonly composites: ReadonlyMap<number, readonly number[]>;
+  /** All the code points that the shaper can see: the set, its parts, the dotted circle and each composite. */
+  readonly codePoints: ReadonlySet<number>;
+}
+
+/**
+ * This function gives the code points that the normalization can give for the characters `characters`. A composite is
+ * not always in the set: a nukta that follows U+0928 gives U+0929. The function repeats until no new composite appears.
+ */
+export function indicForms(characters: ReadonlySet<number>, hasGlyph: (codePoint: number) => boolean): IndicForms {
+  const parts = new Map([...characters].map((codePoint) => [codePoint, decomposition(codePoint, hasGlyph)]));
+  const codePoints = new Set([...parts.values()].flat());
+  for (const codePoint of characters) codePoints.add(codePoint);
+  codePoints.add(0x25cc);
+  const composites = new Map<number, number[]>();
+  for (let size = 0; size !== codePoints.size; ) {
+    size = codePoints.size;
+    const marks = [...codePoints].filter(isMark);
+    for (const starter of codePoints) {
+      for (const mark of marks) {
+        const composed = compose(starter, mark);
+        if (composed === undefined || !hasGlyph(composed)) continue;
+        const known = composites.get(starter) ?? [];
+        if (!known.includes(composed)) composites.set(starter, [...known, composed]);
+        codePoints.add(composed);
+      }
+    }
+  }
+  return { parts, composites, codePoints };
 }
 
 /** This function gives the canonical composite of two code points, or `undefined`. A mark does not compose with a mark. */
@@ -288,6 +320,16 @@ const basicFeatures: readonly (readonly [string, boolean])[] = [
 ];
 /** The features of the last stage, after the final reordering. They match only in a syllable. */
 const finalFeatures: readonly string[] = ["init", "pres", "abvs", "blws", "psts", "haln"];
+/** This function gives the features of the page that the last stage applies. */
+function pageFeatures(features: readonly string[]): string[] {
+  return features.filter((tag) => !["ccmp", "locl", "liga"].includes(tag) && !finalFeatures.includes(tag));
+}
+
+/** This function gives all the features that `indicShaper` applies for the features `features` of the page. */
+export function indicFeatures(features: readonly string[]): string[] {
+  return ["locl", "ccmp", ...basicFeatures.map(([tag]) => tag), ...finalFeatures, ...pageFeatures(features)];
+}
+
 /** The mask bit of the global features. Each glyph has it. */
 const GLOBAL = 1;
 /** The mask bits of the features that apply only to some glyphs of a syllable. */
@@ -352,8 +394,7 @@ export function indicShaper(font: Font, script: string, features: readonly strin
   };
   const first = lookupsOf(["locl", "ccmp"]);
   const basic = basicFeatures.map(([tag, global]) => ({ lookups: lookupsOf([tag]), mask: global ? GLOBAL : featureBits.get(tag)! }));
-  const extra = features.filter((tag) => !["ccmp", "locl", "liga"].includes(tag) && !finalFeatures.includes(tag));
-  const last = lookupsOf([...finalFeatures, ...extra]).map((lookup) => ({
+  const last = lookupsOf([...finalFeatures, ...pageFeatures(features)]).map((lookup) => ({
     lookup,
     mask: lookup.features.reduce((mask, tag) => mask | (tag === "init" ? initMask : GLOBAL), 0),
     perSyllable: lookup.features.some((tag) => finalFeatures.includes(tag)),
