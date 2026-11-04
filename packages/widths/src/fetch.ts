@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { extraSource, fileName, fontSources, sourceUrl } from "./sources.ts";
+import { extraSource, sequenceSources, fileName, fontSources, sourceUrl } from "./sources.ts";
 
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -15,7 +15,7 @@ async function main(): Promise<void> {
   const folder = process.argv[2];
   if (folder === undefined) throw new Error("give the folder of the fonts");
   mkdirSync(folder, { recursive: true });
-  for (const source of [...fontSources, extraSource]) {
+  for (const source of [...fontSources, extraSource, ...sequenceSources]) {
     const file = join(folder, fileName(source.id));
     if (existsSync(file) && sha256(readFileSync(file)) === source.sha256) continue;
     const response = await fetch(sourceUrl(source));

@@ -1,10 +1,12 @@
 /**
  * The Indic shaper of HarfBuzz for the script Devanagari. This module follows `hb-ot-shaper-indic.cc`, the syllable machine
  * of `hb-ot-shaper-indic-machine.rl`, the dotted circles of `hb-ot-shaper-syllabic.cc` and `hb-ot-shaper-vowel-constraints.cc`,
- * and the normalization of `hb-ot-shape-normalize.cc`. The table of the categories comes from `hb-ot-shaper-indic-table.cc`.
+ * and the rules of the mode `COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT`. The table of the categories comes from `hb-ot-shaper-indic-table.cc`.
  */
 import type { Font } from "./font.ts";
+import { normalForms, normalizeCodePoints, type NormalForms } from "./normalize.ts";
 import { LIGATED, MULTIPLIED, SUBSTITUTED, type GlyphInfo } from "./substitution.ts";
+import { isHidden } from "./normalize.ts";
 
 /** The OpenType script tags that use the Indic shaper in this model. */
 export const indicScripts: readonly string[] = ["deva"];
@@ -85,28 +87,8 @@ function indicProperties(codePoint: number): [number, number] {
   return [X, END];
 }
 
-/**
- * The canonical combining classes of the marks of the Devanagari blocks that are not 0. The normalization uses them to
- * sort the marks and to block a composition. A mark of another block has the class 0 in this model.
- */
-const combiningClasses: readonly number[] = [
-  0x93c, 0x93c, 7, 0x94d, 0x94d, 9, 0x951, 0x951, 230, 0x952, 0x952, 220, 0x953, 0x954, 230, 0x1cd0, 0x1cd2, 230,
-  0x1cd4, 0x1cd4, 1, 0x1cd5, 0x1cd9, 220, 0x1cda, 0x1cdb, 230, 0x1cdc, 0x1cdf, 220, 0x1ce0, 0x1ce0, 230, 0x1ce2, 0x1ce8, 1,
-  0x1ced, 0x1ced, 220, 0x1cf4, 0x1cf4, 230, 0x1cf8, 0x1cf9, 230, 0xa8e0, 0xa8f1, 230,
-];
-
-function combiningClass(codePoint: number): number {
-  for (let i = 0; i < combiningClasses.length; i += 3) if (codePoint >= combiningClasses[i]! && codePoint <= combiningClasses[i + 1]!) return combiningClasses[i + 2]!;
-  return 0;
-}
-
-const unicodeMark = /\p{M}/u;
 /** The general categories from `FORMAT` to `NON_SPACING_MARK` of HarfBuzz: a letter, a mark, or a format or other code point. */
 const letterOrMark = /[\p{L}\p{M}\p{Cf}\p{Cn}\p{Co}\p{Cs}]/u;
-
-function isMark(codePoint: number): boolean {
-  return unicodeMark.test(String.fromCodePoint(codePoint));
-}
 
 /**
  * This function inserts a dotted circle in each vowel sequence of Devanagari that looks like another vowel, as
@@ -134,90 +116,12 @@ function vowelConstraints(codePoints: readonly number[]): number[] {
   return out;
 }
 
-/**
- * This function normalizes the code points as HarfBuzz does in the mode `COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT`. It
- * decomposes each character that has a canonical decomposition when the font has the glyphs of its parts. The letter
- * U+0931 does not decompose. A text with a mark after its first character then gets more steps. The function sorts the
- * marks, and composes each mark with its starter again when the font has the glyph of the composite.
- */
-function normalize(codePoints: readonly number[], hasGlyph: (codePoint: number) => boolean): number[] {
-  const allSimple = !codePoints.some((codePoint, i) => i > 0 && isMark(codePoint));
-  const decomposed = codePoints.flatMap((codePoint) => decomposition(codePoint, hasGlyph));
-  if (allSimple) return decomposed;
-  // A stable sort of each run of marks with a class that is not 0
-  for (let i = 1; i < decomposed.length; i++) {
-    for (let j = i; j > 0; j--) {
-      const before = combiningClass(decomposed[j - 1]!);
-      const after = combiningClass(decomposed[j]!);
-      if (after === 0 || before <= after) break;
-      [decomposed[j - 1], decomposed[j]] = [decomposed[j]!, decomposed[j - 1]!];
-    }
-  }
-  const out: number[] = decomposed.slice(0, 1);
-  let starter = 0;
-  for (let i = 1; i < decomposed.length; i++) {
-    const codePoint = decomposed[i]!;
-    if (isMark(codePoint) && (starter === out.length - 1 || combiningClass(out[out.length - 1]!) < combiningClass(codePoint))) {
-      const composed = compose(out[starter]!, codePoint);
-      if (composed !== undefined && hasGlyph(composed)) {
-        out[starter] = composed;
-        continue;
-      }
-    }
-    out.push(codePoint);
-    if (combiningClass(codePoint) === 0) starter = out.length - 1;
-  }
-  return out;
-}
+/** The code points of Devanagari that do not decompose. */
+const kept: ReadonlySet<number> = new Set([0x931]);
 
-/** This function gives the code points of a character after the decomposition of `normalize`. */
-function decomposition(codePoint: number, hasGlyph: (codePoint: number) => boolean): number[] {
-  const parts = codePoint === 0x931 ? [codePoint] : [...String.fromCodePoint(codePoint).normalize("NFD")].map((part) => part.codePointAt(0)!);
-  return (parts.length > 1 || parts[0] !== codePoint) && parts.every(hasGlyph) ? parts : [codePoint];
-}
-
-/** The code points that `normalize` and `vowelConstraints` can give for a set of characters. */
-export interface IndicForms {
-  /** The parts of each character of the set after the decomposition. A character with no decomposition is its one part. */
-  readonly parts: ReadonlyMap<number, readonly number[]>;
-  /** The composites of each code point: the code points that it becomes when a mark composes with it. */
-  readonly composites: ReadonlyMap<number, readonly number[]>;
-  /** All the code points that the shaper can see: the set, its parts, the dotted circle and each composite. */
-  readonly codePoints: ReadonlySet<number>;
-}
-
-/**
- * This function gives the code points that the normalization can give for the characters `characters`. A composite is
- * not always in the set: a nukta that follows U+0928 gives U+0929. The function repeats until no new composite appears.
- */
-export function indicForms(characters: ReadonlySet<number>, hasGlyph: (codePoint: number) => boolean): IndicForms {
-  const parts = new Map([...characters].map((codePoint) => [codePoint, decomposition(codePoint, hasGlyph)]));
-  const codePoints = new Set([...parts.values()].flat());
-  for (const codePoint of characters) codePoints.add(codePoint);
-  codePoints.add(0x25cc);
-  const composites = new Map<number, number[]>();
-  for (let size = 0; size !== codePoints.size; ) {
-    size = codePoints.size;
-    const marks = [...codePoints].filter(isMark);
-    for (const starter of codePoints) {
-      for (const mark of marks) {
-        const composed = compose(starter, mark);
-        if (composed === undefined || !hasGlyph(composed)) continue;
-        const known = composites.get(starter) ?? [];
-        if (!known.includes(composed)) composites.set(starter, [...known, composed]);
-        codePoints.add(composed);
-      }
-    }
-  }
-  return { parts, composites, codePoints };
-}
-
-/** This function gives the canonical composite of two code points, or `undefined`. A mark does not compose with a mark. */
-function compose(first: number, second: number): number | undefined {
-  if (isMark(first)) return undefined;
-  const composed = [(String.fromCodePoint(first) + String.fromCodePoint(second)).normalize("NFC")];
-  const [single, ...rest] = [...composed[0]!];
-  return rest.length === 0 && single !== undefined ? single.codePointAt(0) : undefined;
+/** This function gives the code points that `normalizeCodePoints` and `vowelConstraints` can give for a set of characters. */
+export function indicForms(characters: ReadonlySet<number>, hasGlyph: (codePoint: number) => boolean): NormalForms {
+  return normalForms(new Set([...characters, 0x25cc]), hasGlyph, kept);
 }
 
 // The syllable machine, with one letter for each category
@@ -596,7 +500,7 @@ export function indicShaper(font: Font, script: string, features: readonly strin
   };
 
   return (word: string): number[] => {
-    const codePoints = normalize(vowelConstraints([...word].map((character) => character.codePointAt(0)!)), (codePoint) => font.glyph(codePoint) !== 0);
+    const codePoints = normalizeCodePoints(vowelConstraints([...word].map((character) => character.codePointAt(0)!)), { hasGlyph: (codePoint) => font.glyph(codePoint) !== 0, shortCircuit: false, kept });
     const run: Run = { glyphs: codePoints.map((codePoint) => font.glyph(codePoint)), infos: [] };
     for (const codePoint of codePoints) {
       const [category, position] = indicProperties(codePoint);
@@ -621,6 +525,6 @@ export function indicShaper(font: Font, script: string, features: readonly strin
     for (const { lookups, mask } of basic) for (const lookup of lookups) lookup.applyInfos(run.glyphs, run.infos, mask, true);
     for (const [start, end] of syllables(run.infos)) finalReordering(run, start, end);
     for (const { lookup, mask, perSyllable } of last) lookup.applyInfos(run.glyphs, run.infos, mask, perSyllable);
-    return run.glyphs;
+    return run.glyphs.map((glyph, i) => ((run.infos[i]!.props & SUBSTITUTED) === 0 && isHidden(run.infos[i]!.codePoint) ? ~glyph : glyph));
   };
 }

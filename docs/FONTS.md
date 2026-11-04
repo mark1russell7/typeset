@@ -75,7 +75,7 @@ The fonts run 41562917143 on the head 65f5225 of typeset#36 measured the model o
 - The numbers are for the 9 scripts Latin, Greek, Cyrillic, Arabic, Hebrew, Thai, Han, kana and Hangul, and for Source Sans 3 at 400 and 700.
 - Before this change, the worst page on macOS and Windows was 0.10 to 3.01 px.
 - The two Linux arms give the same summaries as the run 41556398022.
-- The pages of Latin Extended (5.2 px) and Devanagari have other causes. They stay open.
+- The pages of Latin Extended (5.2 px) and Devanagari had other causes. T1e and T1d found them.
 
 ## The limit of the width
 
@@ -313,6 +313,27 @@ The fonts run 41553727572 on the head of typeset#34 confirms the diagnosis on th
 - HarfBuzz skips a ZWJ or a ZWNJ in some lookups. The model does not skip them. The corpus has no joiners.
 - `indicSyllables` gives the syllables of a text. The tests use it with no font.
 
+
+## The normalization (T1e)
+
+HarfBuzz normalizes each text before GSUB. The model did this only in the Indic shaper. This caused the error of the Latin Extended pages, at most 5.2 px.
+
+The steps come from `hb-ot-shape-normalize.cc`. `normalizeCodePoints` of `fonts/normalize.ts` applies them:
+
+1. A character with a glyph and with no mark near it keeps its form. Each other character decomposes when the font has its parts.
+2. The marks after a base go in the order of their combining classes. The shadda of Arabic and the points of Hebrew use the classes of HarfBuzz, not the canonical classes.
+3. Each mark composes with its starter when the font has the glyph of the composite. A mark between them with the same class or a larger class blocks this.
+
+An example: the text `u` and U+031B has two glyphs before this step. The font has a glyph for U+01B0, and that glyph is wider than the sum of the two glyphs.
+
+- The script Hangul does not get this step. HarfBuzz uses the mode `NONE` for it.
+- The form NFD of JavaScript gives the canonical order, so the module has a table only for Hebrew and Arabic.
+- `widthBound` counts each part and each composite of the normalization, so it stays sound.
+
+One difference from HarfBuzz stays, and it does not change a width:
+
+- HarfBuzz moves some Arabic marks to the start of a mark run after the sort. The model keeps them in the sorted order. The glyphs are the same, in another order.
+
 ## The result of the Indic shaper
 
 The diagnosis of T1d measures each Devanagari record of the fonts run 41568949837 again, with the model of the engine of each arm. The table gives the records within 0.01 px.
@@ -327,7 +348,7 @@ The diagnosis of T1d measures each Devanagari record of the fonts run 4156894983
 
 - The glyphs of the model are the same as the glyphs of HarfBuzz for each of the 24442 canvas words of the Devanagari corpus.
 - Without the shaper, the `dist` kerning does not change the fractions. With the shaper, the pages need it.
-- The other scripts and Source Sans 3 have no regression on the four arms. The pages of Latin Extended keep their error of 5 px.
+- The other scripts and Source Sans 3 have no regression on the four arms. All 720 pages of Latin Extended are now within 0.01 px on the four arms. The worst error is 0 px.
 
 ## Error bounds against HarfBuzz (T4)
 
@@ -378,8 +399,8 @@ The file `harfbuzz-bounds.json` (schema `typeset-harfbuzz-bounds/1`) has these f
 - Each statistic has a 95 % percentile bootstrap interval of `rigor-statistics`, with 2000 runs. A seed of `rigor-generators` comes from the name of the cell.
 - `glyphMatch`: for the tier `model`, the share of the canvas words that have the glyphs of HarfBuzz, for each script and each font. Each share has its Wilson interval.
 - `checks`: the results of the reference check, of the scaling check, of `engineRowsEqual`, of `ruleReplica`, of `roundingSameForEachTier` and of `readSum`. The check `readSum` gives the largest difference of the model error plus the read effect and the total error. HarfBuzz has no tiers, so the rounding effect of a cell does not change with its tier.
-- `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f decides the rule.
-- `knownOpen`: the scripts with an open error. Latin Extended is open (T1e). No test gates on it.
+- `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f gives the decision on the one rule.
+- `knownOpen`: the scripts with an open error. No script is open now. No test gates on it.
 
 ### The precision of the reference
 
@@ -413,17 +434,19 @@ The committed record is `packages/widths/data/harfbuzz-bounds.json`, with one li
 | hebrew | 1984.0 [1408.0, 1984.0] (noto-sans-hebrew 400, 96 px, freetype) | -0.1 [-0.1, 0.0] (noto-sans-hebrew 400, 48 px, coretext) | -0.1 [-0.1, 0.0] (noto-sans-hebrew 400, 48 px, coretext) | -933.6 [-933.6, -527.6] (noto-sans-hebrew 400, 24 px, freetype) | -50.0 [-50.0, -42.2] (noto-sans-hebrew 400, 96 px, coretext) |
 | kana | 832.0 [448.0, 832.0] (noto-sans-jp 400, 96 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 8 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 8 px, coretext) | 2489.9 [2400.0, 2489.9] (noto-sans-jp 400, 13.5 px, freetype) | 31.6 [15.8, 31.6] (noto-sans-jp 400, 96 px, coretext) |
 | latin | 1728.0 [1408.0, 1728.0] (source-sans-3 700, 96 px, freetype) | 344.0 [184.3, 344.0] (noto-serif 400, 96 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 96 px, coretext) | -2022.4 [-2022.4, -1996.8] (noto-sans-mono 400, 14 px, freetype) | 40.6 [20.0, 40.6] (source-sans-3 700, 96 px, coretext) |
-| latin-extended (open: T1e) | 1216.0 [640.0, 1216.0] (noto-serif 400, 96 px, freetype) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -2022.4 [-2022.4, -1920.0] (noto-sans-mono 400, 14 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 8 px, freetype) |
+| latin-extended | 1216.0 [640.0, 1216.0] (noto-serif 400, 96 px, freetype) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -2022.4 [-2022.4, -1920.0] (noto-sans-mono 400, 14 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 8 px, freetype) |
 | thai | 256.0 [128.0, 256.0] (noto-sans-thai 400, 96 px, freetype) | 256.0 [128.0, 256.0] (noto-sans-thai 400, 96 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 96 px, coretext) | -754.7 [-754.7, -563.7] (noto-sans-thai 400, 72 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 8 px, freetype) |
 
-The source is the record of the CI run 41731795116.
+The source is the record of the CI run 41766190315.
 <!-- bounds-table:end -->
 
-The Fonts run 41731795116 gave this record, with HarfBuzz 15.0.0:
+The Fonts run 41766190315 gave this record, with HarfBuzz 15.0.0:
 
 - The worst model error of the tier `model` is 0.13 in 1/64 px for each script except Devanagari.
-- The worst error of Devanagari comes from one word. The two references disagree on that word, and T1f decides it.
-- The glyph ids agree on 783 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. T1e examines Latin Extended.
+- The worst error of Devanagari comes from one word. The two references disagree on that word. The model is correct, and the next section tells why.
+- The glyph ids agree on 795 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. The run 41731795116 gave 783 of 795 before T1e.
+- In 198 of the 2277 cells, each line sample has a missing glyph. These are all the cells of emoji, and the cells of Han in Noto Sans JP.
+- HarfBuzz and the model both use the glyph 0 for a missing glyph. So a zero error in those cells tells less than in other cells.
 - The largest precision error of the reference stays in its bound in all 2277 cells.
 - The read effect has no external reference until T4b.
 
@@ -457,3 +480,109 @@ The record gives the check for each arm in the field `readCheckOfArm`.
 
 <!-- engine-table:start -->
 <!-- engine-table:end -->
+
+## The dotted circle after an independent vowel (T1f)
+
+T1f examined U+0906 U+0948, the one word on which the model and Chrome disagree with HarfBuzz of the T4 record.
+
+**The decision: the dotted circle is correct, and the model does not change.** The difference comes from the build of harfbuzzjs, and not from a version of HarfBuzz.
+
+- **The rule exists.** `hb-ot-shaper-vowel-constraints.cc` of HarfBuzz 15.0.0 lists 21 Devanagari pairs, and U+0906 U+0948 is one of them. The commit that Chromium uses has the same entry.
+- **harfbuzzjs does not run the rule.** Its `Makefile` sets `HB_TINY`. In `hb-config.hh`, that option sets `HB_MINI`, `HB_NO_LEGACY`, `HB_NO_OT_SHAPE_FALLBACK` and `HB_NO_OT_SHAPER_VOWEL_CONSTRAINTS`. `config-override.h` of harfbuzzjs 1.6.4 does not change them.
+- **A local run agrees.** harfbuzzjs 1.6.4 puts no dotted circle on any of the 21 pairs. It puts one before a lone vowel sign, because that step of the Indic shaper is separate.
+- **Chromium has the rule.** Chromium 156.0.8078.4 pins HarfBuzz at `f5efbbef`, 334 commits before 15.0.0. Its `BUILD.gn` does not set these options. Blink uses the shaper `ot`, because the flag `HarfRustShaping` has the status `test`.
+
+Nobody ran a full build of HarfBuzz 15.0.0 for this work. The evidence for the full build is its source text and the result of Chrome.
+
+`HB_TINY` also removes other rules. They do not change a width of the T4 record:
+
+- The `kern` table and the AAT tables: none of the 12 fonts has them.
+- The Hebrew fallback: it needs a font with no GPOS `mark`, and Noto Sans Hebrew has `mark`.
+- The Thai fallback: it needs a font with no GSUB script `thai`, and Noto Sans Thai has it.
+- The Arabic fallback: it needs a font with no joining forms, and Noto Sans Arabic has them.
+- The fallback mark positions: they run only for a font with no GPOS, and they set the advance of a mark to 0. Noto Emoji is the one font with no GPOS. The 160 emoji samples of the corpus have no marks, so T4 does not examine this case.
+
+The Devanagari row of the T4 table keeps this one word, so its worst error is a limit of the reference. A test in `indic.test.ts` pins the glyphs of the pair.
+
+## The shaper fallback (T6)
+
+The fast path does not shape all text. T6 detects text that the model cannot measure with trust, and it gives that text to a shaper of the host.
+
+`packages/typeset` has no wasm and no new dependency for this work. The host supplies the shaper.
+
+### Two corrections of the model
+
+- A default ignorable takes no advance, and the kerning skips it. The set comes from `hb-unicode.hh`. It is not the Unicode property.
+- A substitution that changes the glyph of a default ignorable keeps the glyph visible, as in HarfBuzz.
+- A nonspacing mark takes no advance when the font has no GDEF glyph classes. This is the rule of the synthetic classes of HarfBuzz.
+- A mark with a combining class after a base takes no advance when the font has no GPOS. This is the rule of the fallback mark position.
+- Each rule uses the shaper of the script. The tables `noMarkZero` and `noFallbackPosition` in `font.ts` list the exceptions.
+
+Noto Emoji is the one font of the 12 with no GPOS. Its script is `Zyyy`, so HarfBuzz uses the default shaper, and the fallback mark position is on.
+
+The cmap of Noto Emoji has only three marks. U+FE0E and U+FE0F take no advance. U+20E3 has the class 0, so it keeps its advance of 2600. A mark that is not in the font takes no advance in both shapers.
+
+A probe compared the model with HarfBuzz on fonts with their GPOS or GDEF removed. These are the results:
+
+- 115 of 135 rows are equal under the default flags of the probe.
+- Each of the 20 other rows starts with a mark. `HB_BUFFER_FLAG_BOT` makes HarfBuzz insert U+25CC there, and the model does not.
+- With no flags, HarfBuzz and the model are equal on 615 of 615 rows.
+- The Blink flags for U+25CC are not verified.
+
+### What stays different from HarfBuzz
+
+- The input of a GSUB rule does not skip a joiner. So a ligature across U+200D does not form in the model. The backtrack and the lookahead skip each joiner, except in the Indic shaper.
+- The Indic path has no mark rule. A mark at the start of a word in the shaping `dom` has no base.
+- The shaper of HarfBuzz for a script with no fallback position does not apply the `kern` table. The model applies it.
+- HarfBuzz keeps the advance of a GDEF mark under the Hangul shaper. `Font.advance` gives 0.
+
+### Shaping risks
+
+The function `shapingRisks(font, text, options)` gives a list of `ShapingRisk`. Each risk has a code, an offset and a length in UTF-16 units.
+
+| Code | Meaning |
+| --- | --- |
+| `missing-glyph` | The font has no glyph for a cluster after normalization. |
+| `unshaped-script` | The model has no shaper for the script. |
+| `emoji-zwj` | A pictograph sequence has U+200D. |
+| `variation-selector` | A selector is present. The model does not read cmap format 14. |
+| `keycap` | A digit, `#` or `*` comes before U+20E3. |
+| `flag` | Two regional indicators are adjacent. |
+| `tag` | A pictograph has a tag sequence. |
+| `positioning` | A `kern` or `dist` lookup outside PairPos changes the width of a word. |
+
+The list of scripts is Bengali, Gurmukhi, Gujarati, Oriya, Tamil, Telugu, Kannada, Malayalam, Sinhala, Khmer, Myanmar, Tibetan, Mongolian, NKo and Mandaic. The list does not have other scripts of the Universal Shaping Engine, for example Balinese and Javanese.
+
+An empty list is not a proof of a correct width.
+
+The code `positioning` fires on no local font. In the six local fonts, one such lookup changes an advance, and it changes the advance of a mark. HarfBuzz zeroes that mark after GPOS, so the width stays the same. Only synthetic fixtures show this code.
+
+### The fallback of `fontAdvance`
+
+The option `fallback` of `fontAdvance` is a function with the form of `AdvanceFn`. Under the shaping `canvas`, it measures each word that `shapingRisks` flags.
+
+- The model measures each other word. A flagged word goes whole to the fallback.
+- A dispatch for each word keeps the separator law of the rope. A dispatch for each run breaks it.
+- The shaping `dom` does not use the fallback. There, one word changes the shape of its neighbors.
+- In a mixed text, the script tag of a word comes from the word alone. So one face measures `Hello नमस्ते` with `latn` and `deva`.
+- A text of one script keeps one measurement and one tag when it has no risk.
+
+### What is measured
+
+- The file `packages/widths/src/sequences.ts` has the sequence list: joiners, variation selectors, keycaps, flags, tags, bidi controls, U+034F next to a kerning pair, and words of Bengali, Khmer and Mongolian.
+- The first run against HarfBuzz found 5 words with no risk and a wrong width, all in Noto Sans Arabic. U+2066 to U+2069 did not break a join, and a joiner stopped the context of a GSUB rule. The model now does what HarfBuzz does.
+
+- Six of the 12 fonts are the local record: Noto Emoji, Noto Sans, Noto Sans Arabic, Noto Sans Devanagari, Noto Sans Hebrew and Source Sans 3.
+- The model now hides U+034F, as HarfBuzz does. On 5040 corpus values, 8 values changed. Each is in Source Sans 3 and moves toward HarfBuzz. The largest change is 0.415 px at 12 px.
+- In 1440 runs of 480 samples, no risk other than `missing-glyph` fired.
+- `missing-glyph` fires on real samples. It flagged 94 runs of emoji in Noto Emoji, and 64 runs of `latin-extended` in Source Sans 3.
+- So those samples go to the fallback when the host supplies one. A stub fallback got no call on samples with no risk.
+- With a fallback, 200 edit sequences on mixed text stay within 1e-6 px of the flat width under the rules that `text.test.ts` covers. These rules have no `float32` sum.
+
+### What is not measured
+
+- The six other fonts are not examined. So Thai, Han, kana and Hangul have no false alarm record.
+- A rope with the `float32` sum of `coretext` and `directwrite` goes above 1e-6 px. The worst value is 1.53e-4 px on mixed text.
+- That drift is not from T6. A plain `measureWidth` of Latin text drifts to 2.29e-4 px with no fallback.
+- There is no record of a real shaper as the fallback. The tests use a stub.
+- The accuracy of a host shaper against Chrome is not measured. A later part of T6 gives that record.

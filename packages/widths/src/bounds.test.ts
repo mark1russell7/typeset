@@ -80,7 +80,7 @@ const checks: Record<string, unknown> = {};
 
 /**
  * Each rule names a cluster on which two references disagree. The model matched Chrome on it (T1d), and HarfBuzz of the
- * record gives other glyphs. The rule of the specification decides it in a separate item. Until then, no reference is the truth.
+ * record gives other glyphs. T1f decided the rule below: Chrome is correct, and the build of harfbuzzjs leaves out the rule.
  */
 const disagreementRules = [
   {
@@ -88,8 +88,8 @@ const disagreementRules = [
     script: "devanagari",
     cluster: "आै",
     model: "a dotted circle before the vowel sign",
-    chrome: "Chromium 156.0.8078.4 gives the glyphs of the model (T1d, docs/FONTS.md). Its HarfBuzz version is not known yet.",
-    harfbuzz: "no dotted circle",
+    chrome: "Chromium 156.0.8078.4 gives the glyphs of the model (T1d, docs/FONTS.md). It uses HarfBuzz f5efbbef, a full build of the rule.",
+    harfbuzz: "no dotted circle: HB_TINY of harfbuzzjs sets HB_NO_OT_SHAPER_VOWEL_CONSTRAINTS (T1f)",
   },
 ];
 /** The largest difference between ruledWidth on the advances of the model and measureWidth, for each engine row, in 1/64 px. */
@@ -398,7 +398,7 @@ describe("the table of the record", () => {
     const table = boundsTable([cell("latin", "advances", 16, "freetype", 3), cell("latin", "advances", 96, "coretext", -40.04), cell("latin", "model", 8, "freetype", 0)]);
     expect(table.split("\n")[0]).toBe("| Script | Model error, `advances` | Model error, `kerned` | Model error, `model` | Rounding effect | Read effect |");
     expect(table).toContain("| latin | -40.0 [-41.0, -39.0] (f 400, 96 px, coretext) | no data | 0.0 [-1.0, 1.0] (f 400, 8 px, freetype) | -20.0 [-20.0, -20.0] (f 400, 96 px, coretext) | 5.0 [0.0, 5.0] (f 400, 96 px, coretext) |");
-    expect(boundsTable([cell("latin-extended", "model", 8, "freetype", 1)])).toContain("| latin-extended (open: T1e) |");
+    expect(boundsTable([cell("latin-extended", "model", 8, "freetype", 1)])).toContain("| latin-extended |");
   });
 
   it("puts the table between the marks, and refuses a document with no marks", () => {

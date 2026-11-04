@@ -6,7 +6,12 @@
  */
 import { engines, isEngineName, type EngineName, type EngineRules } from "../fonts/engines.ts";
 import { measureWidth, readFont, type Font } from "../fonts/font.ts";
+import { shapingRisks } from "../fonts/risks.ts";
 import type { Decompress } from "../fonts/sfnt.ts";
+import { canvasWords } from "../fonts/words.ts";
+
+/** This function gives the width of a text in a CSS font, as `AdvanceFn` of layout-contract does. */
+export type AdvanceFn = (text: string, font: string) => number;
 
 /** One font file of the host, with the family, the weight and the style that CSS matches. */
 export interface FontFace {
@@ -36,6 +41,8 @@ export interface FontAdvanceOptions {
    * with `measureText`. Use `dom` for the widths of a text in a page.
    */
   readonly shaping?: "dom" | "canvas";
+  /** The shaper of the host. Under the shaping `canvas`, it measures each word that `shapingRisks` flags. The shaping `dom` does not use it. */
+  readonly fallback?: AdvanceFn;
 }
 
 /** The parts of a CSS font shorthand that change a width. */
@@ -150,6 +157,27 @@ const scriptPatterns: readonly (readonly [RegExp, string])[] = [
 
 const neutral = /[\p{sc=Common}\p{sc=Inherited}\p{sc=Unknown}]/u;
 
+/** This function divides a text into parts of one script. A neutral character stays with the part before it. */
+export function scriptRuns(text: string): string[] {
+  if (/^[\0-\x7f]*$/.test(text)) return [text];
+  const runs: string[] = [];
+  let run = "";
+  let current: string | undefined;
+  for (const character of text) {
+    if (!neutral.test(character)) {
+      const tag = scriptTag(character).replace(/kana|bopo/, "hani");
+      if (current !== undefined && tag !== current) {
+        runs.push(run);
+        run = "";
+      }
+      current = tag;
+    }
+    run += character;
+  }
+  runs.push(run);
+  return runs;
+}
+
 /**
  * This function gives the OpenType script tag of a text, as HarfBuzz guesses it. The tag is the script of the first
  * character that is not of the scripts Common, Inherited or Unknown. A text of only those characters, for example emoji, gets `DFLT`.
@@ -210,6 +238,7 @@ export function fontAdvance(options: FontAdvanceOptions): (text: string, font: s
   if (typeof engine === "string" && !isEngineName(engine)) throw new RangeError(`the engine "${engine}" is not a row of engines`);
   const rules: EngineRules = typeof engine === "string" ? engines[engine] : engine;
   const shaping = options.shaping ?? "canvas";
+  const fallback = shaping === "canvas" ? options.fallback : undefined;
   const faces = options.faces;
   const loaded = new Map<number, Loaded>();
   const specs = new Map<string, FontSpec>();
@@ -283,7 +312,19 @@ export function fontAdvance(options: FontAdvanceOptions): (text: string, font: s
 
   return (text: string, font: string): number => {
     const { spec, fonts } = fontsOf(font);
-    const measure = (run: string, face: Font): number => measureWidth(face, run, spec.size, { script: scriptTag(run), shaping, rounding: rules.rounding, sum: rules.sum });
+    const sum = (parts: readonly string[], width: (part: string) => number): number => parts.reduce((total, part) => total + width(part), 0);
+    const measure = (run: string, face: Font): number => {
+      const runs = scriptRuns(run);
+      const tagged = (part: string): number => measureWidth(face, part, spec.size, { script: scriptTag(part), shaping, rounding: rules.rounding, sum: rules.sum });
+      const risky = (part: string): boolean => fallback !== undefined && shapingRisks(face, part, { script: scriptTag(part), shaping }).length > 0;
+      if (runs.length === 1 && !risky(run)) return tagged(run);
+      if (shaping !== "canvas") return sum(runs, tagged);
+      // The width of a word comes from the word alone. This keeps the separator law of the rope
+      return sum(canvasWords(run), (word) => {
+        const parts = scriptRuns(word);
+        return parts.some(risky) ? fallback!(word, font) : sum(parts, tagged);
+      });
+    };
     if (fonts.length === 1) return measure(text, fonts[0]!);
     let width = 0;
     let run = "";
