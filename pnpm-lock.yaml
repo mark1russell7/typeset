@@ -173,11 +173,11 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0(@swc/core@1.16.20)(dependency-cruiser@18.7.0)
       '@mark1russell7/conventions':
-        specifier: ^0.22.0
-        version: 0.22.0
+        specifier: ^0.24.1
+        version: 0.24.1
       '@mark1russell7/cue':
-        specifier: ^1.0.2
-        version: 1.1.0
+        specifier: ^2.0.0
+        version: 2.0.0
       '@mark1russell7/ste-lint':
         specifier: ^0.1.1
         version: 0.1.2
@@ -216,8 +216,8 @@ importers:
         version: link:../corpus
     devDependencies:
       '@mark1russell7/cue':
-        specifier: ^1.0.2
-        version: 1.1.0
+        specifier: ^2.0.0
+        version: 2.0.0
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
@@ -235,8 +235,8 @@ importers:
         version: 0.1.1
     devDependencies:
       '@mark1russell7/cue':
-        specifier: ^1.0.2
-        version: 1.1.0
+        specifier: ^2.0.0
+        version: 2.0.0
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
@@ -260,8 +260,8 @@ importers:
         version: link:../widths
     devDependencies:
       '@mark1russell7/cue':
-        specifier: ^1.0.2
-        version: 1.1.0
+        specifier: ^2.0.0
+        version: 2.0.0
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
@@ -282,11 +282,11 @@ importers:
         version: 0.1.1
     devDependencies:
       '@mark1russell7/cue':
-        specifier: ^1.0.2
-        version: 1.1.0
+        specifier: ^2.0.0
+        version: 2.0.0
       '@mark1russell7/layout-contract':
         specifier: ^0.3.2
-        version: 0.3.2
+        version: 0.3.3
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
@@ -322,11 +322,11 @@ importers:
         version: 1.64.1
     devDependencies:
       '@mark1russell7/cue':
-        specifier: ^1.0.2
-        version: 1.1.0
+        specifier: ^2.0.0
+        version: 2.0.0
       '@mark1russell7/layout-contract':
         specifier: ^0.3.2
-        version: 0.3.2
+        version: 0.3.3
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
@@ -533,23 +533,19 @@ packages:
       dependency-cruiser:
         optional: true
 
-  '@mark1russell7/conventions@0.22.0':
-    resolution: {integrity: sha512-MtNaOnUyG9trSTY0S9In5+JtGwNpYHRGYxvDgncGtn50VBE75fJ7aSFNOxZDcDY4F0+AoG2pOJbnQd+bSSX13Q==}
+  '@mark1russell7/conventions@0.24.1':
+    resolution: {integrity: sha512-4FATOd/MOOMHFBZtrRP+ZFeEUHwgannQD9FjWH81wVT6TbMJVNbFNH/uXSb3cP+0f+jM/xV9tT6jZ4ZOPfrMEg==}
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/cue@1.1.0':
-    resolution: {integrity: sha512-R9pjuWNFqd/LSfOI8uY7w8E2Dri8UQFGLodBuV4d2E0pwzWM5ISVXWVhC7+aYgrR1GXSMzbyo5ZLWvqyQCwdIg==}
+  '@mark1russell7/cue@2.0.0':
+    resolution: {integrity: sha512-ILRKnaE/Ooe+saWXiQ8BaRTncHIDq7/1xyGEAZs4JzF0gkZ7FNv9e6OKIBERAmprKbb598SEV5gCDgdibYWOqw==}
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/layout-contract@0.3.2':
-    resolution: {integrity: sha512-1IT3x6PD8j8Tkn2CWe5ZvC69Uc6tisjBDd171s9ww6+xdxwTG+n8eh2kbrNxmxGTeL7L4OK0f8IWUaOJ152sPQ==}
+  '@mark1russell7/layout-contract@0.3.3':
+    resolution: {integrity: sha512-8eWFSLMnXIKfqu5572BulrxM0dUFgc1u8tKEEnZRJACN8KsxB1mbwZ9IoFpK5YiengNkEZshXSZAG7DM600j4w==}
     engines: {node: '>=22.12'}
-
-  '@mark1russell7/rigor-generators@0.1.0':
-    resolution: {integrity: sha512-xhXvLzZQlDH6ysAbqEjbha6fs1GbvO9RflSXwYbA3QMryxu4zEikbxahEDQCIxVSis+2pfX/18PHU3+X+jJmPw==}
-    engines: {node: '>=22'}
 
   '@mark1russell7/rigor-generators@0.1.1':
     resolution: {integrity: sha512-N5o3II0AClHgsWCWtzuBzckQdReydJnLUS8Kdt9hWXVpTzb0dxucrN1bWdDN+75YompOR1rAmsIX8zuHqoQdqA==}
@@ -1691,16 +1687,14 @@ snapshots:
       '@swc/core': 1.16.20
       dependency-cruiser: 18.7.0
 
-  '@mark1russell7/conventions@0.22.0': {}
+  '@mark1russell7/conventions@0.24.1': {}
 
-  '@mark1russell7/cue@1.1.0': {}
+  '@mark1russell7/cue@2.0.0': {}
 
-  '@mark1russell7/layout-contract@0.3.2':
+  '@mark1russell7/layout-contract@0.3.3':
     dependencies:
-      '@mark1russell7/rigor-generators': 0.1.0
+      '@mark1russell7/rigor-generators': 0.1.1
       '@mark1russell7/typeset': 0.1.0
-
-  '@mark1russell7/rigor-generators@0.1.0': {}
 
   '@mark1russell7/rigor-generators@0.1.1': {}
 

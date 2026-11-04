@@ -47,7 +47,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.match == 'true'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -107,6 +107,16 @@ jobs:
           name: harfbuzz-bounds
           path: harfbuzz-bounds.json
           if-no-files-found: error
+      - name: Test the width limit with the real fonts
+        run: pnpm --filter @typeset/widths exec vitest run src/bound.test.ts
+        env:
+          TYPESET_FONTS: ${{ runner.temp }}/fonts
+          TYPESET_BOUND_RECORD: ${{ runner.temp }}/width-bound/width-bound-${{ matrix.arm }}.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: width-bound-${{ matrix.arm }}
+          path: ${{ runner.temp }}/width-bound
       - name: Make the WOFF2 files
         if: matrix.woff2
         run: |

@@ -77,6 +77,30 @@ The fonts run 41562917143 on the head 65f5225 of typeset#36 measured the model o
 - The two Linux arms give the same summaries as the run 41556398022.
 - The pages of Latin Extended (5.2 px) and Devanagari have other causes. They stay open.
 
+## The limit of the width
+
+The function `widthBound(font, characters, options)` of `./fonts` gives a limit of the width with no measurement. For each text over the set `characters`, `measureWidth(font, text, size, options)` is at most `width(text.length, size)`. Give the same options to both functions. A text with another character has no limit.
+
+Each output glyph comes from one input character, so the limit adds one maximum for each character:
+
+- **Closure.** The roots are the glyphs of the set. Each GSUB rule of the features adds its output, and each ligature needs all its components. A rule in a context counts with no context, and each alternate counts.
+- **Advance and count.** `advance` and `glyphs` are the largest sum of advances and the largest count of glyphs of one character. A multiple substitution adds its glyphs. A ligature counts for its first glyph.
+- **Passes.** The plain shaper is one pass over the lookups. A shaper with stages gets 16 passes, because the largest shaper has 13 stages. A rule that expands its own glyph stops at this count.
+- **Kerning.** `kerning` is the sum over the kerning lookups of the largest positive first value and second value, over the pairs of the closure.
+- **Indic shaper.** Each character also gets a dotted circle, its decomposition, and each composite that a following mark can make. A composite is not always in the set: a nukta after U+0928 gives U+0929.
+
+The joining shaper and `bidi.ts` change no code point. The value of `width` is `length` times the amount for one character, with these margins:
+
+| Margin | Value | Reason |
+| --- | --- | --- |
+| `rounding: "pixel"`, each glyph | 0.5 + 1/128 px | FreeType rounds to 1/64 px, and Skia rounds to whole px |
+| `rounding: "pixel"`, each glyph, when `kerning` is above 0 | 0.5 px | The model rounds the sum of the kerning of a glyph |
+| `sum: "float32"`, each kerning position (two for each lookup) | 1.5 + 2^16 / `unitsPerEm` units of 1/65536 px, and 5 × 2^-24 × 2^15 font units | HarfBuzz rounds each value and delta, Blink cuts the scale, and a negative value gets no relative margin |
+| `sum: "float32"`, all the text | × (1 + 2^-24)^(`length` + 6) | Each segment gets one rounding of the sum |
+| Each row, all the text | × (1 + (2^13 + `length`) × 2^-53) | The double precision of the sums |
+
+Use the limit as a fast path. When `width(text.length, size)` is at most the available width, the text fits, and no measurement is necessary. Measure the text only when the limit is above the available width. The limit is sound, not tight: it follows the widest character of the set. On the Latin, Greek, Cyrillic and Hebrew corpus at 16 px, the median of limit / width is below 2.3 with a proportional font. The test `packages/widths/src/bound.test.ts` examines all the scripts in the Fonts workflow.
+
 ## The font epoch
 
 The epoch of a font is the revision of `head` and an FNV-1a hash of the data that gives the widths. This data is the units per em, the advances and the tables `cmap`, `GDEF`, `GPOS` and `kern`.

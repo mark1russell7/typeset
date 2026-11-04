@@ -293,13 +293,29 @@ export function shapingWords(text: string): string[] {
   return words;
 }
 
-/** The GSUB pass of one set of options: a function that gives the glyphs of one word, and the kerning lookups. */
-function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: string) => number[]; kerning: readonly PairLookup[] } {
+/** The choices that a set of options makes for the GSUB pass and for the kerning. */
+export interface Shaping {
+  readonly script: string;
+  /** The features of the option `features`, or `defaultFeatures`. */
+  readonly features: readonly string[];
+  readonly shaper: "indic" | "joining" | "plain";
+  readonly kerning: readonly PairLookup[];
+}
+
+/** This function gives the choices of a set of options: the script, the features, the shaper and the kerning lookups. */
+export function shapingOf(font: Font, options: MeasureOptions): Shaping {
   const script = options.script ?? "DFLT";
   const features = options.features ?? defaultFeatures;
   const kerning = options.kerning === false ? [] : font.kerning(script);
-  if (options.indic !== false && indicScripts.includes(script)) return { substitute: indicShaper(font, script, features), kerning };
-  const joins = options.joining !== false && joiningScripts.includes(script);
+  if (options.indic !== false && indicScripts.includes(script)) return { script, features, shaper: "indic", kerning };
+  return { script, features, shaper: options.joining !== false && joiningScripts.includes(script) ? "joining" : "plain", kerning };
+}
+
+/** The GSUB pass of one set of options: a function that gives the glyphs of one word, and the kerning lookups. */
+function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: string) => number[]; kerning: readonly PairLookup[] } {
+  const { script, features, shaper, kerning } = shapingOf(font, options);
+  if (shaper === "indic") return { substitute: indicShaper(font, script, features), kerning };
+  const joins = shaper === "joining";
   const lookups = joins ? [] : font.substitutions(script, features);
   const stages = joins ? joiningStages(features, features.includes("rclt") && font.substitutions(script, ["rclt"]).length > 0).map((stage) => ({ stage, lookups: font.substitutions(script, stage.features) })) : [];
   const substitute = (word: string): number[] => {

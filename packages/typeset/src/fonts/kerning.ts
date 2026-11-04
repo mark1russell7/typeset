@@ -25,7 +25,21 @@ export interface PairLookup {
   readonly skip?: (glyph: number) => boolean;
   /** This function gives the value for a pair, or `undefined` when no subtable applies. */
   pair(first: number, second: number): PairValue | undefined;
+  /**
+   * This function gives the largest positive value of each glyph of a pair, over the pairs with two glyphs of `glyphs`.
+   * A value is at least 0. It uses the values of the instance, so it includes each variation delta.
+   */
+  largest(glyphs: ReadonlySet<number>): LargestKerning;
 }
+
+/** The largest positive kerning of the first glyph and of the second glyph of a pair, in font units. */
+export interface LargestKerning {
+  readonly first: number;
+  readonly second: number;
+}
+
+/** One PairPos subtable. */
+type PairSubtable = Pick<PairLookup, "pair" | "largest">;
 
 /** The lookup flags of OpenType. */
 export const IGNORE_BASE = 0x2;
@@ -63,8 +77,8 @@ function pairValue(first: { value: number; delta: number }, second: { value: num
   return { first: first.value, second: second.value, firstDelta: first.delta, secondDelta: second.delta, skipSecond };
 }
 
-/** This function makes the pair function of one PairPos subtable. */
-function pairSubtable(table: Reader, store: VariationStore | undefined): (first: number, second: number) => PairValue | undefined {
+/** This function makes the functions of one PairPos subtable. */
+function pairSubtable(table: Reader, store: VariationStore | undefined): PairSubtable {
   const format = table.u16(0);
   const coverage = table.part(table.u16(2));
   const format1 = table.u16(4);
@@ -73,11 +87,11 @@ function pairSubtable(table: Reader, store: VariationStore | undefined): (first:
   const size2 = valueSize(format2);
   const skipSecond = format2 !== 0;
   if (format === 1) {
-    return (first, second) => {
+    const recordSize = 2 + size1 + size2;
+    const pair = (first: number, second: number): PairValue | undefined => {
       const index = coverageIndex(coverage, first);
       if (index < 0) return undefined;
       const set = table.part(table.u16(10 + index * 2));
-      const recordSize = 2 + size1 + size2;
       let low = 0;
       let high = set.u16(0) - 1;
       while (low <= high) {
@@ -90,13 +104,30 @@ function pairSubtable(table: Reader, store: VariationStore | undefined): (first:
       }
       return undefined;
     };
+    const largest = (glyphs: ReadonlySet<number>): LargestKerning => {
+      let first = 0;
+      let second = 0;
+      for (const glyph of glyphs) {
+        const index = coverageIndex(coverage, glyph);
+        if (index < 0) continue;
+        const set = table.part(table.u16(10 + index * 2));
+        for (let record = 0; record < set.u16(0); record++) {
+          const at = 2 + record * recordSize;
+          if (!glyphs.has(set.u16(at))) continue;
+          first = Math.max(first, xAdvance(set, at + 2, format1, set, store).value);
+          second = Math.max(second, xAdvance(set, at + 2 + size1, format2, set, store).value);
+        }
+      }
+      return { first, second };
+    };
+    return { pair, largest };
   }
   if (format === 2) {
     const classes1 = table.part(table.u16(8));
     const classes2 = table.part(table.u16(10));
     const count1 = table.u16(12);
     const count2 = table.u16(14);
-    return (first, second) => {
+    const pair = (first: number, second: number): PairValue | undefined => {
       if (coverageIndex(coverage, first) < 0) return undefined;
       const class1 = classOf(classes1, first);
       const class2 = classOf(classes2, second);
@@ -104,6 +135,26 @@ function pairSubtable(table: Reader, store: VariationStore | undefined): (first:
       const at = 16 + (class1 * count2 + class2) * (size1 + size2);
       return pairValue(xAdvance(table, at, format1, table, store), xAdvance(table, at + size1, format2, table, store), skipSecond);
     };
+    const largest = (glyphs: ReadonlySet<number>): LargestKerning => {
+      const firsts = new Set<number>();
+      const seconds = new Set<number>();
+      for (const glyph of glyphs) {
+        if (coverageIndex(coverage, glyph) >= 0) firsts.add(classOf(classes1, glyph));
+        seconds.add(classOf(classes2, glyph));
+      }
+      let first = 0;
+      let second = 0;
+      for (const class1 of firsts) {
+        for (const class2 of seconds) {
+          if (class1 >= count1 || class2 >= count2) continue;
+          const at = 16 + (class1 * count2 + class2) * (size1 + size2);
+          first = Math.max(first, xAdvance(table, at, format1, table, store).value);
+          second = Math.max(second, xAdvance(table, at + size1, format2, table, store).value);
+        }
+      }
+      return { first, second };
+    };
+    return { pair, largest };
   }
   throw new Error(`the PairPos format ${format} is unknown`);
 }
@@ -150,7 +201,7 @@ export function readGposKerning(gpos: Reader, script: string, store?: VariationS
   }
   return [...indices].sort((a, b) => a - b).flatMap((index) => {
     const lookup = lookups.part(lookups.u16(2 + index * 2));
-    const subtables: ((first: number, second: number) => PairValue | undefined)[] = [];
+    const subtables: PairSubtable[] = [];
     const type = lookup.u16(0);
     for (let s = 0; s < lookup.u16(4); s++) {
       let subtable = lookup.part(lookup.u16(6 + s * 2));
@@ -176,10 +227,15 @@ export function readGposKerning(gpos: Reader, script: string, store?: VariationS
       ...(skip === undefined ? {} : { skip }),
       pair(first: number, second: number): PairValue | undefined {
         for (const subtable of subtables) {
-          const value = subtable(first, second);
+          const value = subtable.pair(first, second);
           if (value !== undefined) return value;
         }
         return undefined;
+      },
+      // A pair gets the value of one subtable, so the largest value of a lookup is the largest value of its subtables
+      largest(glyphs: ReadonlySet<number>): LargestKerning {
+        const values = subtables.map((subtable) => subtable.largest(glyphs));
+        return { first: Math.max(...values.map((value) => value.first)), second: Math.max(...values.map((value) => value.second)) };
       },
     }];
   });
@@ -212,6 +268,11 @@ export function readKernTable(kern: Reader): PairLookup[] {
     pair(first: number, second: number): PairValue | undefined {
       const value = pairs.get(first * 0x10000 + second);
       return value === undefined ? undefined : { first: value, second: 0, skipSecond: false };
+    },
+    largest(glyphs: ReadonlySet<number>): LargestKerning {
+      let first = 0;
+      for (const [key, value] of pairs) if (glyphs.has(Math.floor(key / 0x10000)) && glyphs.has(key % 0x10000)) first = Math.max(first, value);
+      return { first, second: 0 };
     },
   }];
 }
