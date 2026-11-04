@@ -16,7 +16,7 @@ Each item has a prediction before its code: the claims, how each claim is measur
 | T4 | Error bounds: the error of the fast path against a shaper (HarfBuzz) for each script and font, in 1/64 px; size scaling and hinting per font | P1 | done | T1 |
 | T4b | Each engine row against its real engine: the same texts in Chromium on the macOS (CoreText), Windows (DirectWrite) and Ubuntu (FreeType) runners of CI. The canvas widths are the reference of each row. Then a reference checks the read effect of T4 | P2 | later | T4 |
 | T5 | The bound fast path: `widthBound` of `./fonts` gives a limit of the width for a declared set of characters, with no measurement | P2 | done | T1 |
-| T6 | Shaper fallback: `shapingRisks` flags the text that the model cannot measure with trust, and `fallback` gives that text to a shaper of the host. A list of 252 sequences and 3 new fonts tests it against HarfBuzz. | P2 | active | T4 |
+| T6 | Shaper fallback: `shapingRisks` flags the text that the model cannot measure with trust, and `fallback` gives that text to a shaper of the host. A list of 252 sequences and 3 new fonts tests it against HarfBuzz. | P2 | in progress | T4 |
 | T7 | A text corpus generator (scripts, lengths, fonts, edit sequences) and the CI bench | P1 | done | |
 | T8 | An adapter for the `/text` measurer interface of `@mark1russell7/layout-contract`: `fontAdvance` of `@mark1russell7/typeset/measurer` gives the widths of the font model from the font files of the host. The font model moves to the subpath `./fonts`, and `./fonts/inspect` has 5 functions for the tools (typeset#50) | P1 | done | T2 |
 | T9 | Use the rigor homes: `rigor-generators` for the random numbers of the corpus, `rigor-statistics` for the statistics of the bench | P1 | done | T7 |
