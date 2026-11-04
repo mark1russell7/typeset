@@ -20,4 +20,9 @@ Each item has a prediction before its code: the claims, how each claim is measur
 | T7 | A text corpus generator (scripts, lengths, fonts, edit sequences) and the CI bench | P1 | done | |
 | T8 | An adapter for the `/text` measurer interface of `@mark1russell7/layout-contract`: `fontAdvance` of `@mark1russell7/typeset/measurer` gives the widths of the font model from the font files of the host. The font model moves to the subpath `./fonts`, and `./fonts/inspect` has 5 functions for the tools (typeset#50) | P1 | done | T2 |
 | T9 | Use the rigor homes: `rigor-generators` for the random numbers of the corpus, `rigor-statistics` for the statistics of the bench | P1 | done | T7 |
+| T11 | Font stacks: a list of fonts, and each cluster takes the first font that holds all of its code points. The gate compares the widths with a Chromium canvas that has the same family list. Real text mixes scripts and emoji. | P1 | in progress | T1, T4b |
+| T12 | Unicode conformance: CI runs the official GraphemeBreakTest, WordBreakTest and LineBreakTest files at Unicode 17.0.0 and reports the pass rate. `docs/UNICODE.md` lists each difference with its reason. | P1 | in progress | T3 |
+| T13 | Full bidi: explicit embeddings, isolates and brackets in the bidi levels. BidiTest and BidiCharacterTest are the gate. | P2 | in progress | T12 |
+| T14 | Justified lines and hyphen patterns: stretch and shrink of glue in total fit, a measure for the justified edge, and pattern sets for the `hyphenate` hook. Each language is a subpath with a size cost. | P2 | in progress | T3, T12 |
+| T15 | The response record: the results of each breaker over text length, width and script, as a response record for the site explorer. | P2 | blocked | T3, response-records/1 of rigor |
 | S1 | The site on GitHub Pages: the font tables against canvas `measureText` in the browser, a sweep of the corpus, and the grid of a CI fonts run (typeset#35, typeset#37) | P1 | done | T1c |
