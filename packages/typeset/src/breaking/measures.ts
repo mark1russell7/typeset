@@ -28,8 +28,8 @@ export function spread(lines: readonly Line[]): number {
 
 /**
  * This function gives the adjustment ratio of each line for the width `width`. A renderer sets each glue of a line with a
- * ratio `r` to its width plus `r` times its stretch, or plus `r` times its shrink when `r` is negative. The last line does
- * not stretch, so its ratio is not more than 0.
+ * ratio `r` to its width plus `r` times its stretch. When `r` is negative, the glue gets its width plus `r` times its shrink.
+ * The last line does not stretch, so its ratio is not more than 0.
  */
 export function adjustmentRatios(paragraph: Paragraph, lines: readonly Line[], width: number): number[] {
   return lines.map((line, index) => {

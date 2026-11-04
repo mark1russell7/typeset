@@ -106,7 +106,12 @@ describe("total fit with the adjustment ratio", () => {
     expect(textsOf(paragraph, knuthPlass, 9)).toEqual(["aaaa bbbb", "c"]);
   });
 
-  it("uses the least worst line of the corpus sets where each line can stay within its shrink", () => {
+  it("gives a short last line no cost, so a full line above it stays full", () => {
+    const paragraph = paragraphOf("aaa bbb ccc ddd e", { widthOf: count, stretch: 0.5, shrink: 0.25 });
+    expect(textsOf(paragraph, knuthPlass, 11)).toEqual(["aaa bbb ccc", "ddd e"]);
+  });
+
+  it("does not choose a line below -1 in a corpus paragraph that has a feasible set of breaks", () => {
     const scripts: readonly ScriptId[] = ["latin", "greek", "cyrillic"];
     let feasible = 0;
     let infeasible = 0;
