@@ -200,7 +200,9 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
       const key = `${script} ${features.join(",")}`;
       let found = substitutions.get(key);
       if (found === undefined) {
-        found = gsub === undefined ? [] : readSubstitutions(gsub, script, features, parsed.filter);
+        // The Indic shaper of HarfBuzz keeps the joiners visible, so only the other shapers skip them
+        const joiners = script === "deva" ? [] : [characters.get(0x200c) ?? 0, characters.get(0x200d) ?? 0].filter((glyph) => glyph !== 0);
+        found = gsub === undefined ? [] : readSubstitutions(gsub, script, features, { ...parsed.filter, joiners });
         substitutions.set(key, found);
       }
       return found;

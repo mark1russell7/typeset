@@ -11,12 +11,15 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { brotliDecompressSync } from "node:zlib";
 import { fingerprint, fontSizes, generateCorpus, type FontId } from "@typeset/corpus";
-import { engines, isEngineName, measureWidth, readFont, type Font } from "@mark1russell7/typeset/fonts";
+import { engines, isEngineName, measureWidth, readFont, shapingRisks, type Font } from "@mark1russell7/typeset/fonts";
 import { readTables } from "@mark1russell7/typeset/fonts/inspect";
 import { chromium, type Page } from "playwright";
 import { advanceModelRow, diagnosticWeights, type AdvanceModelName, type AdvanceModelRow } from "./advances.ts";
 import { checkBounds, engineRecords, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
 import { breakdownOf, exactDeltaErrors, featureSettings, substitutionTrace, summarizeFeatures, type FeatureGroup, type FeatureRecord, type FeatureSetting, type SubstitutionStep } from "./features.ts";
+import { blinkScale } from "./bounds.ts";
+import { openReferenceFont } from "./harfbuzz.ts";
+import { isProbed, sequenceEntries } from "./sequences.ts";
 import { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags } from "./sources.ts";
 
 const origin = "https://typeset.test";
@@ -161,6 +164,8 @@ async function main(): Promise<void> {
   // The GSUB trace of the worst line of each font and weight with an error of more than 0.05 px
   const traces: { font: string; weight: number; script: string; sample: string; size: number; error: number; text: string; steps: SubstitutionStep[] }[] = [];
   const advanceModels: AdvanceModelRow[] = [];
+  // T6: the canvas on each mark of Noto Emoji and on U+034F next to a kerning pair, at 96 px
+  const sequenceProbe: { id: string; canvas: number; model: number; harfbuzz: number; risks: string[] }[] = [];
   let fontKerning = "";
   let devicePixelRatio = 0;
   try {
@@ -234,6 +239,17 @@ async function main(): Promise<void> {
         const atWeight = Object.fromEntries(Object.entries(models).map(([name, model]) => [name, model.at(cssInstance(weight))]));
         advanceModels.push(advanceModelRow(id, weight, tables, atWeight, characters, canvas!, advanceSize));
       }
+    }
+    for (const font of new Set(sequenceEntries.filter(isProbed).map((entry) => entry.font))) {
+      const own = sequenceEntries.filter((entry) => isProbed(entry) && entry.font === font);
+      const [canvas] = await canvasWidths(page, font, 400, [96], own.map((entry) => entry.text));
+      const model = font === extraSource.id ? extra : fonts.get(font as FontId)!;
+      const reference = openReferenceFont(readFileSync(join(values.fonts, fileName(font))), cssInstance());
+      own.forEach((entry, i) => {
+        const options = { script: entry.script, shaping: "canvas", rounding: engineRounding, sum: engineSum } as const;
+        const harfbuzz = reference.shape(entry.text, entry.script, blinkScale(96)).advances.reduce((sum, advance) => sum + advance, 0) / 65536;
+        sequenceProbe.push({ id: entry.id, canvas: canvas![i]!, model: measureWidth(model, entry.text, 96, options), harfbuzz, risks: shapingRisks(model, entry.text, options).map((risk) => risk.code) });
+      });
     }
   } finally {
     await browser.close();
@@ -310,6 +326,7 @@ async function main(): Promise<void> {
     extraSummary,
     engineSummary,
     engineExtraSummary,
+    sequenceProbe,
     records,
   };
   writeFileSync(values.out, JSON.stringify(output) + "\n");

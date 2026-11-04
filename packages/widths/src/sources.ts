@@ -37,6 +37,13 @@ export const extraSource: FontSource<"source-sans-3"> = {
   sha256: "042fe2cc0b933e328410d7acbd0aa6a1873dca5aef81875f4bc214b08825c7b9",
 };
 
+/** The fonts of the sequence list of T6. Their scripts are outside the model, and the corpus does not use them. */
+export const sequenceSources: readonly FontSource<string>[] = [
+  { id: "noto-sans-bengali", path: "ofl/notosansbengali/NotoSansBengali[wdth,wght].ttf", sha256: "dcd42978094e584a849c84a51450eeac40c8826057d566ea6d4b9627a403a05a" },
+  { id: "noto-sans-khmer", path: "ofl/notosanskhmer/NotoSansKhmer[wdth,wght].ttf", sha256: "f37a8431a0c5d5ed2f81a767417546aca576a81fb7eff9c924d46aecf828f2ca" },
+  { id: "noto-sans-mongolian", path: "ofl/notosansmongolian/NotoSansMongolian-Regular.ttf", sha256: "caea465b44ff4a2c0ab7bc4a2da4abcb1cf10658d70c5e49f08c9e07ae589c3a" },
+];
+
 /** The weights of the extra font in the comparison. */
 export const extraWeights: readonly number[] = [400, 700];
 

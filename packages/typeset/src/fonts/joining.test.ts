@@ -5,6 +5,12 @@ import { readSubstitutions, type GlyphFilter } from "./substitution.ts";
 
 const forms = (text: string) => joiningForms([...text].map((character) => character.codePointAt(0)!));
 
+describe("the isolate controls", () => {
+  it("break a join, as ArabicShaping.txt tells for U+2066 to U+2069", () => {
+    for (const control of ["⁦", "⁧", "⁨", "⁩"]) expect(forms(`ب${control}ن`)).toEqual(forms("ب ن"));
+  });
+});
+
 describe("the joining forms", () => {
   it("gives the forms of dual-joining letters", () => {
     // beh, yeh, teh

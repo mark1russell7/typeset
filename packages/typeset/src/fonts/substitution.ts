@@ -19,6 +19,8 @@ export interface GlyphFilter {
   markAttachClass(glyph: number): number;
   /** This function tells if a glyph is in the mark filtering set `set`. */
   inMarkSet(set: number, glyph: number): boolean;
+  /** The glyphs of the joiners that the backtrack and the lookahead of a context rule skip. */
+  readonly joiners?: readonly number[];
 }
 
 /** This function reads the glyph classes, the mark attachment classes and the mark filtering sets of GDEF. */
@@ -328,8 +330,9 @@ class Gsub {
     return -1;
   }
 
-  private previousOf(lookup: Lookup, glyphs: readonly number[], from: number): number {
-    for (let j = from; j >= 0; j--) if (!lookup.skip(glyphs[j]!)) return j;
+  /** This function finds the next glyph of a backtrack or a lookahead. As in HarfBuzz, a joiner does not stop the context. */
+  private contextOf(lookup: Lookup, glyphs: readonly number[], from: number, step: 1 | -1): number {
+    for (let j = from; j >= 0 && j < glyphs.length; j += step) if (!lookup.skip(glyphs[j]!) && !this.filter.joiners?.includes(glyphs[j]!)) return j;
     return -1;
   }
 
@@ -351,7 +354,7 @@ class Gsub {
   private matchBacktrack(lookup: Lookup, glyphs: readonly number[], i: number, count: number, test: (k: number, glyph: number) => boolean): boolean {
     let at = i;
     for (let k = 0; k < count; k++) {
-      at = this.previousOf(lookup, glyphs, at - 1);
+      at = this.contextOf(lookup, glyphs, at - 1, -1);
       if (at < 0 || !this.admits(at, i, false) || !test(k, glyphs[at]!)) return false;
     }
     return true;
@@ -360,7 +363,7 @@ class Gsub {
   private matchLookahead(lookup: Lookup, glyphs: readonly number[], first: number, last: number, count: number, test: (k: number, glyph: number) => boolean): boolean {
     let at = last;
     for (let k = 0; k < count; k++) {
-      at = this.nextOf(lookup, glyphs, at + 1);
+      at = this.contextOf(lookup, glyphs, at + 1, 1);
       if (at < 0 || !this.admits(at, first, false) || !test(k, glyphs[at]!)) return false;
     }
     return true;
