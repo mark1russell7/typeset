@@ -1,5 +1,6 @@
 import { fnv1a32 } from "@mark1russell7/rigor-generators";
 import type { Reader } from "./binary.ts";
+import { readContextKerning, type ContextTest } from "./context.ts";
 import { readGposKerning, readKernTable, IGNORE_BASE, IGNORE_LIGATURES, IGNORE_MARKS, type PairLookup } from "./kerning.ts";
 import { readTables, type Decompress, type TableMap } from "./sfnt.ts";
 import { defaultFeatures, readGlyphFilter, readSubstitutions, type GlyphFilter, type SubstitutionLookup } from "./substitution.ts";
@@ -69,6 +70,8 @@ export interface Font {
   glyphClass(glyph: number): number;
   /** This function gives the pair lookups of the kerning for an OpenType script tag, for example `latn`. */
   kerning(script: string): readonly PairLookup[];
+  /** This function gives a test for each lookup of `kern` and `dist` that the model does not apply and that can change an advance. */
+  contextKerning(script: string): readonly ContextTest[];
   /** This function gives the GSUB lookups of a list of feature tags for an OpenType script tag, in the order of the lookup list. */
   substitutions(script: string, features: readonly string[]): readonly SubstitutionLookup[];
   /** This function gives the same font at another instance. It uses the tables that are already read. */
@@ -164,6 +167,7 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
   const kern = tables.get("kern");
   const gsub = tables.get("GSUB");
   const lookups = new Map<string, readonly PairLookup[]>();
+  const contexts = new Map<string, readonly ContextTest[]>();
   const substitutions = new Map<string, readonly SubstitutionLookup[]>();
   const hashed = [tables.get("cmap"), gdef, gpos, kern, tables.get("fvar"), tables.get("avar"), tables.get("HVAR"), gsub];
   return {
@@ -185,6 +189,14 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
         // HarfBuzz uses the kern table only when the font has no GPOS table
         found = gpos !== undefined ? readGposKerning(gpos, script, store, parsed.filter) : kern !== undefined ? readKernTable(kern) : [];
         lookups.set(script, found);
+      }
+      return found;
+    },
+    contextKerning(script) {
+      let found = contexts.get(script);
+      if (found === undefined) {
+        found = gpos === undefined ? [] : readContextKerning(gpos, script, parsed.filter, !indicScripts.includes(script) && !noMarkZero.includes(script));
+        contexts.set(script, found);
       }
       return found;
     },

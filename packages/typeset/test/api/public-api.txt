@@ -38,9 +38,10 @@ raggedness: build/chunks/breaking.d.ts#raggedness
 spread: build/chunks/breaking.d.ts#spread
 totalFit: build/chunks/breaking.d.ts#totalFit
 
-## ./fonts (build/fonts.d.ts): 14 names
+## ./fonts (build/fonts.d.ts): 18 names
 
 type Axis: build/chunks/font.d.ts#Axis
+type ContextTest: build/chunks/font.d.ts#ContextTest
 type Decompress: build/chunks/sfnt.d.ts#Decompress
 type EngineName: build/chunks/engines.d.ts#EngineName
 type EngineRules: build/chunks/engines.d.ts#EngineRules
@@ -48,11 +49,14 @@ type Font: build/chunks/font.d.ts#Font
 type Instance: build/chunks/font.d.ts#Instance
 type MeasureOptions: build/chunks/font.d.ts#MeasureOptions
 type ReadOptions: build/chunks/font.d.ts#ReadOptions
+type ShapingRisk: build/chunks/fonts.d.ts#ShapingRisk
+type ShapingRiskCode: build/chunks/fonts.d.ts#ShapingRiskCode
 type WidthBound: build/chunks/fonts.d.ts#WidthBound
 engines: build/chunks/engines.d.ts#engines
 isEngineName: build/chunks/engines.d.ts#isEngineName
 measureWidth: build/chunks/font.d.ts#measureWidth
 readFont: build/chunks/font.d.ts#readFont
+shapingRisks: build/chunks/fonts.d.ts#shapingRisks
 widthBound: build/chunks/fonts.d.ts#widthBound
 
 ## ./fonts/inspect (build/fonts-inspect.d.ts): 6 names
@@ -155,6 +159,9 @@ interface Axis {
   readonly max: number;
 }
 
+### build/chunks/font.d.ts#ContextTest
+type ContextTest = (glyphs: readonly number[]) => boolean;
+
 ### build/chunks/font.d.ts#Font
 interface Font {
   readonly epoch: string;
@@ -164,10 +171,13 @@ interface Font {
   readonly coordinates: readonly number[];
   readonly advanceSource: AdvanceSource;
   readonly numGlyphs: number;
+  readonly hasPositioning: boolean;
+  readonly hasGlyphClasses: boolean;
   glyph(codePoint: number): number;
   advance(glyph: number): number;
   glyphClass(glyph: number): number;
   kerning(script: string): readonly PairLookup[];
+  contextKerning(script: string): readonly ContextTest[];
   substitutions(script: string, features: readonly string[]): readonly SubstitutionLookup[];
   at(instance: Instance): Font;
 }
@@ -214,6 +224,16 @@ declare function readFont(bytes: Uint8Array, options?: ReadOptions): Font;
 ### build/chunks/font.d.ts#shapingWords
 declare function shapingWords(text: string): string[];
 
+### build/chunks/fonts.d.ts#ShapingRisk
+interface ShapingRisk {
+  readonly code: ShapingRiskCode;
+  readonly index: number;
+  readonly length: number;
+}
+
+### build/chunks/fonts.d.ts#ShapingRiskCode
+type ShapingRiskCode = "missing-glyph" | "unshaped-script" | "emoji-zwj" | "variation-selector" | "keycap" | "flag" | "tag" | "positioning";
+
 ### build/chunks/fonts.d.ts#WidthBound
 interface WidthBound {
   readonly advance: number;
@@ -224,8 +244,11 @@ interface WidthBound {
 
 ### build/chunks/fonts.d.ts#fonts_d_exports
 declare namespace fonts_d_exports {
-  export { Axis, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, WidthBound, engines, isEngineName, measureWidth, readFont, widthBound };
+  export { Axis, ContextTest, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, ShapingRisk, ShapingRiskCode, WidthBound, engines, isEngineName, measureWidth, readFont, shapingRisks, widthBound };
 }
+
+### build/chunks/fonts.d.ts#shapingRisks
+declare function shapingRisks(font: Font, text: string, options?: MeasureOptions): ShapingRisk[];
 
 ### build/chunks/fonts.d.ts#widthBound
 declare function widthBound(font: Font, characters: string, options?: MeasureOptions): WidthBound;

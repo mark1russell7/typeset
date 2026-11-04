@@ -136,6 +136,7 @@ describe("the joining in glyphAdvances", () => {
     advance: (glyph) => advances[glyph] ?? 0,
     glyphClass: () => 1,
     kerning: () => [],
+    contextKerning: () => [],
     substitutions: (script, features) => readSubstitutions(gsub, script, features, filter),
     at: () => font,
   };

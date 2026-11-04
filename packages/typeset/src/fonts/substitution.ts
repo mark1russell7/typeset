@@ -142,14 +142,14 @@ function ruleTables(t: Reader, at: number): Reader[] {
 }
 
 /** This function gives the records of each rule of a context subtable (lookup type 5). */
-function contextRecords(t: Reader): SequenceRecord[] {
+export function contextRecords(t: Reader): SequenceRecord[] {
   const format = t.u16(0);
   if (format === 3) return records(t, 6 + t.u16(2) * 2, t.u16(4));
   return ruleTables(t, format === 2 ? 6 : 4).flatMap((rule) => records(rule, 4 + (rule.u16(0) - 1) * 2, rule.u16(2)));
 }
 
 /** This function gives the records of each rule of a chained context subtable (lookup type 6). */
-function chainRecords(t: Reader): SequenceRecord[] {
+export function chainRecords(t: Reader): SequenceRecord[] {
   const format = t.u16(0);
   if (format === 3) {
     const inputAt = 4 + t.u16(2) * 2;

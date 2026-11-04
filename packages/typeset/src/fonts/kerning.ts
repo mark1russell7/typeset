@@ -171,14 +171,22 @@ const pairFeatures = new Set(["kern", "dist"]);
 /** The lookup flag that selects a mark filtering set of GDEF. */
 const USE_MARK_FILTERING_SET = 0x10;
 
-/**
- * This function gives the pair lookups of the features `kern` and `dist` of GPOS for a script, in the order of the lookup
- * list. The store gives the deltas of a variable font at its instance. The filter gives the mark filtering sets of GDEF.
- */
-export function readGposKerning(gpos: Reader, script: string, store?: VariationStore, filter?: GlyphFilter): PairLookup[] {
+/** This function gives the function that tells which glyphs a lookup skips. Its table of flags is `lookup`. */
+export function lookupSkip(lookup: Reader, flags: number, filter: GlyphFilter): (glyph: number) => boolean {
+  const markSet = (flags & USE_MARK_FILTERING_SET) !== 0 ? lookup.u16(6 + lookup.u16(4) * 2) : -1;
+  return (glyph) => {
+    const kind = filter.glyphClass(glyph);
+    if ((flags & IGNORE_BASE) !== 0 && kind === 1) return true;
+    if ((flags & IGNORE_LIGATURES) !== 0 && kind === 2) return true;
+    if (kind !== 3) return false;
+    return (flags & IGNORE_MARKS) !== 0 || (markSet >= 0 && !filter.inMarkSet(markSet, glyph));
+  };
+}
+
+/** This function gives the indices of the lookups of the features `kern` and `dist` of GPOS for a script, in the order of the lookup list. */
+export function pairLookupIndices(gpos: Reader, script: string): number[] {
   const scripts = gpos.part(gpos.u16(4));
   const features = gpos.part(gpos.u16(6));
-  const lookups = gpos.part(gpos.u16(8));
   const scriptCount = scripts.u16(0);
   let langSys: Reader | undefined;
   for (const wanted of scriptTags(script)) {
@@ -199,7 +207,16 @@ export function readGposKerning(gpos: Reader, script: string, store?: VariationS
     const feature = features.part(features.u16(record + 4));
     for (let k = 0; k < feature.u16(2); k++) indices.add(feature.u16(4 + k * 2));
   }
-  return [...indices].sort((a, b) => a - b).flatMap((index) => {
+  return [...indices].sort((a, b) => a - b);
+}
+
+/**
+ * This function gives the pair lookups of the features `kern` and `dist` of GPOS for a script, in the order of the lookup
+ * list. The store gives the deltas of a variable font at its instance. The filter gives the mark filtering sets of GDEF.
+ */
+export function readGposKerning(gpos: Reader, script: string, store?: VariationStore, filter?: GlyphFilter): PairLookup[] {
+  const lookups = gpos.part(gpos.u16(8));
+  return pairLookupIndices(gpos, script).flatMap((index) => {
     const lookup = lookups.part(lookups.u16(2 + index * 2));
     const subtables: PairSubtable[] = [];
     const type = lookup.u16(0);
@@ -214,14 +231,7 @@ export function readGposKerning(gpos: Reader, script: string, store?: VariationS
     }
     if (subtables.length === 0) return [];
     const flags = lookup.u16(2);
-    const markSet = (flags & USE_MARK_FILTERING_SET) !== 0 && filter !== undefined ? lookup.u16(6 + lookup.u16(4) * 2) : -1;
-    const skip = markSet < 0 ? undefined : (glyph: number): boolean => {
-      const kind = filter!.glyphClass(glyph);
-      if ((flags & IGNORE_BASE) !== 0 && kind === 1) return true;
-      if ((flags & IGNORE_LIGATURES) !== 0 && kind === 2) return true;
-      if (kind !== 3) return false;
-      return (flags & IGNORE_MARKS) !== 0 || !filter!.inMarkSet(markSet, glyph);
-    };
+    const skip = (flags & USE_MARK_FILTERING_SET) !== 0 && filter !== undefined ? lookupSkip(lookup, flags, filter) : undefined;
     return [{
       flags,
       ...(skip === undefined ? {} : { skip }),
