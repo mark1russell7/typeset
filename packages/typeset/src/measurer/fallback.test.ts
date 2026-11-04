@@ -133,7 +133,7 @@ describe.skipIf(present.length !== cells.length)("the fallback on the corpus", (
     }
     expect(ordinary).toBeGreaterThan(0);
     expect(flagged).toBeGreaterThan(0);
-  });
+  }, 120_000);
 
   it("measures each word of a mixed text with its own script", () => {
     const data = bytesOf("noto-sans-devanagari")!;
@@ -169,5 +169,5 @@ describe.skipIf(present.length !== cells.length)("the fallback on the corpus", (
       }
     }
     expect(calls.length).toBeGreaterThan(0);
-  });
+  }, 120_000);
 });

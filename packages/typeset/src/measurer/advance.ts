@@ -10,7 +10,7 @@ import { shapingRisks } from "../fonts/risks.ts";
 import type { Decompress } from "../fonts/sfnt.ts";
 import { canvasWords } from "../fonts/words.ts";
 
-/** This function gives the width of a text in a CSS font. It has the form of `AdvanceFn` of layout-contract. */
+/** This function gives the width of a text in a CSS font, as `AdvanceFn` of layout-contract does. */
 export type AdvanceFn = (text: string, font: string) => number;
 
 /** One font file of the host, with the family, the weight and the style that CSS matches. */
@@ -41,11 +41,7 @@ export interface FontAdvanceOptions {
    * with `measureText`. Use `dom` for the widths of a text in a page.
    */
   readonly shaping?: "dom" | "canvas";
-  /**
-   * The shaper of the host. Under the shaping `canvas`, it measures each word that `shapingRisks` flags, and the model
-   * measures the other words. A flagged word goes to it alone, so the separator law of the rope holds.
-   * The shaping `dom` does not use it: there, one word changes the shape of its neighbors.
-   */
+  /** The shaper of the host. Under the shaping `canvas`, it measures each word that `shapingRisks` flags. The shaping `dom` does not use it. */
   readonly fallback?: AdvanceFn;
 }
 
@@ -161,24 +157,15 @@ const scriptPatterns: readonly (readonly [RegExp, string])[] = [
 
 const neutral = /[\p{sc=Common}\p{sc=Inherited}\p{sc=Unknown}]/u;
 
-const ascii = /^[\0-\x7f]*$/;
-const chineseOrJapanese: ReadonlySet<string> = new Set(["hani", "kana", "bopo"]);
-const characterTags = new Map<string, string>();
-
-/** This function gives the script runs of a text. A neutral character stays with the run before it. Chinese and Japanese stay in one run. */
+/** This function gives the script runs of a text. A neutral character stays with the run before it. */
 export function scriptRuns(text: string): string[] {
-  if (ascii.test(text)) return [text];
+  if (/^[\0-\x7f]*$/.test(text)) return [text];
   const runs: string[] = [];
   let run = "";
   let current: string | undefined;
   for (const character of text) {
     if (!neutral.test(character)) {
-      let tag = characterTags.get(character);
-      if (tag === undefined) {
-        tag = scriptTag(character);
-        if (chineseOrJapanese.has(tag)) tag = "hani";
-        characterTags.set(character, tag);
-      }
+      const tag = scriptTag(character).replace(/kana|bopo/, "hani");
       if (current !== undefined && tag !== current) {
         runs.push(run);
         run = "";
@@ -325,36 +312,18 @@ export function fontAdvance(options: FontAdvanceOptions): (text: string, font: s
 
   return (text: string, font: string): number => {
     const { spec, fonts } = fontsOf(font);
-    const plain = (run: string, face: Font, script: string): number => measureWidth(face, run, spec.size, { script, shaping, rounding: rules.rounding, sum: rules.sum });
+    const sum = (parts: readonly string[], width: (part: string) => number): number => parts.reduce((total, part) => total + width(part), 0);
     const measure = (run: string, face: Font): number => {
       const runs = scriptRuns(run);
-      if (runs.length === 1 && fallback === undefined) return plain(run, face, scriptTag(run));
-      if (shaping !== "canvas") return runs.reduce((sum, part) => sum + plain(part, face, scriptTag(part)), 0);
-      // A text of one script keeps one call and one tag. In a mixed text, the tag of a word comes from the word alone
-      const tag = runs.length === 1 ? scriptTag(run) : undefined;
-      let width = 0;
-      let stretch = "";
-      let script = "";
-      const flush = (): void => {
-        if (stretch.length > 0) width += plain(stretch, face, script);
-        stretch = "";
-      };
-      for (const word of canvasWords(run)) {
-        const parts = tag === undefined ? scriptRuns(word) : [word];
-        const tags = parts.map((part) => tag ?? scriptTag(part));
-        if (fallback !== undefined && parts.some((part, i) => shapingRisks(face, part, { script: tags[i]!, shaping }).length > 0)) {
-          flush();
-          width += fallback(word, font);
-          continue;
-        }
-        parts.forEach((part, i) => {
-          if (tags[i] !== script) flush();
-          script = tags[i]!;
-          stretch += part;
-        });
-      }
-      flush();
-      return width;
+      const tagged = (part: string): number => measureWidth(face, part, spec.size, { script: scriptTag(part), shaping, rounding: rules.rounding, sum: rules.sum });
+      const risky = (part: string): boolean => fallback !== undefined && shapingRisks(face, part, { script: scriptTag(part), shaping }).length > 0;
+      if (runs.length === 1 && !risky(run)) return tagged(run);
+      if (shaping !== "canvas") return sum(runs, tagged);
+      // The width of a word comes from the word alone. This keeps the separator law of the rope
+      return sum(canvasWords(run), (word) => {
+        const parts = scriptRuns(word);
+        return parts.some(risky) ? fallback!(word, font) : sum(parts, tagged);
+      });
     };
     if (fonts.length === 1) return measure(text, fonts[0]!);
     let width = 0;

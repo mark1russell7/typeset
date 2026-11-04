@@ -171,7 +171,7 @@ const pairFeatures = new Set(["kern", "dist"]);
 /** The lookup flag that selects a mark filtering set of GDEF. */
 const USE_MARK_FILTERING_SET = 0x10;
 
-/** This function gives the function that tells which glyphs a lookup skips. Its table of flags is `lookup`. */
+/** This function gives the test of the glyphs that a lookup skips. */
 export function lookupSkip(lookup: Reader, flags: number, filter: GlyphFilter): (glyph: number) => boolean {
   const markSet = (flags & USE_MARK_FILTERING_SET) !== 0 ? lookup.u16(6 + lookup.u16(4) * 2) : -1;
   return (glyph) => {
@@ -179,25 +179,38 @@ export function lookupSkip(lookup: Reader, flags: number, filter: GlyphFilter): 
     if ((flags & IGNORE_BASE) !== 0 && kind === 1) return true;
     if ((flags & IGNORE_LIGATURES) !== 0 && kind === 2) return true;
     if (kind !== 3) return false;
-    return (flags & IGNORE_MARKS) !== 0 || (markSet >= 0 && !filter.inMarkSet(markSet, glyph));
+    if ((flags & IGNORE_MARKS) !== 0) return true;
+    if (markSet >= 0) return !filter.inMarkSet(markSet, glyph);
+    const attach = flags >> 8;
+    return attach !== 0 && filter.markAttachClass(glyph) !== attach;
   };
 }
 
-/** This function gives the indices of the lookups of the features `kern` and `dist` of GPOS for a script, in the order of the lookup list. */
-export function pairLookupIndices(gpos: Reader, script: string): number[] {
-  const scripts = gpos.part(gpos.u16(4));
-  const features = gpos.part(gpos.u16(6));
-  const scriptCount = scripts.u16(0);
-  let langSys: Reader | undefined;
+/** This function gives the subtables of a lookup with their types, after each extension of the type `extension`. */
+export function subtablesOf(lookup: Reader, extension: number): (readonly [number, Reader])[] {
+  return Array.from({ length: lookup.u16(4) }, (_, s) => {
+    const subtable = lookup.part(lookup.u16(6 + s * 2));
+    return lookup.u16(0) === extension ? [subtable.u16(2), subtable.part(subtable.u32(4))] : [lookup.u16(0), subtable];
+  });
+}
+
+/** This function gives the default language system of a table for a script. */
+export function languageSystem(table: Reader, script: string): Reader | undefined {
+  const scripts = table.part(table.u16(4));
   for (const wanted of scriptTags(script)) {
-    for (let i = 0; i < scriptCount && langSys === undefined; i++) {
+    for (let i = 0; i < scripts.u16(0); i++) {
       if (scripts.tag(2 + i * 6) !== wanted) continue;
-      const table = scripts.part(scripts.u16(2 + i * 6 + 4));
-      const fallback = table.u16(0);
-      if (fallback !== 0) langSys = table.part(fallback);
+      const entry = scripts.part(scripts.u16(2 + i * 6 + 4));
+      if (entry.u16(0) !== 0) return entry.part(entry.u16(0));
     }
-    if (langSys !== undefined) break;
   }
+  return undefined;
+}
+
+/** This function gives the indices of the lookups of `kern` and `dist` for a script, in the order of the lookup list. */
+export function pairLookupIndices(gpos: Reader, script: string): number[] {
+  const features = gpos.part(gpos.u16(6));
+  const langSys = languageSystem(gpos, script);
   if (langSys === undefined) return [];
   const indices = new Set<number>();
   const featureCount = langSys.u16(4);
@@ -219,16 +232,7 @@ export function readGposKerning(gpos: Reader, script: string, store?: VariationS
   return pairLookupIndices(gpos, script).flatMap((index) => {
     const lookup = lookups.part(lookups.u16(2 + index * 2));
     const subtables: PairSubtable[] = [];
-    const type = lookup.u16(0);
-    for (let s = 0; s < lookup.u16(4); s++) {
-      let subtable = lookup.part(lookup.u16(6 + s * 2));
-      let subtype = type;
-      if (type === 9) {
-        subtype = subtable.u16(2);
-        subtable = subtable.part(subtable.u32(4));
-      }
-      if (subtype === 2) subtables.push(pairSubtable(subtable, store));
-    }
+    for (const [subtype, subtable] of subtablesOf(lookup, 9)) if (subtype === 2) subtables.push(pairSubtable(subtable, store));
     if (subtables.length === 0) return [];
     const flags = lookup.u16(2);
     const skip = (flags & USE_MARK_FILTERING_SET) !== 0 && filter !== undefined ? lookupSkip(lookup, flags, filter) : undefined;

@@ -38,10 +38,9 @@ raggedness: build/chunks/breaking.d.ts#raggedness
 spread: build/chunks/breaking.d.ts#spread
 totalFit: build/chunks/breaking.d.ts#totalFit
 
-## ./fonts (build/fonts.d.ts): 18 names
+## ./fonts (build/fonts.d.ts): 17 names
 
 type Axis: build/chunks/font.d.ts#Axis
-type ContextTest: build/chunks/font.d.ts#ContextTest
 type Decompress: build/chunks/sfnt.d.ts#Decompress
 type EngineName: build/chunks/engines.d.ts#EngineName
 type EngineRules: build/chunks/engines.d.ts#EngineRules
@@ -160,9 +159,6 @@ interface Axis {
   readonly max: number;
 }
 
-### build/chunks/font.d.ts#ContextTest
-type ContextTest = (glyphs: readonly number[]) => boolean;
-
 ### build/chunks/font.d.ts#Font
 interface Font {
   readonly epoch: string;
@@ -178,7 +174,7 @@ interface Font {
   advance(glyph: number): number;
   glyphClass(glyph: number): number;
   kerning(script: string): readonly PairLookup[];
-  contextKerning(script: string): readonly ContextTest[];
+  contextKerning(script: string): readonly ((glyphs: readonly number[]) => boolean)[];
   substitutions(script: string, features: readonly string[]): readonly SubstitutionLookup[];
   at(instance: Instance): Font;
 }
@@ -245,7 +241,7 @@ interface WidthBound {
 
 ### build/chunks/fonts.d.ts#fonts_d_exports
 declare namespace fonts_d_exports {
-  export { Axis, ContextTest, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, ShapingRisk, ShapingRiskCode, WidthBound, engines, isEngineName, measureWidth, readFont, shapingRisks, widthBound };
+  export { Axis, Decompress, EngineName, EngineRules, Font, Instance, MeasureOptions, ReadOptions, ShapingRisk, ShapingRiskCode, WidthBound, engines, isEngineName, measureWidth, readFont, shapingRisks, widthBound };
 }
 
 ### build/chunks/fonts.d.ts#shapingRisks

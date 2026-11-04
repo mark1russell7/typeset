@@ -1,6 +1,6 @@
 import { fnv1a32 } from "@mark1russell7/rigor-generators";
 import type { Reader } from "./binary.ts";
-import { readContextKerning, type ContextTest } from "./context.ts";
+import { readContextKerning } from "./context.ts";
 import { readGposKerning, readKernTable, IGNORE_BASE, IGNORE_LIGATURES, IGNORE_MARKS, type PairLookup } from "./kerning.ts";
 import { readTables, type Decompress, type TableMap } from "./sfnt.ts";
 import { defaultFeatures, readGlyphFilter, readSubstitutions, type GlyphFilter, type SubstitutionLookup } from "./substitution.ts";
@@ -9,7 +9,7 @@ import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts, type Gl
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
 import { indicScripts, indicShaper } from "./indic.ts";
 import { joiningFeatures, joiningForms, joiningScripts, joiningStages } from "./joining.ts";
-import { hasDefaultIgnorable, hasMark, isHidden, normalizeCodePoints, zeroedMarks, type MarkRules } from "./normalize.ts";
+import { hasDefaultIgnorable, hasMark, isHidden, normalizeCodePoints, zeroedMarks } from "./normalize.ts";
 import { canvasSegments, canvasWords } from "./words.ts";
 
 /** The options of `readFont`. */
@@ -58,9 +58,9 @@ export interface Font {
   /** The source of the advances of this instance. The default instance and a font that is not variable use `hmtx`. */
   readonly advanceSource: AdvanceSource;
   readonly numGlyphs: number;
-  /** This value is `true` when the font has a GPOS table. */
+  /** This value tells if the font has a GPOS table. */
   readonly hasPositioning: boolean;
-  /** This value is `true` when the GDEF table has glyph classes. */
+  /** This value tells if GDEF has glyph classes. */
   readonly hasGlyphClasses: boolean;
   /** This function gives the glyph of a code point, or 0 when the font has no glyph for it. */
   glyph(codePoint: number): number;
@@ -70,8 +70,8 @@ export interface Font {
   glyphClass(glyph: number): number;
   /** This function gives the pair lookups of the kerning for an OpenType script tag, for example `latn`. */
   kerning(script: string): readonly PairLookup[];
-  /** This function gives a test for each lookup of `kern` and `dist` that the model does not apply and that can change an advance. */
-  contextKerning(script: string): readonly ContextTest[];
+  /** This function gives a test for each lookup of `kern` and `dist` that the model does not apply. */
+  contextKerning(script: string): readonly ((glyphs: readonly number[]) => boolean)[];
   /** This function gives the GSUB lookups of a list of feature tags for an OpenType script tag, in the order of the lookup list. */
   substitutions(script: string, features: readonly string[]): readonly SubstitutionLookup[];
   /** This function gives the same font at another instance. It uses the tables that are already read. */
@@ -167,7 +167,7 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
   const kern = tables.get("kern");
   const gsub = tables.get("GSUB");
   const lookups = new Map<string, readonly PairLookup[]>();
-  const contexts = new Map<string, readonly ContextTest[]>();
+  const contexts = new Map<string, ReturnType<Font["contextKerning"]>>();
   const substitutions = new Map<string, readonly SubstitutionLookup[]>();
   const hashed = [tables.get("cmap"), gdef, gpos, kern, tables.get("fvar"), tables.get("avar"), tables.get("HVAR"), gsub];
   return {
@@ -193,12 +193,8 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
       return found;
     },
     contextKerning(script) {
-      let found = contexts.get(script);
-      if (found === undefined) {
-        found = gpos === undefined ? [] : readContextKerning(gpos, script, parsed.filter, !indicScripts.includes(script) && !noMarkZero.includes(script));
-        contexts.set(script, found);
-      }
-      return found;
+      if (!contexts.has(script)) contexts.set(script, gpos === undefined ? [] : readContextKerning(gpos, script, parsed.filter, !noMarkZero.includes(script)));
+      return contexts.get(script)!;
     },
     substitutions(script, features) {
       const key = `${script} ${features.join(",")}`;
@@ -330,37 +326,22 @@ export function shapingOf(font: Font, options: MeasureOptions): Shaping {
   return { script, features, shaper: options.joining !== false && joiningScripts.includes(script) ? "joining" : "plain", kerning };
 }
 
-/** The bit of a mask for the features of all the glyphs. */
+/** The bits of a mask: all the glyphs, a default ignorable, a mark with no advance. */
 const GLOBAL_MASK = 0x80;
-/** The bit of a mask for a default ignorable. */
 const IGNORABLE_MASK = 0x100;
-/** The bit of a mask for a mark that takes no advance. */
 const ZEROED_MASK = 0x200;
 
-/** The tags of the scripts whose shaper in HarfBuzz has no fallback mark position. */
-const noFallbackPosition: readonly string[] = ["thai", "lao ", "khmr", "mymr", "mym2"];
-/** The tags of the scripts whose shaper in HarfBuzz does not zero the marks. */
-const noMarkZero: readonly string[] = ["hang", "khmr"];
-
-/** This function gives the rules of `zeroedMarks` for a font and a script. The Indic shaper of HarfBuzz has neither rule. */
-function markRules(font: Font, script: string): MarkRules {
-  const indic = indicScripts.includes(script);
-  return { classes: !font.hasGlyphClasses && !indic && !noMarkZero.includes(script), fallback: !font.hasPositioning && !indic && !noFallbackPosition.includes(script) };
-}
-
-/**
- * This function gives the advance of a glyph of `shaperOf`. HarfBuzz hides a default ignorable after the GSUB pass, if no
- * substitution changed it. The value `~glyph` marks a hidden glyph. It has the advance 0, and the kerning skips it.
- */
-function shapedAdvance(font: Font, glyph: number): number {
-  return glyph < 0 ? 0 : font.advance(glyph);
-}
+/** The scripts whose shaper in HarfBuzz has no fallback mark position. */
+const noFallbackPosition: readonly string[] = ["thai", "lao ", "khmr", "mymr", "mym2", ...indicScripts];
+/** The scripts whose shaper in HarfBuzz does not zero the marks. */
+const noMarkZero: readonly string[] = ["hang", "khmr", ...indicScripts];
 
 /** The GSUB pass of one set of options: a function that gives the glyphs of one word, and the kerning lookups. */
 function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: string) => number[]; kerning: readonly PairLookup[] } {
   const { script, features, shaper, kerning } = shapingOf(font, options);
   if (shaper === "indic") return { substitute: indicShaper(font, script, features), kerning };
-  const marks = markRules(font, script);
+  const classes = !font.hasGlyphClasses && !noMarkZero.includes(script);
+  const fallback = !font.hasPositioning && !noFallbackPosition.includes(script);
   const joins = shaper === "joining";
   const lookups = joins ? [] : font.substitutions(script, features);
   const stages = joins ? joiningStages(features, features.includes("rclt") && font.substitutions(script, ["rclt"]).length > 0).map((stage) => ({ stage, lookups: font.substitutions(script, stage.features) })) : [];
@@ -375,9 +356,8 @@ function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: str
       wordGlyphs = codePoints.map((codePoint) => font.glyph(codePoint));
     }
     const hides = hasDefaultIgnorable(word);
-    const zeroed = (marks.classes || marks.fallback) && hasMark(word) ? zeroedMarks(codePoints, marks) : [];
+    const zeroed = (classes || fallback) && hasMark(word) ? zeroedMarks(codePoints, classes, fallback) : [];
     const forms = joins ? joiningForms(codePoints) : [];
-    // Each glyph has the bit of its joining form, and the bits of `GLOBAL_MASK`, `IGNORABLE_MASK` and `ZEROED_MASK`
     const masks = joins || hides || zeroed.length > 0 ? codePoints.map((codePoint, i) => GLOBAL_MASK | (forms[i] === undefined ? 0 : 1 << joiningFeatures.indexOf(forms[i])) | (hides && isHidden(font, codePoint) ? IGNORABLE_MASK : 0) | (zeroed[i] === true ? ZEROED_MASK : 0)) : undefined;
     const before = hides ? [...wordGlyphs] : [];
     for (const lookup of lookups) lookup.apply(wordGlyphs, masks, GLOBAL_MASK);
@@ -385,7 +365,7 @@ function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: str
       const mask = stage.form === undefined ? GLOBAL_MASK : 1 << joiningFeatures.indexOf(stage.form);
       for (const lookup of stageLookups) lookup.apply(wordGlyphs, masks, mask);
     }
-    // A substitution gives a new glyph the mask of its source. Thus a default ignorable with a new id is not hidden, and a mark stays zeroed
+    // A new glyph has the mask of its source: a default ignorable with a new id is not hidden
     return masks === undefined ? wordGlyphs : wordGlyphs.map((glyph, i) => {
       const mask = masks[i] ?? 0;
       return (mask & ZEROED_MASK) !== 0 || ((mask & IGNORABLE_MASK) !== 0 && before.includes(glyph)) ? ~glyph : glyph;
@@ -405,7 +385,7 @@ export function glyphAdvances(font: Font, text: string, options: MeasureOptions 
   return { glyphs: glyphs.map((glyph) => (glyph < 0 ? ~glyph : glyph)), advances };
 }
 
-/** This function is `glyphAdvances` with the hidden glyphs of `shapedAdvance`. */
+/** This function is `glyphAdvances`, with `~glyph` for a hidden glyph. It has no advance, and the kerning skips it. */
 function shapedAdvances(font: Font, text: string, options: MeasureOptions): { glyphs: number[]; advances: number[] } {
   const { substitute, kerning } = shaperOf(font, options);
   const canvas = options.shaping === "canvas";
@@ -413,7 +393,7 @@ function shapedAdvances(font: Font, text: string, options: MeasureOptions): { gl
   const advances: number[] = [];
   for (const word of canvas ? canvasWords(text) : shapingWords(text)) {
     const wordGlyphs = substitute(word);
-    const wordAdvances = wordGlyphs.map((glyph) => shapedAdvance(font, glyph));
+    const wordAdvances = wordGlyphs.map((glyph) => font.advance(glyph));
     if (canvas) kern(font, kerning, wordGlyphs, wordAdvances);
     glyphs.push(...wordGlyphs);
     advances.push(...wordAdvances);
@@ -491,8 +471,8 @@ function float32Width(font: Font, text: string, size: number, options: MeasureOp
   for (const segment of canvasSegments(text)) {
     const glyphs = substitute(segment);
     // Skia gives each advance in single precision, and Blink cuts it to the 16.16 fixed point of HarfBuzz
-    const positions = glyphs.map((glyph) => Math.trunc(Math.fround(shapedAdvance(font, glyph) * pxPerUnit) * 65536));
-    kern(font, kerning, glyphs, glyphs.map((glyph) => shapedAdvance(font, glyph)), positions, scale);
+    const positions = glyphs.map((glyph) => Math.trunc(Math.fround(font.advance(glyph) * pxPerUnit) * 65536));
+    kern(font, kerning, glyphs, glyphs.map((glyph) => font.advance(glyph)), positions, scale);
     let units = 0;
     for (const position of positions) units += position;
     total = Math.fround(total + Math.fround(units / 65536));
@@ -511,7 +491,7 @@ export function measureWidth(font: Font, text: string, size: number, options: Me
     const scale = size / font.unitsPerEm;
     let px = 0;
     glyphs.forEach((glyph, i) => {
-      const base = shapedAdvance(font, glyph);
+      const base = font.advance(glyph);
       // FreeType gives the advance in 26.6 fixed point, and Skia rounds it to whole px
       px += Math.round(Math.round(base * scale * 64) / 64) + Math.round((advances[i]! - base) * scale);
     });

@@ -2,6 +2,7 @@
  * The Unicode normalization of HarfBuzz, from `hb-ot-shape-normalize.cc`. HarfBuzz decomposes each cluster of a base and its marks.
  * It then sorts the marks, and composes each mark with its base when the font has the glyph of the composite.
  */
+import type { Font } from "./font.ts";
 
 const unicodeMark = /\p{M}/u;
 const nonspacingMark = /\p{Mn}/u;
@@ -17,22 +18,16 @@ const sortClasses: ReadonlyMap<number, number> = new Map([
   [0x651, 27], [0x652, 34], [0x670, 35], [0x8f0, 28], [0x8f1, 29], [0x8f2, 30],
 ]);
 
-/**
- * The default-ignorable code points of HarfBuzz, from `hb-unicode.hh`. This set is not the Unicode property: the Hangul fillers
- * are not in it, so they keep their advance.
- */
+/** The default ignorables of `hb-unicode.hh`. This set is not the Unicode property: it does not have the Hangul fillers. */
 const defaultIgnorable = /[\u00ad\u034f\u061c\u17b4\u17b5\u180b-\u180f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\ufff0-\ufff8\u{1d173}-\u{1d17a}\u{e0000}-\u{e0fff}]/u;
 
-/** This function tells if a text has a default-ignorable code point of HarfBuzz. */
+/** This function tells if a text has a default ignorable. */
 export function hasDefaultIgnorable(text: string): boolean {
   return defaultIgnorable.test(text);
 }
 
-/**
- * This function tells if the model hides a code point after the GSUB pass. A hidden code point has no advance and no kerning.
- * U+034F with its own glyph of advance 0 stays visible to the kerning. This keeps the widths of the T4 corpus.
- */
-export function isHidden(font: { glyph(codePoint: number): number; advance(glyph: number): number }, codePoint: number): boolean {
+/** This function tells if the model hides a code point. U+034F with its own glyph of advance 0 stays visible to the kerning. */
+export function isHidden(font: Pick<Font, "glyph" | "advance">, codePoint: number): boolean {
   if (!hasDefaultIgnorable(String.fromCodePoint(codePoint))) return false;
   const glyph = font.glyph(codePoint);
   return codePoint !== 0x34f || glyph === 0 || font.advance(glyph) !== 0;
@@ -48,16 +43,8 @@ export function hasMark(text: string): boolean {
   return unicodeMark.test(text);
 }
 
-/** The rules of HarfBuzz that zero a mark without GPOS. */
-export interface MarkRules {
-  /** The font has no glyph classes, so HarfBuzz gives each nonspacing mark the class of a mark, and zeroes it after the kerning. */
-  readonly classes: boolean;
-  /** The font has no GPOS, so the fallback mark position zeroes each mark with a combining class after a base. */
-  readonly fallback: boolean;
-}
-
-/** This function tells which code points of a word take no advance by the rules `rules`. */
-export function zeroedMarks(codePoints: readonly number[], rules: MarkRules): boolean[] {
+/** This function tells which code points take no advance: nonspacing marks with `classes`, marks with a class after a base with `fallback`. */
+export function zeroedMarks(codePoints: readonly number[], classes: boolean, fallback: boolean): boolean[] {
   let base = false;
   return codePoints.map((codePoint) => {
     const character = String.fromCodePoint(codePoint);
@@ -65,7 +52,7 @@ export function zeroedMarks(codePoints: readonly number[], rules: MarkRules): bo
       base = true;
       return false;
     }
-    return (rules.classes && nonspacingMark.test(character) && !hasDefaultIgnorable(character)) || (rules.fallback && base && !isStarter(codePoint));
+    return (classes && nonspacingMark.test(character) && !hasDefaultIgnorable(character)) || (fallback && base && !isStarter(codePoint));
   });
 }
 
