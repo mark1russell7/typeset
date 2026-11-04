@@ -130,6 +130,8 @@ describe("the joining in glyphAdvances", () => {
     coordinates: [],
     advanceSource: "hmtx",
     numGlyphs: advances.length,
+    hasPositioning: true,
+    hasGlyphClasses: true,
     glyph: (codePoint) => (codePoint === 0x628 ? 1 : codePoint === 0x20 ? 6 : 0),
     advance: (glyph) => advances[glyph] ?? 0,
     glyphClass: () => 1,

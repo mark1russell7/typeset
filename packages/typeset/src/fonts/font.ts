@@ -8,7 +8,7 @@ import { gvarAdvanceDeltas, readPointCounts, readTransformedPointCounts, type Gl
 import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, type Instance } from "./variations.ts";
 import { indicScripts, indicShaper } from "./indic.ts";
 import { joiningFeatures, joiningForms, joiningScripts, joiningStages } from "./joining.ts";
-import { hasDefaultIgnorable, hasMark, isHidden, normalizeCodePoints } from "./normalize.ts";
+import { hasDefaultIgnorable, hasMark, isHidden, normalizeCodePoints, zeroedMarks, type MarkRules } from "./normalize.ts";
 import { canvasSegments, canvasWords } from "./words.ts";
 
 /** The options of `readFont`. */
@@ -57,6 +57,10 @@ export interface Font {
   /** The source of the advances of this instance. The default instance and a font that is not variable use `hmtx`. */
   readonly advanceSource: AdvanceSource;
   readonly numGlyphs: number;
+  /** This value is `true` when the font has a GPOS table. */
+  readonly hasPositioning: boolean;
+  /** This value is `true` when the GDEF table has glyph classes. */
+  readonly hasGlyphClasses: boolean;
   /** This function gives the glyph of a code point, or 0 when the font has no glyph for it. */
   glyph(codePoint: number): number;
   /** This function gives the advance of a glyph in font units, as the shaper uses it. A mark has the advance 0. */
@@ -166,6 +170,8 @@ function build(parsed: Parsed, requested: Instance, modes: Modes): Font {
     epoch: `${header.revision.toString(16).padStart(8, "0")}-${widthHash(header.unitsPerEm, coordinates, advances, hashed)}${deltas === "exact" ? "-exact" : ""}${advanceSource === "gvar" && hvar !== undefined ? "-gvar" : ""}${metrics !== undefined ? "-metrics" : ""}`,
     unitsPerEm: header.unitsPerEm,
     numGlyphs: header.numGlyphs,
+    hasPositioning: gpos !== undefined,
+    hasGlyphClasses: gdef !== undefined && gdef.u16(4) !== 0,
     axes,
     instance,
     coordinates,
@@ -316,6 +322,19 @@ export function shapingOf(font: Font, options: MeasureOptions): Shaping {
 const GLOBAL_MASK = 0x80;
 /** The bit of a mask for a default ignorable. */
 const IGNORABLE_MASK = 0x100;
+/** The bit of a mask for a mark that takes no advance. */
+const ZEROED_MASK = 0x200;
+
+/** The tags of the scripts whose shaper in HarfBuzz has no fallback mark position. */
+const noFallbackPosition: readonly string[] = ["thai", "lao ", "khmr", "mymr", "mym2"];
+/** The tags of the scripts whose shaper in HarfBuzz does not zero the marks. */
+const noMarkZero: readonly string[] = ["hang", "khmr"];
+
+/** This function gives the rules of `zeroedMarks` for a font and a script. The Indic shaper of HarfBuzz has neither rule. */
+function markRules(font: Font, script: string): MarkRules {
+  const indic = indicScripts.includes(script);
+  return { classes: !font.hasGlyphClasses && !indic && !noMarkZero.includes(script), fallback: !font.hasPositioning && !indic && !noFallbackPosition.includes(script) };
+}
 
 /**
  * This function gives the advance of a glyph of `shaperOf`. HarfBuzz hides a default ignorable after the GSUB pass, if no
@@ -329,6 +348,7 @@ function shapedAdvance(font: Font, glyph: number): number {
 function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: string) => number[]; kerning: readonly PairLookup[] } {
   const { script, features, shaper, kerning } = shapingOf(font, options);
   if (shaper === "indic") return { substitute: indicShaper(font, script, features), kerning };
+  const marks = markRules(font, script);
   const joins = shaper === "joining";
   const lookups = joins ? [] : font.substitutions(script, features);
   const stages = joins ? joiningStages(features, features.includes("rclt") && font.substitutions(script, ["rclt"]).length > 0).map((stage) => ({ stage, lookups: font.substitutions(script, stage.features) })) : [];
@@ -343,17 +363,21 @@ function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: str
       wordGlyphs = codePoints.map((codePoint) => font.glyph(codePoint));
     }
     const hides = hasDefaultIgnorable(word);
+    const zeroed = (marks.classes || marks.fallback) && hasMark(word) ? zeroedMarks(codePoints, marks) : [];
     const forms = joins ? joiningForms(codePoints) : [];
-    // Each glyph has the bit of its joining form, and the bits of `GLOBAL_MASK` and `IGNORABLE_MASK`
-    const masks = joins || hides ? codePoints.map((codePoint, i) => GLOBAL_MASK | (forms[i] === undefined ? 0 : 1 << joiningFeatures.indexOf(forms[i])) | (hides && isHidden(font, codePoint) ? IGNORABLE_MASK : 0)) : undefined;
+    // Each glyph has the bit of its joining form, and the bits of `GLOBAL_MASK`, `IGNORABLE_MASK` and `ZEROED_MASK`
+    const masks = joins || hides || zeroed.length > 0 ? codePoints.map((codePoint, i) => GLOBAL_MASK | (forms[i] === undefined ? 0 : 1 << joiningFeatures.indexOf(forms[i])) | (hides && isHidden(font, codePoint) ? IGNORABLE_MASK : 0) | (zeroed[i] === true ? ZEROED_MASK : 0)) : undefined;
     const before = hides ? [...wordGlyphs] : [];
     for (const lookup of lookups) lookup.apply(wordGlyphs, masks, GLOBAL_MASK);
     for (const { stage, lookups: stageLookups } of stages) {
       const mask = stage.form === undefined ? GLOBAL_MASK : 1 << joiningFeatures.indexOf(stage.form);
       for (const lookup of stageLookups) lookup.apply(wordGlyphs, masks, mask);
     }
-    // A substitution gives a new glyph the mask of its source. Thus a glyph with the bit and a new id is not hidden
-    return hides ? wordGlyphs.map((glyph, i) => (((masks![i] ?? 0) & IGNORABLE_MASK) !== 0 && before.includes(glyph) ? ~glyph : glyph)) : wordGlyphs;
+    // A substitution gives a new glyph the mask of its source. Thus a default ignorable with a new id is not hidden, and a mark stays zeroed
+    return masks === undefined ? wordGlyphs : wordGlyphs.map((glyph, i) => {
+      const mask = masks[i] ?? 0;
+      return (mask & ZEROED_MASK) !== 0 || ((mask & IGNORABLE_MASK) !== 0 && before.includes(glyph)) ? ~glyph : glyph;
+    });
   };
   return { substitute, kerning };
 }

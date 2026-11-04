@@ -4,6 +4,7 @@
  */
 
 const unicodeMark = /\p{M}/u;
+const nonspacingMark = /\p{Mn}/u;
 
 /**
  * The classes of HarfBuzz for the marks of Hebrew and Arabic, from `hb-unicode.hh`. Their order is not the canonical order:
@@ -45,6 +46,27 @@ function isMark(codePoint: number): boolean {
 /** This function tells if a text has a mark of Unicode. */
 export function hasMark(text: string): boolean {
   return unicodeMark.test(text);
+}
+
+/** The rules of HarfBuzz that zero a mark without GPOS. */
+export interface MarkRules {
+  /** The font has no glyph classes, so HarfBuzz gives each nonspacing mark the class of a mark, and zeroes it after the kerning. */
+  readonly classes: boolean;
+  /** The font has no GPOS, so the fallback mark position zeroes each mark with a combining class after a base. */
+  readonly fallback: boolean;
+}
+
+/** This function tells which code points of a word take no advance by the rules `rules`. */
+export function zeroedMarks(codePoints: readonly number[], rules: MarkRules): boolean[] {
+  let base = false;
+  return codePoints.map((codePoint) => {
+    const character = String.fromCodePoint(codePoint);
+    if (!isMark(codePoint)) {
+      base = true;
+      return false;
+    }
+    return (rules.classes && nonspacingMark.test(character) && !hasDefaultIgnorable(character)) || (rules.fallback && base && !isStarter(codePoint));
+  });
 }
 
 function decomposed(codePoint: number): string {

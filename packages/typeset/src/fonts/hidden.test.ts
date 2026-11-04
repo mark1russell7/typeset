@@ -82,3 +82,53 @@ describe("a default ignorable", () => {
     for (const options of rows) expect(measureWidth(font, sample, 16, options)).toBeLessThanOrEqual(widthBound(font, sample, options).width(sample.length, 16));
   });
 });
+
+describe("a mark without GPOS", () => {
+  // The glyph 3 has no class of GDEF. The code points: a mark with a class, a nonspacing mark of class 0, an enclosing mark and a spacing mark
+  const ACUTE = 0x301;
+  const AA = 0x941;
+  const CIRCLE = 0x20dd;
+  const VISARGA = 0x903;
+  const map = (codePoint: number): [number, number][] => [[A, 1], [codePoint, 3]];
+  const widths = (font: ReturnType<typeof fontOf>, sample: string, script: string): number[] => glyphAdvances(font, sample, { script }).advances;
+
+  it("takes no advance after a base, when the mark has a combining class", () => {
+    const font = fontOf({ gpos: null, map: map(ACUTE) });
+    expect(widths(font, text(A, ACUTE), "latn")).toEqual([600, 0]);
+    for (const options of rows) expect(measureWidth(font, text(A, ACUTE), 16, options)).toBe(measureWidth(font, "A", 16, options));
+  });
+
+  it("keeps its advance with glyph classes, and with no base or no combining class", () => {
+    expect(widths(fontOf({ gpos: null, map: map(ACUTE) }), text(ACUTE), "latn")).toEqual([520]);
+    for (const codePoint of [AA, CIRCLE, VISARGA]) expect(widths(fontOf({ gpos: null, map: map(codePoint) }), text(A, codePoint), "DFLT"), codePoint.toString(16)).toEqual([600, 520]);
+  });
+
+  it("keeps its advance in a font with GPOS and glyph classes", () => {
+    expect(widths(fontOf({ map: map(ACUTE) }), text(A, ACUTE), "latn")).toEqual([600, 520]);
+  });
+
+  it("takes no advance in a font with no glyph classes, when it is nonspacing", () => {
+    for (const gpos of [null, undefined]) {
+      const font = (codePoint: number): ReturnType<typeof fontOf> => fontOf({ gdef: null, ...(gpos === null ? { gpos } : {}), map: map(codePoint) });
+      expect(widths(font(ACUTE), text(ACUTE), "latn")).toEqual([0]);
+      expect(widths(font(AA), text(A, AA), "DFLT")).toEqual([600, 0]);
+      expect(widths(font(CIRCLE), text(A, CIRCLE), "DFLT")).toEqual([600, 520]);
+      expect(widths(font(VISARGA), text(A, VISARGA), "DFLT")).toEqual([600, 520]);
+    }
+  });
+
+  it("follows the shaper of the script", () => {
+    const classes = fontOf({ map: map(ACUTE), gdef: null });
+    const fallback = fontOf({ map: map(ACUTE), gpos: null });
+    const sample = text(A, ACUTE);
+    expect([widths(classes, sample, "thai"), widths(fallback, sample, "thai")]).toEqual([[600, 0], [600, 520]]);
+    expect([widths(classes, sample, "hang"), widths(fallback, sample, "hang")]).toEqual([[600, 520], [600, 0]]);
+    expect([widths(classes, sample, "khmr"), widths(fallback, sample, "khmr")]).toEqual([[600, 520], [600, 520]]);
+    expect([widths(classes, sample, "deva"), widths(fallback, sample, "deva")]).toEqual([[600, 520], [600, 520]]);
+  });
+
+  it("stays at zero after a substitution", () => {
+    const gsub = substitutionTable([["ccmp", 0]], [lookup(1, 0, single(3, 6))]);
+    expect(glyphAdvances(fontOf({ gsub, gpos: null, map: map(ACUTE) }), text(A, ACUTE), { script: "latn" })).toEqual({ glyphs: [1, 6], advances: [600, 0] });
+  });
+});

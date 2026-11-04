@@ -224,13 +224,13 @@ export function assembleTtf(tables: readonly (readonly [string, Bytes])[]): Uint
   return Uint8Array.from(out.data);
 }
 
-/** This function builds a test font from the fixture. The value `null` of `gpos` removes the table. */
-export function fontOf({ gsub, gpos, kern, map = characters, widths = advances }: { gsub?: Bytes; gpos?: Bytes | null; kern?: Bytes; map?: readonly (readonly [number, number])[]; widths?: readonly number[] }): Font {
+/** This function builds a test font from the fixture. The value `null` of `gpos` or `gdef` removes the table. */
+export function fontOf({ gsub, gpos, gdef: classes, kern, map = characters, widths = advances }: { gsub?: Bytes; gpos?: Bytes | null; gdef?: null; kern?: Bytes; map?: readonly (readonly [number, number])[]; widths?: readonly number[] }): Font {
   const hmtx = new Bytes();
   for (const width of widths) hmtx.u16(width, 0);
   const replaced: Record<string, Bytes | undefined> = { hmtx, maxp: new Bytes().u32(0x00005000).u16(widths.length), GSUB: gsub, GPOS: gpos ?? undefined };
   const tables = tableSet(false, gsub !== undefined, "hvar", [...map].sort((a, b) => a[0] - b[0]))
-    .filter(([tag]) => tag !== "GPOS" || gpos !== null)
+    .filter(([tag]) => (tag !== "GPOS" || gpos !== null) && (tag !== "GDEF" || classes !== null))
     .map(([tag, body]): [string, Bytes] => [tag, replaced[tag] ?? body]);
   return readFont(assembleTtf(kern === undefined ? tables : [...tables, ["kern", kern]]));
 }
