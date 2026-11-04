@@ -28,6 +28,8 @@ export interface WeightRow {
   readonly entry: string;
   readonly minified: number;
   readonly gzip: number;
+  /** The minified bytes at the release. This value is `null` for an entry that the release does not have. */
+  readonly releaseMinified: number | null;
   /** The `gzip` bytes at the release. This value is `null` for an entry that the release does not have. */
   readonly releaseGzip: number | null;
   /** The growth in `gzip` bytes. This value is `null` for an entry that the release does not have. */
@@ -76,7 +78,7 @@ export function compareWeights(head: Weights, release: Weights, limit: number | 
   return Object.entries(head).map(([entry, weight]) => {
     const releaseGzip = release[entry]?.gzip ?? null;
     const growth = releaseGzip === null ? null : weight.gzip - releaseGzip;
-    return { entry, minified: weight.minified, gzip: weight.gzip, releaseGzip, growth, over: limit !== null && growth !== null && growth > limit };
+    return { entry, minified: weight.minified, gzip: weight.gzip, releaseMinified: release[entry]?.minified ?? null, releaseGzip, growth, over: limit !== null && growth !== null && growth > limit };
   });
 }
 

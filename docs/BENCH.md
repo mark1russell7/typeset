@@ -75,7 +75,9 @@ The weight of an entry is the count of bytes that a user pays for it. `pnpm weig
 Source bytes do not show this cost. A file in the import closure of an entry gives 0 bytes when no export uses it. For example, `fonts/context.ts` gives 0 bytes in `./fonts/inspect`.
 
 - The job `weight` of `bench.yml` compares the head with the newest `v<version>` tag. `Bench OK` fails when the `gzip` bytes of an entry grow over the limit.
+- The limit is `limitGzipBytes` in `packages/bench/weight.json`: 1792 bytes. It is the largest growth of the first CI measure, 1619 bytes, rounded up to a multiple of 256.
 - The limit applies to all the changes since the last release, not to one pull request.
+- The limit is one value for all the entries. Thus `./breaking`, at 1390 bytes, can more than double under it.
 - Both sides use the dependencies of the head. Thus the growth shows only the source of typeset.
 - The job measures the head two times, and it fails when the two measures differ.
 - The artifact `weight-record` has the bytes of each input file in each entry.

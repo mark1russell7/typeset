@@ -15,7 +15,7 @@ describe("compareWeights", () => {
   const release = weights({ ".": 1000 });
 
   it("passes a growth equal to the limit, and flags one byte more", () => {
-    expect(compareWeights(weights({ ".": 1100 }), release, 100)[0]).toMatchObject({ growth: 100, over: false });
+    expect(compareWeights(weights({ ".": 1100 }), release, 100)[0]).toMatchObject({ releaseMinified: 2000, releaseGzip: 1000, growth: 100, over: false });
     expect(compareWeights(weights({ ".": 1101 }), release, 100)[0]).toMatchObject({ growth: 101, over: true });
   });
 
