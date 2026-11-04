@@ -446,5 +446,7 @@ The Fonts run 41731795116 gave this record, with HarfBuzz 15.0.0:
 - The worst model error of the tier `model` is 0.13 in 1/64 px for each script except Devanagari.
 - The worst error of Devanagari comes from one word. The two references disagree on that word, and T1f decides it.
 - The glyph ids agree on 783 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. T1e examines Latin Extended.
+- In 198 of the 2277 cells, each line sample has a missing glyph. These are all the cells of emoji, and the cells of Han in Noto Sans JP.
+- HarfBuzz and the model both use the glyph 0 for a missing glyph. So a zero error in those cells tells less than in other cells.
 - The largest precision error of the reference stays in its bound in all 2277 cells.
 - The read effect has no external reference until T4b.

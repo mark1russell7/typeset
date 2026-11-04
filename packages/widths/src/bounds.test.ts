@@ -398,7 +398,7 @@ describe("the table of the record", () => {
     const table = boundsTable([cell("latin", "advances", 16, "freetype", 3), cell("latin", "advances", 96, "coretext", -40.04), cell("latin", "model", 8, "freetype", 0)]);
     expect(table.split("\n")[0]).toBe("| Script | Model error, `advances` | Model error, `kerned` | Model error, `model` | Rounding effect | Read effect |");
     expect(table).toContain("| latin | -40.0 [-41.0, -39.0] (f 400, 96 px, coretext) | no data | 0.0 [-1.0, 1.0] (f 400, 8 px, freetype) | -20.0 [-20.0, -20.0] (f 400, 96 px, coretext) | 5.0 [0.0, 5.0] (f 400, 96 px, coretext) |");
-    expect(boundsTable([cell("latin-extended", "model", 8, "freetype", 1)])).toContain("| latin-extended (open: T1e) |");
+    expect(boundsTable([cell("latin-extended", "model", 8, "freetype", 1)])).toContain("| latin-extended |");
   });
 
   it("puts the table between the marks, and refuses a document with no marks", () => {
