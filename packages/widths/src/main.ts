@@ -13,6 +13,7 @@ import { brotliDecompressSync } from "node:zlib";
 import { fingerprint, fontSizes, generateCorpus, type FontId } from "@typeset/corpus";
 import { engines, isEngineName, measureWidth, readFont, shapingRisks, type Font } from "@mark1russell7/typeset/fonts";
 import { readTables } from "@mark1russell7/typeset/fonts/inspect";
+import { fontAdvance } from "@mark1russell7/typeset/measurer";
 import { chromium, type Page } from "playwright";
 import { advanceModelRow, diagnosticWeights, type AdvanceModelName, type AdvanceModelRow } from "./advances.ts";
 import { checkBounds, engineRecords, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
@@ -21,6 +22,7 @@ import { blinkScale } from "./bounds.ts";
 import { openReferenceFont } from "./harfbuzz.ts";
 import { isProbed, sequenceEntries } from "./sequences.ts";
 import { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags } from "./sources.ts";
+import { fontStacks, markTexts, mixedTexts, stackCells, stackFont, stackRecords, type StackRecord } from "./stacks.ts";
 
 const origin = "https://typeset.test";
 
@@ -85,6 +87,17 @@ async function canvasWidths(page: Page, font: string, weight: number, sizes: rea
       return texts.map((text) => context.measureText(text).width);
     });
   }, { family: `typeset-${font}`, weight, sizes: [...sizes], texts: [...texts] });
+}
+
+/** This function gives the canvas widths of the texts in each CSS font, as `widths[font][text]`. */
+async function stackWidths(page: Page, cssFonts: readonly string[], texts: readonly string[]): Promise<number[][]> {
+  return page.evaluate(({ cssFonts, texts }) => {
+    const context = document.querySelector("canvas")!.getContext("2d")!;
+    return cssFonts.map((font) => {
+      context.font = font;
+      return texts.map((text) => context.measureText(text).width);
+    });
+  }, { cssFonts: [...cssFonts], texts: [...texts] });
 }
 
 /** This function gives the DOM widths of the texts at each size, as `widths[size][text]`, with the CSS of one feature setting. */
@@ -166,6 +179,8 @@ async function main(): Promise<void> {
   const advanceModels: AdvanceModelRow[] = [];
   // T6: the canvas on each mark of Noto Emoji and on U+034F next to a kerning pair, at 96 px
   const sequenceProbe: { id: string; canvas: number; model: number; harfbuzz: number; risks: string[] }[] = [];
+  // T11: the texts of each font stack, against a canvas with the same family list
+  const stackRows: StackRecord[] = [];
   let fontKerning = "";
   let devicePixelRatio = 0;
   try {
@@ -251,6 +266,13 @@ async function main(): Promise<void> {
         sequenceProbe.push({ id: entry.id, canvas: canvas![i]!, model: measureWidth(model, entry.text, 96, options), harfbuzz, risks: shapingRisks(model, entry.text, options).map((risk) => risk.code) });
       });
     }
+    const stackModel = fontAdvance({ faces: ids.map((id) => ({ family: `typeset-${id}`, data: readFileSync(join(values.fonts!, fileName(id))) })), engine });
+    for (const stack of fontStacks) {
+      const list = stack.fonts.map((id) => fonts.get(id)!);
+      const texts = [...mixedTexts(stack, 1), ...markTexts(stack, list)];
+      const canvas = await stackWidths(page, fontSizes.map((size) => stackFont(stack, size)), texts.map((text) => text.text));
+      stackRows.push(...stackRecords(stack, list, texts, fontSizes, canvas, stackModel));
+    }
   } finally {
     await browser.close();
   }
@@ -327,6 +349,7 @@ async function main(): Promise<void> {
     engineSummary,
     engineExtraSummary,
     sequenceProbe,
+    stacks: { list: fontStacks, cells: stackCells(stackRows), records: stackRows },
     records,
   };
   writeFileSync(values.out, JSON.stringify(output) + "\n");
@@ -353,6 +376,8 @@ async function main(): Promise<void> {
     `The model of the engine ${engine}, worst line error in px: ${[...Object.entries(engineSummary).map(([script, cells]) => `${script} ${format(cells.line?.worstPx ?? Number.NaN)}`), ...extraWeights.map((weight) => `${extraSource.id} ${weight} ${format(engineExtraSummary[weight]?.line?.worstPx ?? Number.NaN)}`)].join(", ")}.`,
     ``,
     `The model of the engine ${engine} (sum ${engineSum}), worst paragraph and page error in px: ${Object.entries(engineSummary).map(([script, cells]) => `${script} ${format(cells.paragraph?.worstPx ?? Number.NaN, 4)} and ${format(cells.page?.worstPx ?? Number.NaN, 4)}`).join(", ")}.`,
+    ``,
+    `Font stacks against a canvas with the same family list, worst error in 1/64 px of the engine ${engine}, as stack size: ${stackCells(stackRows).map((cell) => `${cell.stack} ${cell.size}: ${format(cell.worst64, 2)} (n ${cell.n}, excluded ${cell.excluded})`).join(", ")}`,
     ``,
     `| font | weight | model instance | probe found | tied | error at the weight px | matches |`,
     `|---|---|---|---|---|---|---|`,
