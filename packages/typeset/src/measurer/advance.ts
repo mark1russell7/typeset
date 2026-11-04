@@ -351,7 +351,6 @@ export function fontAdvance(options: FontAdvanceOptions): (text: string, font: s
       }
       return run.length > 0 ? width + measure(run, current!) : width;
     };
-    // The width of a word comes from the word alone. This keeps the separator law of the rope at a change of font
-    return shaping === "canvas" ? sum(canvasWords(text), listed) : listed(text);
+    return listed(text);
   };
 }
