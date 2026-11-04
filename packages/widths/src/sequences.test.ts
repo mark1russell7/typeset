@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fontsFor, generateSample, scriptIds } from "@typeset/corpus";
+import { fontsFor, generateCorpus, generateSample, scriptIds } from "@typeset/corpus";
 import { measureWidth, readFont, shapingRisks, type MeasureOptions } from "@mark1russell7/typeset/fonts";
 import { describe, expect, it } from "vitest";
 import { blinkScale, tiers } from "./bounds.ts";
@@ -13,6 +13,10 @@ const folder = process.env["TYPESET_FONTS"];
 const out = process.env["TYPESET_SEQUENCES_OUT"];
 const SIZE = 96;
 const LIMIT = 1 / 64;
+
+// Each script with each font of T4. The record writes to `out` only in CI, where all the fonts must be present
+const fontCells = [...scriptIds.flatMap((script) => fontsFor(script).map((font) => [script, font.id as string] as const)), ["latin", extraSource.id] as const];
+const allFonts = [...new Set(fontCells.map(([, id]) => id))].sort();
 
 const present = (id: string): boolean => folder !== undefined && existsSync(join(folder, fileName(id)));
 const bytesOf = (id: string): Uint8Array => readFileSync(join(folder!, fileName(id)));
@@ -73,9 +77,8 @@ describe.skipIf(folder === undefined)("the model against HarfBuzz on the sequenc
 
   it("gives each ignorable the width of HarfBuzz between two letters, at the units per em", { timeout: 300_000 }, () => {
     const mismatches: string[] = [];
-    const cells = [...scriptIds.flatMap((script) => fontsFor(script).map((font) => [script, font.id as string] as const)), ["latin", extraSource.id] as const];
     const fonts = new Set<string>();
-    for (const [script, id] of cells) {
+    for (const [script, id] of fontCells) {
       if (!present(id) || fonts.has(id)) continue;
       fonts.add(id);
       const bytes = bytesOf(id);
@@ -91,6 +94,27 @@ describe.skipIf(folder === undefined)("the model against HarfBuzz on the sequenc
       }
     }
     expect(fonts.size).toBeGreaterThan(0);
+    if (out !== undefined) expect([...fonts].sort()).toEqual(allFonts);
     expect(mismatches).toEqual([]);
+  });
+
+  it("gives no risk but a missing glyph on the line samples of T4, on each font", { timeout: 300_000 }, () => {
+    const lines = generateCorpus({ seed: 1, perCell: 40 }).filter((sample) => sample.lengthClass === "line");
+    const alarms: string[] = [];
+    const fonts = new Set<string>();
+    let samples = 0;
+    for (const [script, id] of fontCells) {
+      if (!present(id)) continue;
+      fonts.add(id);
+      const model = readFont(bytesOf(id), { instance: cssInstance(), deltas: "round", metrics: "own" });
+      const options: MeasureOptions = { ...tiers.model, script: scriptTags[script], shaping: "canvas", rounding: "exact", sum: "exact" };
+      for (const sample of lines.filter((line) => line.script === script)) {
+        samples++;
+        for (const risk of shapingRisks(model, sample.text, options)) if (risk.code !== "missing-glyph") alarms.push(`${script} ${id} ${sample.id} ${risk.code}`);
+      }
+    }
+    expect(samples).toBeGreaterThan(0);
+    if (out !== undefined) expect([...fonts].sort()).toEqual(allFonts);
+    expect(alarms).toEqual([]);
   });
 });
