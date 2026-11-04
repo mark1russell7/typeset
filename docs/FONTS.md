@@ -435,17 +435,17 @@ The committed record is `packages/widths/data/harfbuzz-bounds.json`, with one li
 | hebrew | 1984.0 [1408.0, 1984.0] (noto-sans-hebrew 400, 96 px, freetype) | -0.1 [-0.1, 0.0] (noto-sans-hebrew 400, 48 px, coretext) | -0.1 [-0.1, 0.0] (noto-sans-hebrew 400, 48 px, coretext) | -933.6 [-933.6, -527.6] (noto-sans-hebrew 400, 24 px, freetype) | -50.0 [-50.0, -42.2] (noto-sans-hebrew 400, 96 px, coretext) |
 | kana | 832.0 [448.0, 832.0] (noto-sans-jp 400, 96 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 8 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 8 px, coretext) | 2489.9 [2400.0, 2489.9] (noto-sans-jp 400, 13.5 px, freetype) | 31.6 [15.8, 31.6] (noto-sans-jp 400, 96 px, coretext) |
 | latin | 1728.0 [1408.0, 1728.0] (source-sans-3 700, 96 px, freetype) | 344.0 [184.3, 344.0] (noto-serif 400, 96 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 96 px, coretext) | -2022.4 [-2022.4, -1996.8] (noto-sans-mono 400, 14 px, freetype) | 40.6 [20.0, 40.6] (source-sans-3 700, 96 px, coretext) |
-| latin-extended (open: T1e) | 1216.0 [640.0, 1216.0] (noto-serif 400, 96 px, freetype) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -2022.4 [-2022.4, -1920.0] (noto-sans-mono 400, 14 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 8 px, freetype) |
+| latin-extended | 1216.0 [640.0, 1216.0] (noto-serif 400, 96 px, freetype) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -0.1 [-0.1, -0.1] (noto-sans-mono 400, 48 px, coretext) | -2022.4 [-2022.4, -1920.0] (noto-sans-mono 400, 14 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 8 px, freetype) |
 | thai | 256.0 [128.0, 256.0] (noto-sans-thai 400, 96 px, freetype) | 256.0 [128.0, 256.0] (noto-sans-thai 400, 96 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 96 px, coretext) | -754.7 [-754.7, -563.7] (noto-sans-thai 400, 72 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 8 px, freetype) |
 
-The source is the record of the CI run 41731795116.
+The source is the record of the CI run 41766190315.
 <!-- bounds-table:end -->
 
-The Fonts run 41731795116 gave this record, with HarfBuzz 15.0.0:
+The Fonts run 41766190315 gave this record, with HarfBuzz 15.0.0:
 
 - The worst model error of the tier `model` is 0.13 in 1/64 px for each script except Devanagari.
 - The worst error of Devanagari comes from one word. The two references disagree on that word. The model is correct, and the next section tells why.
-- The glyph ids agree on 783 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. T1e examines Latin Extended.
+- The glyph ids agree on 795 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. The run 41731795116 gave 783 of 795 before T1e.
 - In 198 of the 2277 cells, each line sample has a missing glyph. These are all the cells of emoji, and the cells of Han in Noto Sans JP.
 - HarfBuzz and the model both use the glyph 0 for a missing glyph. So a zero error in those cells tells less than in other cells.
 - The largest precision error of the reference stays in its bound in all 2277 cells.
