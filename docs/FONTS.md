@@ -75,7 +75,7 @@ The fonts run 41562917143 on the head 65f5225 of typeset#36 measured the model o
 - The numbers are for the 9 scripts Latin, Greek, Cyrillic, Arabic, Hebrew, Thai, Han, kana and Hangul, and for Source Sans 3 at 400 and 700.
 - Before this change, the worst page on macOS and Windows was 0.10 to 3.01 px.
 - The two Linux arms give the same summaries as the run 41556398022.
-- The pages of Latin Extended (5.2 px) and Devanagari have other causes. T1e and T1d find them.
+- The pages of Latin Extended (5.2 px) and Devanagari had other causes. T1e and T1d found them.
 
 ## The limit of the width
 
@@ -349,7 +349,7 @@ The diagnosis of T1d measures each Devanagari record of the fonts run 4156894983
 
 - The glyphs of the model are the same as the glyphs of HarfBuzz for each of the 24442 canvas words of the Devanagari corpus.
 - Without the shaper, the `dist` kerning does not change the fractions. With the shaper, the pages need it.
-- The other scripts and Source Sans 3 have no regression on the four arms. The pages of Latin Extended keep their error of 5 px.
+- The other scripts and Source Sans 3 have no regression on the four arms. All 720 pages of Latin Extended are now within 0.01 px on the four arms. The worst error is 0 px.
 
 ## Error bounds against HarfBuzz (T4)
 
@@ -401,7 +401,7 @@ The file `harfbuzz-bounds.json` (schema `typeset-harfbuzz-bounds/1`) has these f
 - `glyphMatch`: for the tier `model`, the share of the canvas words that have the glyphs of HarfBuzz, for each script and each font. Each share has its Wilson interval.
 - `checks`: the results of the reference check, of the scaling check, of `engineRowsEqual`, of `ruleReplica`, of `roundingSameForEachTier` and of `readSum`. The check `readSum` gives the largest difference of the model error plus the read effect and the total error. HarfBuzz has no tiers, so the rounding effect of a cell does not change with its tier.
 - `referencesDisagree`: the clusters on which two references disagree, and each word with the glyphs of each reference. T1f decides the rule.
-- `knownOpen`: the scripts with an open error. Latin Extended is open (T1e). No test gates on it.
+- `knownOpen`: the scripts with an open error. No script is open now. No test gates on it.
 
 ### The precision of the reference
 
