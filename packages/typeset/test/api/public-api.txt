@@ -68,8 +68,9 @@ glyphAdvances: build/chunks/font.d.ts#glyphAdvances
 readTables: build/chunks/sfnt.d.ts#readTables
 shapingWords: build/chunks/font.d.ts#shapingWords
 
-## ./measurer (build/measurer.d.ts): 6 names
+## ./measurer (build/measurer.d.ts): 7 names
 
+type AdvanceFn: build/chunks/measurer.d.ts#AdvanceFn
 type FontAdvanceOptions: build/chunks/measurer.d.ts#FontAdvanceOptions
 type FontFace: build/chunks/measurer.d.ts#FontFace
 type FontSpec: build/chunks/measurer.d.ts#FontSpec
@@ -253,11 +254,15 @@ declare function shapingRisks(font: Font, text: string, options?: MeasureOptions
 ### build/chunks/fonts.d.ts#widthBound
 declare function widthBound(font: Font, characters: string, options?: MeasureOptions): WidthBound;
 
+### build/chunks/measurer.d.ts#AdvanceFn
+type AdvanceFn = (text: string, font: string) => number;
+
 ### build/chunks/measurer.d.ts#FontAdvanceOptions
 interface FontAdvanceOptions {
   readonly faces: readonly FontFace[];
   readonly engine?: EngineName | EngineRules;
   readonly shaping?: "dom" | "canvas";
+  readonly fallback?: AdvanceFn;
 }
 
 ### build/chunks/measurer.d.ts#FontFace
@@ -284,7 +289,7 @@ declare function fontAdvance(options: FontAdvanceOptions): (text: string, font: 
 
 ### build/chunks/measurer.d.ts#measurer_d_exports
 declare namespace measurer_d_exports {
-  export { FontAdvanceOptions, FontFace, FontSpec, fontAdvance, parseFont, scriptTag };
+  export { AdvanceFn, FontAdvanceOptions, FontFace, FontSpec, fontAdvance, parseFont, scriptTag };
 }
 
 ### build/chunks/measurer.d.ts#parseFont

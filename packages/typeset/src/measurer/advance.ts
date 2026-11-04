@@ -6,7 +6,12 @@
  */
 import { engines, isEngineName, type EngineName, type EngineRules } from "../fonts/engines.ts";
 import { measureWidth, readFont, type Font } from "../fonts/font.ts";
+import { shapingRisks } from "../fonts/risks.ts";
 import type { Decompress } from "../fonts/sfnt.ts";
+import { canvasWords } from "../fonts/words.ts";
+
+/** This function gives the width of a text in a CSS font. It has the form of `AdvanceFn` of layout-contract. */
+export type AdvanceFn = (text: string, font: string) => number;
 
 /** One font file of the host, with the family, the weight and the style that CSS matches. */
 export interface FontFace {
@@ -36,6 +41,12 @@ export interface FontAdvanceOptions {
    * with `measureText`. Use `dom` for the widths of a text in a page.
    */
   readonly shaping?: "dom" | "canvas";
+  /**
+   * The shaper of the host. Under the shaping `canvas`, it measures each word that `shapingRisks` flags, and the model
+   * measures the other words. A flagged word goes to it alone, so the separator law of the rope holds.
+   * The shaping `dom` does not use it: there, one word changes the shape of its neighbors.
+   */
+  readonly fallback?: AdvanceFn;
 }
 
 /** The parts of a CSS font shorthand that change a width. */
@@ -150,6 +161,36 @@ const scriptPatterns: readonly (readonly [RegExp, string])[] = [
 
 const neutral = /[\p{sc=Common}\p{sc=Inherited}\p{sc=Unknown}]/u;
 
+const ascii = /^[\0-\x7f]*$/;
+const chineseOrJapanese: ReadonlySet<string> = new Set(["hani", "kana", "bopo"]);
+const characterTags = new Map<string, string>();
+
+/** This function gives the script runs of a text. A neutral character stays with the run before it. Chinese and Japanese stay in one run. */
+export function scriptRuns(text: string): string[] {
+  if (ascii.test(text)) return [text];
+  const runs: string[] = [];
+  let run = "";
+  let current: string | undefined;
+  for (const character of text) {
+    if (!neutral.test(character)) {
+      let tag = characterTags.get(character);
+      if (tag === undefined) {
+        tag = scriptTag(character);
+        if (chineseOrJapanese.has(tag)) tag = "hani";
+        characterTags.set(character, tag);
+      }
+      if (current !== undefined && tag !== current) {
+        runs.push(run);
+        run = "";
+      }
+      current = tag;
+    }
+    run += character;
+  }
+  runs.push(run);
+  return runs;
+}
+
 /**
  * This function gives the OpenType script tag of a text, as HarfBuzz guesses it. The tag is the script of the first
  * character that is not of the scripts Common, Inherited or Unknown. A text of only those characters, for example emoji, gets `DFLT`.
@@ -210,6 +251,7 @@ export function fontAdvance(options: FontAdvanceOptions): (text: string, font: s
   if (typeof engine === "string" && !isEngineName(engine)) throw new RangeError(`the engine "${engine}" is not a row of engines`);
   const rules: EngineRules = typeof engine === "string" ? engines[engine] : engine;
   const shaping = options.shaping ?? "canvas";
+  const fallback = shaping === "canvas" ? options.fallback : undefined;
   const faces = options.faces;
   const loaded = new Map<number, Loaded>();
   const specs = new Map<string, FontSpec>();
@@ -283,7 +325,37 @@ export function fontAdvance(options: FontAdvanceOptions): (text: string, font: s
 
   return (text: string, font: string): number => {
     const { spec, fonts } = fontsOf(font);
-    const measure = (run: string, face: Font): number => measureWidth(face, run, spec.size, { script: scriptTag(run), shaping, rounding: rules.rounding, sum: rules.sum });
+    const plain = (run: string, face: Font, script: string): number => measureWidth(face, run, spec.size, { script, shaping, rounding: rules.rounding, sum: rules.sum });
+    const measure = (run: string, face: Font): number => {
+      const runs = scriptRuns(run);
+      if (runs.length === 1 && fallback === undefined) return plain(run, face, scriptTag(run));
+      if (shaping !== "canvas") return runs.reduce((sum, part) => sum + plain(part, face, scriptTag(part)), 0);
+      // A text of one script keeps one call and one tag. In a mixed text, the tag of a word comes from the word alone
+      const tag = runs.length === 1 ? scriptTag(run) : undefined;
+      let width = 0;
+      let stretch = "";
+      let script = "";
+      const flush = (): void => {
+        if (stretch.length > 0) width += plain(stretch, face, script);
+        stretch = "";
+      };
+      for (const word of canvasWords(run)) {
+        const parts = tag === undefined ? scriptRuns(word) : [word];
+        const tags = parts.map((part) => tag ?? scriptTag(part));
+        if (fallback !== undefined && parts.some((part, i) => shapingRisks(face, part, { script: tags[i]!, shaping }).length > 0)) {
+          flush();
+          width += fallback(word, font);
+          continue;
+        }
+        parts.forEach((part, i) => {
+          if (tags[i] !== script) flush();
+          script = tags[i]!;
+          stretch += part;
+        });
+      }
+      flush();
+      return width;
+    };
     if (fonts.length === 1) return measure(text, fonts[0]!);
     let width = 0;
     let run = "";
