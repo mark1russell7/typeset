@@ -426,3 +426,34 @@ The Fonts run 41731795116 gave this record, with HarfBuzz 15.0.0:
 - The glyph ids agree on 783 of 795 words of Latin Extended, and on 319 of 320 words of Devanagari. T1e examines Latin Extended.
 - The largest precision error of the reference stays in its bound in all 2277 cells.
 - The read effect has no external reference until T4b.
+
+## Each engine row against its engine (T4b)
+
+T4 compares the model with HarfBuzz. T4b compares each engine row with the real engine: the canvas of Chromium on the runner of the arm.
+
+- Each arm of the Fonts workflow already measures the canvas, so T4b adds no browser code.
+- `engineBoundCells` gives one cell for each arm, script, font, weight and size. Each cell has the worst error and the 0.99 quantile in 1/64 px, with 95 % intervals.
+- The records have the 6 sizes of the corpus. The 5 other sizes of T4 have no canvas width, so T4b does not examine them.
+- The model and Chrome agree on the word of T1f, so T4b keeps that word.
+
+### The read effect
+
+The read effect of T4 is the model width minus the model width with exact deltas. Until T4b, no external reference examined it.
+
+- The effect that the canvas shows differs from the effect of the model by the model error.
+- So a small effect tells nothing. `readCheck` examines only the cells with an effect above 1/64 px.
+- The check holds when the model error of each such cell is at most 10 % of its effect.
+- The effect comes before the rounding of the row, so the arms do not give the same evidence.
+
+| Arm | Evidence |
+|---|---|
+| `windows-1` | Strong. The advances are not rounded, so the canvas shows the whole effect. |
+| `linux-1`, `linux-2` | Weak. The rounding `pixel` hides the effect, so a small error proves little. |
+| `macos-2` | None. CoreText uses exact deltas, so the effect is 0. |
+
+The record gives the check for each arm in the field `readCheckOfArm`.
+
+### The result
+
+<!-- engine-table:start -->
+<!-- engine-table:end -->
