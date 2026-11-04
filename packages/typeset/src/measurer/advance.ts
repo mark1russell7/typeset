@@ -157,7 +157,7 @@ const scriptPatterns: readonly (readonly [RegExp, string])[] = [
 
 const neutral = /[\p{sc=Common}\p{sc=Inherited}\p{sc=Unknown}]/u;
 
-/** This function gives the script runs of a text. A neutral character stays with the run before it. */
+/** This function divides a text into parts of one script. A neutral character stays with the part before it. */
 export function scriptRuns(text: string): string[] {
   if (/^[\0-\x7f]*$/.test(text)) return [text];
   const runs: string[] = [];

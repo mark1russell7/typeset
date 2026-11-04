@@ -450,3 +450,86 @@ The Fonts run 41731795116 gave this record, with HarfBuzz 15.0.0:
 - HarfBuzz and the model both use the glyph 0 for a missing glyph. So a zero error in those cells tells less than in other cells.
 - The largest precision error of the reference stays in its bound in all 2277 cells.
 - The read effect has no external reference until T4b.
+
+## The shaper fallback (T6)
+
+The fast path does not shape all text. T6 detects text that the model cannot measure with trust, and it gives that text to a shaper of the host.
+
+`packages/typeset` has no wasm and no new dependency for this work. The host supplies the shaper.
+
+### Two corrections of the model
+
+- A default ignorable takes no advance, and the kerning skips it. The set comes from `hb-unicode.hh`. It is not the Unicode property.
+- A substitution that changes the glyph of a default ignorable keeps the glyph visible, as in HarfBuzz.
+- A nonspacing mark takes no advance when the font has no GDEF glyph classes. This is the rule of the synthetic classes of HarfBuzz.
+- A mark with a combining class after a base takes no advance when the font has no GPOS. This is the rule of the fallback mark position.
+- Each rule uses the shaper of the script. The tables `noMarkZero` and `noFallbackPosition` in `font.ts` list the exceptions.
+
+Noto Emoji is the one font of the 12 with no GPOS. Its script is `Zyyy`, so HarfBuzz uses the default shaper, and the fallback mark position is on.
+
+The cmap of Noto Emoji has only three marks. U+FE0E and U+FE0F take no advance. U+20E3 has the class 0, so it keeps its advance of 2600. A mark that is not in the font takes no advance in both shapers.
+
+A probe compared the model with HarfBuzz on fonts with their GPOS or GDEF removed. These are the results:
+
+- 115 of 135 rows are equal under the default flags of the probe.
+- Each of the 20 other rows starts with a mark. `HB_BUFFER_FLAG_BOT` makes HarfBuzz insert U+25CC there, and the model does not.
+- With no flags, HarfBuzz and the model are equal on 615 of 615 rows.
+- The Blink flags for U+25CC are not verified.
+
+### What stays different from HarfBuzz
+
+- The GSUB pass does not skip a joiner. So a ligature across U+200D does not form in the model.
+- U+034F with its own glyph of advance 0 stays visible to the kerning. HarfBuzz hides it.
+- That difference changes a width. `w` U+034F `ō` in Source Sans 3 is 715 units in HarfBuzz, and about 719 in the model.
+- On the corpus, the difference is 0.044 px at 12 px, on the sample `latin-extended/paragraph/2`. The model keeps its value, because the T4 corpus widths must not change.
+- The Indic path has no mark rule. A mark at the start of a word in the shaping `dom` has no base.
+- The shaper of HarfBuzz for a script with no fallback position does not apply the `kern` table. The model applies it.
+- HarfBuzz keeps the advance of a GDEF mark under the Hangul shaper. `Font.advance` gives 0.
+
+### Shaping risks
+
+The function `shapingRisks(font, text, options)` gives a list of `ShapingRisk`. Each risk has a code, an offset and a length in UTF-16 units.
+
+| Code | Meaning |
+| --- | --- |
+| `missing-glyph` | The font has no glyph for a cluster after normalization. |
+| `unshaped-script` | The model has no shaper for the script. |
+| `emoji-zwj` | A pictograph sequence has U+200D. |
+| `variation-selector` | A selector is present. The model does not read cmap format 14. |
+| `keycap` | A digit, `#` or `*` comes before U+20E3. |
+| `flag` | Two regional indicators are adjacent. |
+| `tag` | A pictograph has a tag sequence. |
+| `positioning` | A `kern` or `dist` lookup outside PairPos changes the width of a word. |
+
+The list of scripts is Bengali, Gurmukhi, Gujarati, Oriya, Tamil, Telugu, Kannada, Malayalam, Sinhala, Khmer, Myanmar, Tibetan, Mongolian, NKo and Mandaic. The list does not have other scripts of the Universal Shaping Engine, for example Balinese and Javanese.
+
+An empty list is not a proof of a correct width.
+
+The code `positioning` fires on no local font. In the six local fonts, one such lookup changes an advance, and it changes the advance of a mark. HarfBuzz zeroes that mark after GPOS, so the width stays the same. Only synthetic fixtures show this code.
+
+### The fallback of `fontAdvance`
+
+The option `fallback` of `fontAdvance` is a function with the form of `AdvanceFn`. Under the shaping `canvas`, it measures each word that `shapingRisks` flags.
+
+- The model measures each other word. A flagged word goes whole to the fallback.
+- A dispatch for each word keeps the separator law of the rope. A dispatch for each run breaks it.
+- The shaping `dom` does not use the fallback. There, one word changes the shape of its neighbors.
+- In a mixed text, the script tag of a word comes from the word alone. So one face measures `Hello नमस्ते` with `latn` and `deva`.
+- A text of one script keeps one measurement and one tag when it has no risk.
+
+### What is measured
+
+- Six of the 12 fonts are the local record: Noto Emoji, Noto Sans, Noto Sans Arabic, Noto Sans Devanagari, Noto Sans Hebrew and Source Sans 3.
+- The widths of 2160 corpus samples, 4320 values, are equal before and after this work on those fonts.
+- In 1440 runs of 480 samples, no risk other than `missing-glyph` fired.
+- `missing-glyph` fires on real samples. It flagged 94 runs of emoji in Noto Emoji, and 64 runs of `latin-extended` in Source Sans 3.
+- So those samples go to the fallback when the host supplies one. A stub fallback got no call on samples with no risk.
+- With a fallback, 200 edit sequences on mixed text stay within 1e-6 px of the flat width under the rules that `text.test.ts` covers. These rules have no `float32` sum.
+
+### What is not measured
+
+- The six other fonts are not examined. So Thai, Han, kana and Hangul have no false alarm record.
+- A rope with the `float32` sum of `coretext` and `directwrite` goes above 1e-6 px. The worst value is 1.53e-4 px on mixed text.
+- That drift is not from T6. A plain `measureWidth` of Latin text drifts to 2.29e-4 px with no fallback.
+- There is no record of a real shaper as the fallback. The tests use a stub.
+- The accuracy of a host shaper against Chrome is not measured. A later part of T6 gives that record.
