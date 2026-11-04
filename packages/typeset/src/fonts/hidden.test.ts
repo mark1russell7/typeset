@@ -44,11 +44,9 @@ describe("a default ignorable", () => {
     expect(measureWidth(table, text(A, ZWJ, V), 1000, { script: "latn" })).toBe(measureWidth(table, "AV", 1000, { script: "latn" }));
   });
 
-  it("keeps U+034F with its own glyph of advance 0 in the kerning, and so the widths of the T4 corpus", () => {
+  it("hides U+034F with its own glyph of advance 0 from the kerning, as HarfBuzz does", () => {
     const font = fontOf({ gpos: pairs([[1, 2, -80], [1, 3, -10]]), widths: [500, 600, 580, 0, 300, 250, 560], map: [[A, 1], [V, 2], [0x34f, 3]] });
-    expect(glyphAdvances(font, text(A, 0x34f, V), { script: "latn" }).advances).toEqual([590, 0, 580]);
-    const wide = fontOf({ gpos: pairs([[1, 2, -80]]), map: [[A, 1], [V, 2], [0x34f, 3]] });
-    expect(glyphAdvances(wide, text(A, 0x34f, V), { script: "latn" }).advances).toEqual([520, 0, 580]);
+    expect(measureWidth(font, text(A, 0x34f, V), 1000, { script: "latn" })).toBe(measureWidth(font, "AV", 1000, { script: "latn" }));
   });
 
   it("keeps a Hangul filler out of the set, as HarfBuzz does", () => {

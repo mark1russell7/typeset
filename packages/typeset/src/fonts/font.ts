@@ -358,7 +358,7 @@ function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: str
     const hides = hasDefaultIgnorable(word);
     const zeroed = (classes || fallback) && hasMark(word) ? zeroedMarks(codePoints, classes, fallback) : [];
     const forms = joins ? joiningForms(codePoints) : [];
-    const masks = joins || hides || zeroed.length > 0 ? codePoints.map((codePoint, i) => GLOBAL_MASK | (forms[i] === undefined ? 0 : 1 << joiningFeatures.indexOf(forms[i])) | (hides && isHidden(font, codePoint) ? IGNORABLE_MASK : 0) | (zeroed[i] === true ? ZEROED_MASK : 0)) : undefined;
+    const masks = joins || hides || zeroed.length > 0 ? codePoints.map((codePoint, i) => GLOBAL_MASK | (forms[i] === undefined ? 0 : 1 << joiningFeatures.indexOf(forms[i])) | (hides && isHidden(codePoint) ? IGNORABLE_MASK : 0) | (zeroed[i] === true ? ZEROED_MASK : 0)) : undefined;
     const before = hides ? [...wordGlyphs] : [];
     for (const lookup of lookups) lookup.apply(wordGlyphs, masks, GLOBAL_MASK);
     for (const { stage, lookups: stageLookups } of stages) {

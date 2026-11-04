@@ -2,7 +2,6 @@
  * The Unicode normalization of HarfBuzz, from `hb-ot-shape-normalize.cc`. HarfBuzz decomposes each cluster of a base and its marks.
  * It then sorts the marks, and composes each mark with its base when the font has the glyph of the composite.
  */
-import type { Font } from "./font.ts";
 
 const unicodeMark = /\p{M}/u;
 const nonspacingMark = /\p{Mn}/u;
@@ -26,11 +25,9 @@ export function hasDefaultIgnorable(text: string): boolean {
   return defaultIgnorable.test(text);
 }
 
-/** This function tells if the model hides a code point. U+034F with its own glyph of advance 0 stays visible to the kerning. */
-export function isHidden(font: Pick<Font, "glyph" | "advance">, codePoint: number): boolean {
-  if (!hasDefaultIgnorable(String.fromCodePoint(codePoint))) return false;
-  const glyph = font.glyph(codePoint);
-  return codePoint !== 0x34f || glyph === 0 || font.advance(glyph) !== 0;
+/** This function tells if the model hides a code point. A hidden code point takes no advance, and the kerning skips it. */
+export function isHidden(codePoint: number): boolean {
+  return hasDefaultIgnorable(String.fromCodePoint(codePoint));
 }
 
 /** This function tells if a code point is a mark of Unicode. The first mark of Unicode is U+0300. */

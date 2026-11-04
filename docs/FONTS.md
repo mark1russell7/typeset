@@ -479,9 +479,6 @@ A probe compared the model with HarfBuzz on fonts with their GPOS or GDEF remove
 ### What stays different from HarfBuzz
 
 - The GSUB pass does not skip a joiner. So a ligature across U+200D does not form in the model.
-- U+034F with its own glyph of advance 0 stays visible to the kerning. HarfBuzz hides it.
-- That difference changes a width. `w` U+034F `ō` in Source Sans 3 is 715 units in HarfBuzz, and about 719 in the model.
-- On the corpus, the difference is 0.044 px at 12 px, on the sample `latin-extended/paragraph/2`. The model keeps its value, because the T4 corpus widths must not change.
 - The Indic path has no mark rule. A mark at the start of a word in the shaping `dom` has no base.
 - The shaper of HarfBuzz for a script with no fallback position does not apply the `kern` table. The model applies it.
 - HarfBuzz keeps the advance of a GDEF mark under the Hangul shaper. `Font.advance` gives 0.
@@ -520,7 +517,7 @@ The option `fallback` of `fontAdvance` is a function with the form of `AdvanceFn
 ### What is measured
 
 - Six of the 12 fonts are the local record: Noto Emoji, Noto Sans, Noto Sans Arabic, Noto Sans Devanagari, Noto Sans Hebrew and Source Sans 3.
-- The widths of 2160 corpus samples, 4320 values, are equal before and after this work on those fonts.
+- The model now hides U+034F, as HarfBuzz does. On 5040 corpus values, 8 values changed. Each is in Source Sans 3 and moves toward HarfBuzz. The largest change is 0.415 px at 12 px.
 - In 1440 runs of 480 samples, no risk other than `missing-glyph` fired.
 - `missing-glyph` fires on real samples. It flagged 94 runs of emoji in Noto Emoji, and 64 runs of `latin-extended` in Source Sans 3.
 - So those samples go to the fallback when the host supplies one. A stub fallback got no call on samples with no risk.
