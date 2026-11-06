@@ -197,10 +197,40 @@ const clusters = new Intl.Segmenter("und", { granularity: "grapheme" });
 /** This pattern finds a character with no ink. A font needs no glyph for it, because HarfBuzz hides it. */
 const ignorable = /^\p{Default_Ignorable_Code_Point}$/u;
 
-/** This function tells if a font has a glyph for each code point of a cluster that needs one. */
-function holds(font: Font, cluster: string): boolean {
-  for (const character of cluster) if (font.glyph(character.codePointAt(0)!) === 0 && !ignorable.test(character)) return false;
+/** This function tells if a font has a glyph for each code point of a text that needs one. */
+function covers(font: Font, text: string): boolean {
+  for (const character of text) if (font.glyph(character.codePointAt(0)!) === 0 && !ignorable.test(character)) return false;
   return true;
+}
+
+/**
+ * This function tells if a font holds a cluster. The normalizer of HarfBuzz composes a base and a mark when the font has the
+ * composed character. So a font with `â` holds `a` and U+0302.
+ */
+function holds(font: Font, cluster: string): boolean {
+  return covers(font, cluster) || covers(font, cluster.normalize("NFC"));
+}
+
+/** This pattern finds a character that starts an emoji run of Blink: a character with emoji presentation, or a skin tone modifier. */
+const emojiStart = /^[\p{Emoji_Presentation}\p{Emoji_Modifier}]$/u;
+
+/**
+ * This function gives the clusters of a text for the font fallback. The run segmenter of Blink divides the text into script
+ * runs and emoji runs before the fallback. So a cluster is a grapheme cluster inside one run of `scriptRuns`. It splits
+ * where an emoji run starts. Thus a Devanagari mark after a Latin base keeps the base in its font. A space before a lone
+ * skin tone modifier also keeps its font.
+ */
+export function fallbackClusters(text: string): string[] {
+  const out: string[] = [];
+  for (const run of scriptRuns(text)) {
+    for (const { segment } of clusters.segment(run)) {
+      const characters = [...segment];
+      const split = emojiStart.test(characters[0]!) ? -1 : characters.findIndex((character) => emojiStart.test(character));
+      if (split <= 0) out.push(segment);
+      else out.push(characters.slice(0, split).join(""), characters.slice(split).join(""));
+    }
+  }
+  return out;
 }
 
 const styleOrder: Readonly<Record<FontSpec["style"], readonly FontSpec["style"][]>> = {
@@ -237,7 +267,8 @@ function weightRank(range: readonly [number, number], weight: number): number {
 
 /**
  * This function gives the advance function of the faces of the host: the width in px of a text in a CSS font. Each cluster
- * of the text gets the first family of the font with a glyph for each of its code points. When no family has them all, the
+ * of `fallbackClusters` gets the first family of the font that holds it, as Blink falls back. A family holds a cluster when
+ * it has a glyph for each code point, or for each code point of the composed form. When no family holds the cluster, the
  * cluster gets the first family with its first code point, or else the font before it. The width of a run is `measureWidth` with the size of the font, the script
  * of `scriptTag` and the rules of the engine. The instance of a variable face takes the weight and the stretch as `wdth`.
  * It takes the style as `ital` or `slnt`, and the size as `opsz`, as `font-optical-sizing: auto` does.
@@ -340,7 +371,7 @@ export function fontAdvance(options: FontAdvanceOptions): (text: string, font: s
       let width = 0;
       let run = "";
       let current: Font | undefined;
-      for (const { segment } of clusters.segment(part)) {
+      for (const segment of fallbackClusters(part)) {
         const face = fonts.find((value) => holds(value, segment)) ?? fonts.find((value) => value.glyph(segment.codePointAt(0)!) !== 0) ?? current ?? fonts[0]!;
         if (face !== current && run.length > 0) {
           width += measure(run, current!);
