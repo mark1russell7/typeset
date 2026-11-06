@@ -6,6 +6,11 @@ name: Pages
 on:
   push:
     branches: [main]
+  # After a release, so that the Releases page has the new version
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
   # One build each day, so the Status page shows the open pull requests and the data date of the day
   schedule:
     - cron: "15 6 * * *"
