@@ -90,7 +90,7 @@ jobs:
 
   bench-ok:
     name: Bench OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, bench]
     runs-on: ubuntu-latest
     permissions: {}

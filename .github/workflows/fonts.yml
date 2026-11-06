@@ -206,7 +206,7 @@ jobs:
 
   fonts-ok:
     name: Fonts OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, widths, report]
     runs-on: ubuntu-latest
     permissions: {}
