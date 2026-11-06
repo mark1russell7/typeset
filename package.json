@@ -18,7 +18,8 @@
     "check:boundaries": "depcruise --config .dependency-cruiser.ts packages",
     "check:api": "api-report check",
     "check:conventions": "conventions check",
-    "bench": "pnpm --filter @typeset/bench run bench"
+    "bench": "pnpm --filter @typeset/bench run bench",
+    "weight": "pnpm --filter @typeset/bench run weight"
   },
   "devDependencies": {
     "@mark1russell7/template-cli": "^0.1.4",
