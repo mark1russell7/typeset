@@ -3,10 +3,13 @@ name: Fonts
 # The widths of the font tables against canvas measureText in headless Chromium, on the corpus, on four arms:
 # Linux at the device scale 1 and 2, macOS at the scale 2 and Windows at the scale 1. Each arm downloads the pinned
 # fonts and uploads font-widths-<arm>. The arm linux-1 also checks the WOFF2 files and uploads harfbuzz-bounds (T4).
-# The report job scores the outcomes.
+# The report job scores the outcomes. A pull request runs the arms when a font input changes, or when the lock changes
+# the version of playwright, which fixes the browser. The weekly run catches a change with no commit, such as a new runner image.
 
 on:
   pull_request:
+  schedule:
+    - cron: "48 7 * * 1"
   workflow_dispatch:
     inputs:
       per-cell:
@@ -29,9 +32,10 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: read
     outputs:
-      match: ${{ steps.changes.outputs.match }}
+      match: ${{ steps.changes.outputs.match == 'true' || steps.browser.outputs.changed == 'true' }}
     steps:
       - id: changes
         uses: mark1russell7/template/.github/actions/changes@f48f29fe5b00772951e0910a90fbbe312343338c # main
@@ -41,6 +45,23 @@ jobs:
             packages/widths/src/**
             packages/typeset/src/**
             .github/workflows/fonts.yml
+      # The paths above do not see a bump of playwright, which changes only the lock. This step compares that one entry.
+      - if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: github.event_name == 'pull_request'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+      - id: browser
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git show "$BASE_SHA:pnpm-lock.yaml" > "$RUNNER_TEMP/base-lock.yaml"
+          node packages/widths/scripts/browser-lock.ts "$RUNNER_TEMP/base-lock.yaml" pnpm-lock.yaml
 
   widths:
     name: Widths (${{ matrix.arm }})
