@@ -3,9 +3,10 @@ import { join } from "node:path";
 import { createMeasurer, layoutText, TEXT_UNITS } from "@mark1russell7/layout-contract/text";
 import { engines, measureWidth, readFont, type EngineName } from "@mark1russell7/typeset/fonts";
 import { fontAdvance } from "@mark1russell7/typeset/measurer";
-import { fontsFor, generateSample, scriptIds, type ScriptId } from "@typeset/corpus";
+import { fontsFor, generateSample, scriptIds, type FontId, type ScriptId } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
+import { fontStacks, markTexts, stackFont } from "./stacks.ts";
 
 // The test needs the pinned font files in the folder `TYPESET_FONTS`. `fetch.ts` downloads them. A script with no file is skipped.
 const folder = process.env["TYPESET_FONTS"];
@@ -69,4 +70,55 @@ describe.skipIf(folder === undefined)("fontAdvance with the real fonts", () => {
       expect(check("latin", () => extraSource.id, weight)).toBe(samples * names.length);
     });
   }
+});
+
+/** The width limit of a stack cell, in px: 1.28 in 1/64 px, as the prediction of T11 gives it. */
+const stackLimit = 1.28 / 64;
+
+/** This function tells if a font has a glyph for each code point of a text. */
+function coversText(font: ReturnType<typeof readFont>, text: string): boolean {
+  return [...text].every((character) => font.glyph(character.codePointAt(0)!) !== 0);
+}
+
+describe.skipIf(folder === undefined)("fontAdvance with a font stack, as Blink falls back", () => {
+  for (const stack of fontStacks) {
+    it.skipIf(!stack.fonts.every(present))(`gives a mark that the first font lacks no .notdef advance: ${stack.id}`, { timeout: 300_000 }, () => {
+      const list = stack.fonts.map((id) => readFont(bytesOf(id), { instance: cssInstance() }));
+      // A stack whose later fonts have no mark that the first font lacks, as latin-han, has no mark text.
+      const texts = markTexts(stack, list);
+      for (const engine of names) {
+        const advance = fontAdvance({ faces: stack.fonts.map((id) => ({ family: `typeset-${id}`, data: bytesOf(id) })), engine });
+        const alone = (text: string, id: FontId, size: number): number => advance(text, stackFont({ ...stack, fonts: [id] }, size));
+        for (const { id, text } of texts) {
+          const [base, mark] = [...text];
+          expect(list[0]!.glyph(mark!.codePointAt(0)!), `${id}: the first font lacks the mark`).toBe(0);
+          const cluster = `${base}${mark}`;
+          // Blink keeps a mark of a script, not Inherited, in a script run of its own. Else the base and the mark are one cluster.
+          const own = !/\p{sc=Inherited}/u.test(mark!);
+          for (const size of [10, 16, 48]) {
+            const rest = advance(" a", stackFont(stack, size));
+            let want: number;
+            if (own) {
+              const markFont = stack.fonts.find((_, index) => list[index]!.glyph(mark!.codePointAt(0)!) !== 0)!;
+              want = advance("a", stackFont(stack, size)) + alone(mark!, markFont, size) + rest;
+            } else {
+              const index = list.findIndex((font) => coversText(font, cluster) || coversText(font, cluster.normalize("NFC")));
+              want = alone(cluster, stack.fonts[index]!, size) + rest;
+            }
+            const got = advance(text, stackFont(stack, size));
+            expect(Math.abs(got - want), `${id} ${engine} ${size}px: ${got} against ${want}`).toBeLessThanOrEqual(stackLimit);
+          }
+        }
+      }
+    });
+  }
+
+  it.skipIf(!["noto-sans", "noto-emoji"].every(present))("keeps a space before a lone skin tone modifier in the first font", () => {
+    const stack = fontStacks.find((value) => value.id === "latin-arabic-emoji")!;
+    for (const engine of names) {
+      const advance = fontAdvance({ faces: stack.fonts.map((id) => ({ family: `typeset-${id}`, data: bytesOf(id) })), engine });
+      const want = advance(" ", stackFont({ ...stack, fonts: ["noto-sans"] }, 16)) + advance("\u{1F3FC}\u{1F44F}", stackFont({ ...stack, fonts: ["noto-emoji"] }, 16));
+      expect(Math.abs(advance(" \u{1F3FC}\u{1F44F}", stackFont(stack, 16)) - want), engine).toBeLessThanOrEqual(stackLimit);
+    }
+  });
 });

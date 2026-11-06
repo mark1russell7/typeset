@@ -127,6 +127,36 @@ describe("fontAdvance", () => {
     expect(styled("AVoT", "13px s")).toBe(width(300));
   });
 
+  it("gives a cluster to the first family that holds each of its code points", () => {
+    const noMark = buildTtf(false, false, "hvar", characters.filter(([code]) => code !== 0x301));
+    const advance = fontAdvance({
+      faces: [
+        { family: "Base", data: noMark },
+        { family: "Full", data: fixed },
+      ],
+      engine: "directwrite",
+    });
+    const base = (text: string): number => expected(noMark, "directwrite", text, 13);
+    const full = (text: string): number => expected(fixed, "directwrite", text, 13);
+    // The first family has the base and not the mark, so the later family takes both, as in the second pass of Blink
+    expect(advance("A\u0301T", "13px Base, Full")).toBe(full("A\u0301") + base("T"));
+    // A character with no ink needs no glyph, so the cluster stays on the first family
+    expect(advance("A\u200dT", "13px Base, Full")).toBe(base("A\u200dT"));
+  });
+
+  it("adds the widths of the runs of each family", () => {
+    const advance = fontAdvance({
+      faces: [
+        { family: "Base", data: noO },
+        { family: "Full", data: fixed },
+      ],
+      engine: "directwrite",
+    });
+    const base = (text: string): number => expected(noO, "directwrite", text, 13);
+    const full = (text: string): number => expected(fixed, "directwrite", text, 13);
+    expect(advance("AV Ao", "13px Base, Full")).toBeCloseTo(base("AV") + base(" ") + base("A") + full("o"), 9);
+  });
+
   it("gives each run the first family with a glyph for its first character", () => {
     const advance = fontAdvance({
       faces: [
