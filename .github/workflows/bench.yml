@@ -1,6 +1,7 @@
 # The bench of typeset (docs/BENCH.md). Each round starts one fresh process for each arm, and the order
 # of the arms turns each round. The A/A pair gives the noise floor. The raw records are the artifact bench-records.
 # The bench has no limit yet: a limit comes from 5 runs or more of workflow_dispatch (the rule limit-from-runs).
+# The job weight has a limit: its bytes do not depend on the runner, so one measure gives it (docs/BENCH.md).
 name: Bench
 
 on:
@@ -9,7 +10,11 @@ on:
     branches: [main]
     paths:
       - "packages/corpus/src/**"
+      - "packages/typeset/src/**"
       - "packages/bench/src/**"
+      - "packages/bench/weight.json"
+      - "packages/typeset/package.json"
+      - "pnpm-lock.yaml"
       - ".github/workflows/bench.yml"
   workflow_dispatch:
     inputs:
@@ -40,6 +45,7 @@ jobs:
       pull-requests: read
     outputs:
       match: ${{ steps.changes.outputs.match }}
+      weight: ${{ steps.weight.outputs.match }}
       runs: ${{ steps.runs.outputs.list }}
     env:
       RUNS: ${{ github.event_name == 'workflow_dispatch' && inputs.runs || '1' }}
@@ -48,11 +54,22 @@ jobs:
       - id: runs
         run: echo "list=[$(seq -s, 1 "$RUNS")]" >> "$GITHUB_OUTPUT"
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@35488f7ab12bb5d452fe8307ebb05f77bb3f0f6f # main
+        uses: mark1russell7/template/.github/actions/changes@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
         with:
           paths: |
             packages/corpus/src/**
+            packages/typeset/src/**
             packages/bench/src/**
+            .github/workflows/bench.yml
+      - id: weight
+        uses: mark1russell7/template/.github/actions/changes@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
+        with:
+          paths: |
+            packages/typeset/src/**
+            packages/typeset/package.json
+            packages/bench/src/weight*
+            packages/bench/weight.json
+            pnpm-lock.yaml
             .github/workflows/bench.yml
 
   bench:
@@ -88,13 +105,42 @@ jobs:
           path: bench-records.json
           if-no-files-found: error
 
+  # The bytes that a user pays for each public entry, against the newest release tag
+  weight:
+    needs: changes
+    if: needs.changes.outputs.weight == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      WEIGHT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-tags: true
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Compare the weight of each entry with the last release
+        run: pnpm weight --out "$GITHUB_WORKSPACE/weight-record.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: weight-record
+          path: weight-record.json
+          if-no-files-found: error
+
   bench-ok:
     name: Bench OK
-    if: always()
-    needs: [changes, bench]
+    if: ${{ !cancelled() }}
+    needs: [changes, bench, weight]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@35488f7ab12bb5d452fe8307ebb05f77bb3f0f6f # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
         with:
           needs: ${{ toJSON(needs) }}
