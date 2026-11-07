@@ -17,6 +17,9 @@ The package `@typeset/corpus` (`packages/corpus`) generates the text that the it
 
 The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` starts it.
 
+- The file `cases/index.ts` has the list of the case modules. The bench starts each case of each module in its own arm.
+- A test fails when a module of the folder `cases` is not in the list. Thus each case gets a run.
+
 - Each round starts one fresh process for each arm. The order of the arms turns by one place each round, and it goes backward in each second turn. Thus each arm is at each position the same number of times.
 - A process does a warm-up, doubles its batch until a batch takes 5 ms, and then times 15 batches. Its value is the median time of one call.
 - The statistics come from `@mark1russell7/rigor-statistics` (`median`, `quantile`, `summarize`, `bootstrapMedian`).
@@ -28,7 +31,7 @@ The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` st
 
 Timing runs go to CI, not to a shared machine. The workflow `bench.yml` runs the bench.
 
-- A pull request that changes the corpus, the bench or the workflow runs 6 rounds. The check `Bench OK` gives the result.
+- A pull request that changes the corpus, the package `@mark1russell7/typeset`, the bench or the workflow runs 6 rounds. The check `Bench OK` gives the result.
 - A run of `workflow_dispatch` runs 20 rounds by default. Give the identifier of its prediction in the input `prediction`.
 - The input `runs` of `workflow_dispatch` gives the count of bench jobs. Each job has its own runner. At most 3 jobs run at the same time.
 - Each job uploads its record as the artifact `bench-records-<n>`.
@@ -67,3 +70,18 @@ T9 replaced the local copies of the random numbers and the statistics with the r
 - `node src/rescore.ts <folder>` calculates the values of old records again. On the 5 records of the run 41446214122, 441 of 445 values are equal with `===`: each process median, each arm median, each spread and each A/A ratio.
 - The 4 values that differ are ends of the bootstrap intervals, because the random source of the bootstrap changed. The largest difference is 0.0016.
 - The bench run 41455318165 (5 jobs, 20 rounds) on the new corpus gives the A/A ratios 0.9973, 1.0056, 0.9987, 1.0022 and 1.0010. The floor is 0.0056 + 0.0082 = 0.0138. The limit 0.017 stays.
+
+## The weight of each entry (T10)
+
+The weight of an entry is the count of bytes that a user pays for it. `pnpm weight` bundles each public entry with `esbuild`, with tree shaking and with its dependencies. It then applies `gzip` at level 9.
+
+Source bytes do not show this cost. A file in the import closure of an entry gives 0 bytes when no export uses it. For example, `fonts/context.ts` gives 0 bytes in `./fonts/inspect`.
+
+- The job `weight` of `bench.yml` compares the head with the newest `v<version>` tag. `Bench OK` fails when the `gzip` bytes of an entry grow over the limit.
+- The limit is `limitGzipBytes` in `packages/bench/weight.json`: 1792 bytes. It is the largest growth of the first CI measure, 1619 bytes, rounded up to a multiple of 256.
+- The limit applies to all the changes since the last release, not to one pull request.
+- The limit is one value for all the entries. Thus `./breaking`, at 1390 bytes, can more than double under it.
+- Both sides use the dependencies of the head. Thus the growth shows only the source of typeset.
+- The job measures the head two times, and it fails when the two measures differ.
+- The field `measure` of `packages/bench/weight.json` is the committed record: run 41794942191 against `v0.1.4`, with minified and `gzip` bytes at the head and at the tag.
+- The artifact `weight-record` has the bytes of each input file in each entry.

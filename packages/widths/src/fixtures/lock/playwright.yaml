@@ -1,0 +1,44 @@
+lockfileVersion: '9.0'
+
+importers:
+
+  packages/widths:
+    dependencies:
+      playwright:
+        specifier: ^1.65.0
+        version: 1.65.0
+    devDependencies:
+      '@mark1russell7/layout-contract':
+        specifier: ^0.5.3
+        version: 0.5.3
+
+packages:
+
+  '@mark1russell7/layout-contract@0.5.3':
+    resolution: {integrity: sha512-layout}
+    engines: {node: '>=22.12'}
+
+  '@vitest/browser-playwright@5.0.5':
+    resolution: {integrity: sha512-vitest}
+
+  playwright-core@1.65.0:
+    resolution: {integrity: sha512-core2}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.65.0:
+    resolution: {integrity: sha512-playwright2}
+    engines: {node: '>=20'}
+    hasBin: true
+
+snapshots:
+
+  '@mark1russell7/layout-contract@0.5.3': {}
+
+  '@vitest/browser-playwright@5.0.5': {}
+
+  playwright-core@1.65.0: {}
+
+  playwright@1.65.0:
+    dependencies:
+      playwright-core: 1.65.0

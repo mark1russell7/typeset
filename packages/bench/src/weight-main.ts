@@ -1,0 +1,50 @@
+/**
+ * The weight gate of typeset. This command compares the weight of each public entry with the last release. It exits with 1
+ * when an entry grows over the limit in `packages/bench/weight.json`. A `null` limit only reports. `docs/BENCH.md` tells
+ * the rule.
+ */
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
+import { version } from "esbuild";
+import { compareWeights, latestTag, sameWeights, weighRelease, weighTree } from "./weight.ts";
+
+const { values } = parseArgs({ options: { out: { type: "string" }, tag: { type: "string" } } });
+const repo = fileURLToPath(new URL("../../../", import.meta.url));
+const root = join(repo, "packages", "typeset");
+const nodePaths = [join(root, "node_modules")];
+const { limitGzipBytes: limit } = JSON.parse(readFileSync(join(repo, "packages", "bench", "weight.json"), "utf8")) as { limitGzipBytes: number | null };
+
+const tag = values.tag ?? latestTag(repo);
+const head = weighTree(root, nodePaths);
+const repeat = sameWeights(head, weighTree(root, nodePaths));
+const rows = compareWeights(head, weighRelease(repo, tag, nodePaths), limit);
+
+const record = {
+  schema: 1,
+  runId: process.env["GITHUB_RUN_ID"] ?? null,
+  head: process.env["WEIGHT_HEAD"] ?? null,
+  tag,
+  esbuild: version,
+  gzipLevel: 9,
+  limitGzipBytes: limit,
+  repeat,
+  rows,
+  files: Object.fromEntries(Object.entries(head).map(([entry, weight]) => [entry, weight.files])),
+};
+if (values.out !== undefined) writeFileSync(values.out, `${JSON.stringify(record, null, 2)}\n`);
+
+const lines = [
+  `### Weight against ${tag}, limit ${limit ?? "none"} gzip bytes`,
+  "",
+  "| Entry | Minified | Gzip | Gzip at the release | Growth |",
+  "|---|---|---|---|---|",
+  ...rows.map((row) => `| \`${row.entry}\` | ${row.minified} | ${row.gzip} | ${row.releaseGzip ?? "new"} | ${row.growth ?? "new"}${row.over ? " **over**" : ""} |`),
+];
+console.log(lines.join("\n"));
+const summary = process.env["GITHUB_STEP_SUMMARY"];
+if (summary) appendFileSync(summary, `${lines.join("\n")}\n`);
+
+if (!repeat) console.error("two measures of one tree gave different bytes");
+if (!repeat || rows.some((row) => row.over)) process.exitCode = 1;

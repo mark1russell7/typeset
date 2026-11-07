@@ -4,14 +4,14 @@
 # and private members. The command `api-report check` compares this file with the built .d.ts files.
 # To accept a change of the API, start the build, then `api-report update`, and review the diff.
 
-## . (build/index.d.ts): 4 names
+## . (build/index.d.ts): names
 
 breaking: build/chunks/breaking.d.ts#breaking_d_exports
 fonts: build/chunks/fonts.d.ts#fonts_d_exports
 measurer: build/chunks/measurer.d.ts#measurer_d_exports
 text: build/chunks/text.d.ts#text_d_exports
 
-## ./breaking (build/breaking.d.ts): 24 names
+## ./breaking (build/breaking.d.ts): names
 
 type BalancedOptions: build/chunks/breaking.d.ts#BalancedOptions
 type Box: build/chunks/paragraph.d.ts#Box
@@ -38,7 +38,7 @@ raggedness: build/chunks/breaking.d.ts#raggedness
 spread: build/chunks/breaking.d.ts#spread
 totalFit: build/chunks/breaking.d.ts#totalFit
 
-## ./fonts (build/fonts.d.ts): 17 names
+## ./fonts (build/fonts.d.ts): names
 
 type Axis: build/chunks/font.d.ts#Axis
 type Decompress: build/chunks/sfnt.d.ts#Decompress
@@ -58,7 +58,7 @@ readFont: build/chunks/font.d.ts#readFont
 shapingRisks: build/chunks/fonts.d.ts#shapingRisks
 widthBound: build/chunks/fonts.d.ts#widthBound
 
-## ./fonts/inspect (build/fonts-inspect.d.ts): 6 names
+## ./fonts/inspect (build/fonts-inspect.d.ts): names
 
 canvasSegments: build/fonts-inspect.d.ts#canvasSegments
 canvasWords: build/fonts-inspect.d.ts#canvasWords
@@ -67,7 +67,7 @@ glyphAdvances: build/chunks/font.d.ts#glyphAdvances
 readTables: build/chunks/sfnt.d.ts#readTables
 shapingWords: build/chunks/font.d.ts#shapingWords
 
-## ./measurer (build/measurer.d.ts): 7 names
+## ./measurer (build/measurer.d.ts): names
 
 type AdvanceFn: build/chunks/measurer.d.ts#AdvanceFn
 type FontAdvanceOptions: build/chunks/measurer.d.ts#FontAdvanceOptions
@@ -77,7 +77,7 @@ fontAdvance: build/chunks/measurer.d.ts#fontAdvance
 parseFont: build/chunks/measurer.d.ts#parseFont
 scriptTag: build/chunks/measurer.d.ts#scriptTag
 
-## ./segmentation (build/segmentation.d.ts): 5 names
+## ./segmentation (build/segmentation.d.ts): names
 
 type LineBreak: build/segmentation.d.ts#LineBreak
 graphemes: build/segmentation.d.ts#graphemes
@@ -85,7 +85,7 @@ lineBreaks: build/segmentation.d.ts#lineBreaks
 unicodeVersion: build/segmentation.d.ts#unicodeVersion
 wordBreaks: build/segmentation.d.ts#wordBreaks
 
-## ./text (build/text.d.ts): 2 names
+## ./text (build/text.d.ts): names
 
 Text: build/chunks/text.d.ts#Text
 type TextOptions: build/chunks/text.d.ts#TextOptions

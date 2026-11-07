@@ -3,7 +3,7 @@
   "name": "typeset-monorepo",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.10.1",
+  "packageManager": "pnpm@12.17.0",
   "engines": {
     "node": ">=22"
   },
@@ -19,13 +19,14 @@
     "check:boundaries": "depcruise --config .dependency-cruiser.ts packages",
     "check:api": "api-report check",
     "check:conventions": "conventions check",
-    "bench": "pnpm --filter @typeset/bench run bench"
+    "bench": "pnpm --filter @typeset/bench run bench",
+    "weight": "pnpm --filter @typeset/bench run weight"
   },
   "devDependencies": {
     "@mark1russell7/template-cli": "^0.1.4",
-    "@mark1russell7/api-report": "^0.3.0",
+    "@mark1russell7/api-report": "^0.4.1",
     "@mark1russell7/boundaries": "^0.2.0",
-    "@mark1russell7/conventions": "^0.27.1",
+    "@mark1russell7/conventions": "^0.35.0",
     "@mark1russell7/cue": "^2.0.0",
     "@mark1russell7/ste-lint": "^0.1.1",
     "@swc/core": "^1.15.0",
