@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "packages/corpus/src/**"
+      - "packages/typeset/src/**"
       - "packages/bench/src/**"
       - ".github/workflows/bench.yml"
   workflow_dispatch:
@@ -52,6 +53,7 @@ jobs:
         with:
           paths: |
             packages/corpus/src/**
+            packages/typeset/src/**
             packages/bench/src/**
             .github/workflows/bench.yml
 
