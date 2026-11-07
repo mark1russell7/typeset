@@ -28,4 +28,4 @@ export const arms: readonly Arm[] = [...Object.keys(cases).map((name) => ({ arm:
  * The count of rounds of a balanced run: 2 times the count of arms. `roundOrder` turns the order by one place each round,
  * and goes backward after each count of arms. So in this count of rounds, each arm is at each position 2 times, one time in each direction.
  */
-export const balancedRounds = 2 * arms.length;
+export const balancedRounds: number = 2 * arms.length;
