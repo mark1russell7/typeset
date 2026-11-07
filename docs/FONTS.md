@@ -555,3 +555,27 @@ The option `fallback` of `fontAdvance` is a function with the form of `AdvanceFn
 - That drift is not from T6. A plain `measureWidth` of Latin text drifts to 2.29e-4 px with no fallback.
 - There is no record of a real shaper as the fallback. The tests use a stub.
 - The accuracy of a host shaper against Chrome is not measured. A later part of T6 gives that record.
+
+## Font stacks (T11 and T11b)
+
+A font stack is a list of corpus fonts in the order of a CSS `font-family` list. The file `packages/widths/src/stacks.ts` has the 5 stacks.
+
+### The widths (T11)
+
+- The Fonts job measures each stack text on a canvas with the CSS list of the stack. The model is `fontAdvance` with the same faces.
+- A `covered` text has a glyph for each code point in a font of the list. A `drawn` text keeps the words as the corpus draws them.
+- Chromium draws a code point that no font of the list has with a font of the system. The CSS list does not name that font.
+- So an `uncovered` cell takes the canvas width of each missing run out of the error. The rest is the `residual`.
+- The limit of each cell is 1.28/64 px.
+
+### The line breaks (T11b)
+
+- The Fonts job puts each stack text into a DOM box with the CSS list of the stack. The sizes are 10, 16 and 48 px.
+- The box widths are 8 and 20 times the size. The line height is 1.25 times the size.
+- The lines of Chromium come from the client rectangle of each grapheme cluster.
+- The model is `layoutText` of `@mark1russell7/layout-contract`, with `fontAdvance` under the engine row of the arm.
+- In an `uncovered` text, the model gets the canvas width of each missing run, after its cluster. Without it, the break has no defined answer.
+- A record with different lines has a cause. `opportunity`: Chromium breaks at a position that is not white space.
+- `width`: each line of Chromium ends at white space, so a width moves the break.
+- `layoutText` 0.5.3 breaks only at white space. Chromium also breaks between ideographs, kana, Hangul syllables and Thai words, as UAX #14 and a dictionary tell.
+- So a text of these scripts gives `opportunity` records until `layoutText` uses the break positions of `lineBreaks` (T12).
