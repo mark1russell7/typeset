@@ -23,8 +23,22 @@ export interface BreakGap {
   readonly reason: string;
 }
 
-/** The known gaps. The gate fails a listed cell that passes the bar, so that the list stays true. */
-export const breakGaps: readonly BreakGap[] = [];
+/**
+ * The known gaps, from the Fonts run 42410280511: each break cell of each arm fails only by its `opportunity` records.
+ * The gate fails a listed cell that passes the bar, so that the list stays true.
+ */
+export const breakGaps: readonly BreakGap[] = [
+  { stack: "latin-han", set: "covered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between ideographs" },
+  { stack: "latin-han", set: "uncovered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between ideographs" },
+  { stack: "han-first", set: "covered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between ideographs and kana" },
+  { stack: "han-first", set: "uncovered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between ideographs and kana" },
+  { stack: "latin-arabic-emoji", set: "covered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between emoji" },
+  { stack: "latin-arabic-emoji", set: "uncovered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between emoji" },
+  { stack: "latin-indic-thai", set: "covered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "Chromium breaks Thai words by the dictionary of ICU" },
+  { stack: "latin-indic-thai", set: "uncovered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "Chromium breaks Thai words by the dictionary of ICU" },
+  { stack: "all-scripts", set: "covered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 in Han, kana, Hangul and emoji, and Chromium breaks Thai words by the dictionary of ICU" },
+  { stack: "all-scripts", set: "uncovered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 in Han, kana, Hangul and emoji, and Chromium breaks Thai words by the dictionary of ICU" },
+];
 
 /** The verdict of a break cell. A `known-gap` cell is not a pass. */
 export interface BreakVerdict {
@@ -44,6 +58,14 @@ export function breakVerdict(cell: BreakCell, gaps: readonly BreakGap[] = breakG
   if (gap === undefined) return { verdict: "fail", reason: `${share}, opportunity ${cell.opportunity}, width ${cell.width}` };
   if (cell.same + cell.opportunity >= breakBar * cell.n) return { verdict: "known-gap", reason: `${share}, opportunity ${cell.opportunity}: ${gap.reason}, ${gap.items.join(" and ")}, due ${gap.due}` };
   return { verdict: "fail", reason: `${share}, and ${cell.width} width records are more than the gap allows` };
+}
+
+/** A break cell with its verdict. The Fonts job writes it, and the site shows it. */
+export interface BreakCellVerdict extends BreakCell, BreakVerdict {}
+
+/** This function gives each cell with its verdict. */
+export function withVerdicts(cells: readonly BreakCell[], gaps: readonly BreakGap[] = breakGaps): BreakCellVerdict[] {
+  return cells.map((cell) => ({ ...cell, ...breakVerdict(cell, gaps) }));
 }
 
 /** The width limit of a stack cell, in 1/64 px. */

@@ -1,6 +1,6 @@
 import type { Font } from "@mark1russell7/typeset/fonts";
 import { describe, expect, it } from "vitest";
-import { breakCells, breakRecord, linesOf, sameLines, widthKey, withRunWidths } from "./breaks.ts";
+import { breakCells, breakRecord, linesOf, sameLines, widthKey, withRunWidths, withWidthLine } from "./breaks.ts";
 
 /** This function makes a font that has the glyphs of a text. The test needs only the method `glyph`. */
 const fontWith = (text: string): Font => ({ glyph: (code: number) => (text.includes(String.fromCodePoint(code)) ? 1 : 0) }) as unknown as Font;
@@ -26,6 +26,8 @@ describe("the records", () => {
     expect(same).toMatchObject({ set: "covered", model: ["a b", "c"], same: true });
     expect(same.cause).toBeUndefined();
     expect(other.cause).toBe("width");
+    expect(withWidthLine(other, (line) => line.length).widthLine).toEqual({ line: 0, model: 1 });
+    expect(withWidthLine(same, (line) => line.length)).toBe(same);
     expect(han.cause).toBe("opportunity");
     expect(breakCells([same, other, drawn, han])).toEqual([
       { stack: "s", set: "covered", n: 3, same: 1, opportunity: 1, width: 1, firstDifferent: "y 16px 128px" },

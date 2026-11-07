@@ -7,7 +7,7 @@ import { armOfEngine, engineChoices, engineForAgent, fontChoice, fontChoices, sc
 import { formatPx, formatSigned, heatBins, heatLabel, heatLevel } from "./heat.ts";
 import { labResult, previewFit, sampleText, sweepSummary, sweepTask, type LabResult, type WordView } from "./lab-model.ts";
 import { loadFont, type LoadedFont } from "./load.ts";
-import { allLeftOut, armMatrix, readSnapshot, stackLimit64, stackMatrix, stackWorstPx, statOf, type ModelChoice, type Statistic, type Summary } from "./snapshot.ts";
+import { allLeftOut, armMatrix, breakMatrix, readSnapshot, stackLimit64, stackMatrix, stackWorstPx, statOf, type ModelChoice, type Statistic, type Summary } from "./snapshot.ts";
 
 const snapshot = readSnapshot(snapshotFile);
 
@@ -401,6 +401,56 @@ function renderStacks(): void {
   table.tBodies[0]!.append(...body);
 }
 
+/** The color level and the short word of each verdict. A known gap is not a pass, so it has its own color and word. */
+const verdictView = { pass: { level: 0, word: "pass" }, "known-gap": { level: 3, word: "known gap" }, fail: { level: 6, word: "fail" } } as const;
+
+function renderBreaks(): void {
+  const rows = breakMatrix(snapshot);
+  const table = $<HTMLTableElement>("break-table");
+  $("break-block").hidden = rows.length === 0;
+  if (rows.length === 0) return;
+  const head = make("tr");
+  head.append(make("th", "row-head", "Font list"));
+  for (const arm of snapshot.arms) head.append(make("th", "arm", armLabels[arm.arm]?.os ?? arm.arm));
+  const body = rows.map((row) => {
+    const tr = make("tr");
+    tr.append(make("th", "row-head", `${row.stack}, ${row.set}`));
+    row.cells.forEach((cell, i) => {
+      const arm = snapshot.arms[i]!;
+      const title = `${row.stack}, ${row.set} texts, on ${armLabels[arm.arm]?.os ?? arm.arm} (${arm.arm})`;
+      const td = make("td", "cell");
+      tr.append(td);
+      if (cell === undefined) {
+        td.append(make("span", "hint", "no data"));
+        return;
+      }
+      const view = verdictView[cell.verdict];
+      const lines = [
+        title,
+        `${view.word}: ${cell.same} of ${cell.n} texts break at the same places as in Chromium.`,
+        `Different: ${cell.opportunity} where Chromium breaks inside a word, ${cell.width} where a width moves a break.`,
+        cell.reason,
+        ...(cell.firstDifferent === undefined ? [] : [`The first different text: ${cell.firstDifferent}`]),
+      ];
+      const button = make("button", "heat-cell", `${cell.same}/${cell.n} ${view.word}`);
+      button.type = "button";
+      button.dataset["level"] = String(view.level);
+      button.dataset["verdict"] = cell.verdict;
+      button.setAttribute("aria-label", lines.join(". "));
+      button.addEventListener("pointerenter", () => showTip(button, lines));
+      button.addEventListener("pointerleave", hideTip);
+      button.addEventListener("focus", () => showTip(button, lines));
+      button.addEventListener("blur", hideTip);
+      button.addEventListener("click", () => $("break-detail").replaceChildren(make("h3", "", lines[0]!), ...lines.slice(1).map((line) => make("p", "", line))));
+      td.append(button);
+    });
+    return tr;
+  });
+  table.replaceChildren(make("thead"), make("tbody"));
+  table.tHead!.append(head);
+  table.tBodies[0]!.append(...body);
+}
+
 function renderRun(): void {
   const run = snapshot.run;
   const link = make("a", "", `fonts run ${run.id}`);
@@ -593,6 +643,7 @@ renderTiles();
 renderRun();
 renderCi();
 renderStacks();
+renderBreaks();
 renderLegend();
 renderSweep();
 bind();

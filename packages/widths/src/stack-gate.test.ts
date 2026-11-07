@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { breakVerdict, stackGate, type StackArm } from "./stack-gate.ts";
+import { breakGaps, breakVerdict, stackGate, withVerdicts, type StackArm } from "./stack-gate.ts";
 
 describe("stackGate", () => {
   const file: StackArm = {
@@ -38,5 +38,13 @@ describe("breakVerdict", () => {
     expect(breakVerdict(cell(50, 50, 0), gaps)).toMatchObject({ verdict: "known-gap" });
     expect(breakVerdict(cell(50, 46, 4), gaps).verdict).toBe("fail");
     expect(breakVerdict(cell(98, 2, 0), gaps)).toMatchObject({ verdict: "fail", reason: expect.stringMatching(/stale/) });
+  });
+
+  it("adds the verdict to each cell, and lists each stack of the run in both sets", () => {
+    expect(withVerdicts([cell(50, 50, 0)], gaps)).toEqual([{ ...cell(50, 50, 0), ...breakVerdict(cell(50, 50, 0), gaps) }]);
+    expect(breakGaps.map((gap) => `${gap.stack} ${gap.set}`)).toEqual(
+      ["latin-han", "han-first", "latin-arabic-emoji", "latin-indic-thai", "all-scripts"].flatMap((stack) => [stack + " covered", stack + " uncovered"]),
+    );
+    expect(breakGaps.filter((gap) => gap.items.includes("T12b")).map((gap) => gap.stack)).toEqual(["latin-indic-thai", "latin-indic-thai", "all-scripts", "all-scripts"]);
   });
 });

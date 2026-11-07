@@ -65,6 +65,8 @@ export interface BreakRecord {
    * two ideographs. The model breaks only at white space. `width`: each line of Chromium ends at white space, so the widths differ.
    */
   readonly cause?: "opportunity" | "width";
+  /** A `width` record has the first line of the model that differs, with its model width. The box width is `width`. */
+  readonly widthLine?: { readonly line: number; readonly model: number };
 }
 
 /** This function splits a text into its words at white space. */
@@ -81,6 +83,13 @@ export function breakRecord(stack: string, text: StackText, size: number, width:
   const same = sameLines(chromium, model);
   const record = { stack, set: setOf(text.kind), sample: text.id, size, width, chromium: [...chromium], model: model.map((line) => line.trim()), same };
   return same ? record : { ...record, cause: breaksAtSpaces(text.text, chromium) ? "width" : "opportunity" };
+}
+
+/** This function adds the first different line of the model to a `width` record, with the width that `measure` gives it. */
+export function withWidthLine(record: BreakRecord, measure: (line: string) => number): BreakRecord {
+  if (record.cause !== "width") return record;
+  const line = record.model.findIndex((value, index) => value !== record.chromium[index]?.trim());
+  return line < 0 ? record : { ...record, widthLine: { line, model: measure(record.model[line]!) } };
 }
 
 /** The break records of one stack and one set, over the sizes and widths. */

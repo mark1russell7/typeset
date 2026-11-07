@@ -579,6 +579,27 @@ A font stack is a list of corpus fonts in the order of a CSS `font-family` list.
 - `width`: each line of Chromium ends at white space, so a width moves the break.
 - `layoutText` 0.5.3 breaks only at white space. Chromium also breaks between ideographs, kana, Hangul syllables and Thai words, as UAX #14 and a dictionary tell.
 - So a text of these scripts gives `opportunity` records until `layoutText` uses the break positions of `lineBreaks` (T12).
+- A `width` record also has `widthLine`: the first different line of the model and its model width. Compare it with the box width.
+
+### The first run of the breaks (42410280511)
+
+The 4 arms give the same counts, with a difference of 3 records or less. These are the counts of `linux-1`:
+
+| Stack | Covered: same, `opportunity`, `width` | Uncovered: same, `opportunity`, `width` |
+|---|---|---|
+| `latin-han` | 25 of 144, 119, 0 | 25 of 144, 119, 0 |
+| `han-first` | 54 of 180, 126, 0 | 18 of 144, 126, 0 |
+| `latin-arabic-emoji` | 118 of 180, 62, 0 | 65 of 144, 75, 4 |
+| `latin-indic-thai` | 171 of 180, 9, 0 | 135 of 144, 9, 0 |
+| `all-scripts` | 37 of 180, 143, 0 | 0 of 144, 144, 0 |
+
+- Each `opportunity` record has a break of Chromium inside a word of the model. Each such break is in one of 3 classes.
+- Han, kana and Hangul: Chromium breaks between two ideographs, two kana or two Hangul syllables. UAX #14 gives these breaks (class `ID`).
+- Emoji and pictographs: Chromium breaks between two pictographs with no space. UAX #14 gives these breaks too.
+- Thai: Chromium breaks between two Thai words. The dictionary of ICU finds the words. UAX #14 alone does not (class `SA`).
+- The `width` records are in `latin-arabic-emoji` only: 4 of 144 uncovered on Linux, 3 on macOS and Windows, and 2 of 180 covered on macOS and Windows.
+- In each `width` record, the model puts one more word on a line with Arabic, Latin and emoji words. Chromium puts it on the next line.
+- The cause of these widths is not known yet. The field `widthLine` of the next run gives the margin of each one.
 
 ### The gate of the stacks
 

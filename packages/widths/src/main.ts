@@ -20,7 +20,8 @@ import { advanceModelRow, diagnosticWeights, type AdvanceModelName, type Advance
 import { checkBounds, engineRecords, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
 import { breakdownOf, exactDeltaErrors, featureSettings, substitutionTrace, summarizeFeatures, type FeatureGroup, type FeatureRecord, type FeatureSetting, type SubstitutionStep } from "./features.ts";
 import { blinkScale } from "./bounds.ts";
-import { breakCells, breakRecord, breakSizes, breakWidths, lineFactor, linesOf, withRunWidths, type BreakRecord, type DomCluster } from "./breaks.ts";
+import { withVerdicts } from "./stack-gate.ts";
+import { breakCells, breakRecord, breakSizes, withWidthLine, breakWidths, lineFactor, linesOf, withRunWidths, type BreakRecord, type DomCluster } from "./breaks.ts";
 import { openReferenceFont } from "./harfbuzz.ts";
 import { isProbed, sequenceEntries } from "./sequences.ts";
 import { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags } from "./sources.ts";
@@ -323,9 +324,11 @@ async function main(): Promise<void> {
           const [measured] = await stackWidths(page, [font], keys.map((key) => key.slice(font.length + 1)));
           keys.forEach((key, i) => known.set(key, measured![i]!));
         }
+        // The last pass needed no width, so this model has the canvas width of each missing run.
+        const measure = withRunWidths(stackModel, list, known, new Set());
         for (const [w, width] of widths.entries()) {
           const clusters = await domClusters(page, font, width, size * lineFactor, texts.map((text) => text.text));
-          texts.forEach((text, i) => breakRows.push(breakRecord(stack.id, text, size, width, linesOf(clusters[i]!, size * lineFactor), modelLines[w]![i]!)));
+          texts.forEach((text, i) => breakRows.push(withWidthLine(breakRecord(stack.id, text, size, width, linesOf(clusters[i]!, size * lineFactor), modelLines[w]![i]!), (line) => measure(line, font))));
         }
       }
     }
@@ -405,7 +408,7 @@ async function main(): Promise<void> {
     engineSummary,
     engineExtraSummary,
     sequenceProbe,
-    stacks: { list: fontStacks, cells: stackCells(stackRows), records: stackRows, breaks: { cells: breakCells(breakRows), records: breakRows } },
+    stacks: { list: fontStacks, cells: stackCells(stackRows), records: stackRows, breaks: { cells: withVerdicts(breakCells(breakRows)), records: breakRows } },
     records,
   };
   writeFileSync(values.out, JSON.stringify(output) + "\n");
