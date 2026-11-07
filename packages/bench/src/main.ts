@@ -1,11 +1,12 @@
 /**
- * The command `pnpm bench`. It starts the cases of the corpus with an A/A pair and writes the record as JSON.
+ * The command `pnpm bench`. It starts each case of `cases/index.ts` with an A/A pair and writes the record as JSON.
  * Timing runs belong in CI (the workflow `bench.yml`), not on a shared machine.
  */
 import { appendFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { runBench, type Arm } from "./harness.ts";
+import { aa, arms } from "./cases/index.ts";
+import { runBench } from "./harness.ts";
 
 const { values } = parseArgs({
   options: {
@@ -18,17 +19,11 @@ const { values } = parseArgs({
   },
 });
 
-const arms: Arm[] = [
-  { arm: "corpus.generate", case: "corpus.generate" },
-  { arm: "corpus.generate#aa", case: "corpus.generate" },
-  { arm: "corpus.edits", case: "corpus.edits" },
-];
-
 const record = runBench({
-  module: fileURLToPath(new URL("./cases/corpus.ts", import.meta.url)),
+  module: fileURLToPath(new URL("./cases/index.ts", import.meta.url)),
   arms,
   rounds: Number(values.rounds),
-  aa: ["corpus.generate", "corpus.generate#aa"],
+  aa: [...aa],
   child: { samples: Number(values.samples), minSampleMs: Number(values["min-sample-ms"]), warmupMs: Number(values["warmup-ms"]) },
   onProcess: (p) => console.log(`round ${p.round} #${p.position} ${p.arm}: ${(p.medianNs / 1e3).toFixed(1)} us (batch ${p.batch})`),
 });
