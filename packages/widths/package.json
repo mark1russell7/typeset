@@ -9,7 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
-    "bounds-table": "node scripts/bounds-table.ts"
+    "bounds-table": "node scripts/bounds-table.ts",
+    "engine-bounds": "node scripts/engine-bounds.ts"
   },
   "devDependencies": {
     "@mark1russell7/cue": "^2.0.0",
