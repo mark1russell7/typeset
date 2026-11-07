@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "packages/corpus/src/**"
+      - "packages/typeset/src/**"
       - "packages/bench/src/**"
       - ".github/workflows/bench.yml"
   workflow_dispatch:
@@ -30,7 +31,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bench-${{ github.ref }}-${{ github.event_name }}
+  group: bench-${{ github.event_name == 'pull_request' && github.ref || github.sha }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -48,10 +49,11 @@ jobs:
       - id: runs
         run: echo "list=[$(seq -s, 1 "$RUNS")]" >> "$GITHUB_OUTPUT"
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@4df6a2d5a4de464ab3f8b50c20df52c234794af6 # main
+        uses: mark1russell7/template/.github/actions/changes@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
         with:
           paths: |
             packages/corpus/src/**
+            packages/typeset/src/**
             packages/bench/src/**
             .github/workflows/bench.yml
 
@@ -90,11 +92,11 @@ jobs:
 
   bench-ok:
     name: Bench OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, bench]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@4df6a2d5a4de464ab3f8b50c20df52c234794af6 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
         with:
           needs: ${{ toJSON(needs) }}
