@@ -69,8 +69,24 @@ export interface BreakRecord {
   readonly widthLine?: { readonly line: number; readonly model: number };
 }
 
-/** This function splits a text into its words at white space. */
-const wordsOf = (value: string): string[] => value.split(/\s+/u).filter((word) => word !== "");
+const wordSegmenter = new Intl.Segmenter(undefined, { granularity: "word" });
+
+/**
+ * This function splits a text into its words as `layoutText` of layout-contract 0.5.3 does: at each word segment that
+ * is only white space. A space and a mark after it (" 🏼") are one segment, so the model has no break there.
+ */
+const wordsOf = (value: string): string[] => {
+  const words: string[] = [];
+  let word = "";
+  for (const { segment } of wordSegmenter.segment(value)) {
+    if (/^\s+$/u.test(segment)) {
+      if (word !== "") words.push(word);
+      word = "";
+    } else word += segment;
+  }
+  if (word !== "") words.push(word);
+  return words;
+};
 
 /** This function tells if each line of a layout ends at white space of the text. Then the lines hold whole words. */
 export function breaksAtSpaces(text: string, lines: readonly string[]): boolean {

@@ -599,7 +599,21 @@ The 4 arms give the same counts, with a difference of 3 records or less. These a
 - Thai: Chromium breaks between two Thai words. The dictionary of ICU finds the words. UAX #14 alone does not (class `SA`).
 - The `width` records are in `latin-arabic-emoji` only: 4 of 144 uncovered on Linux, 3 on macOS and Windows, and 2 of 180 covered on macOS and Windows.
 - In each `width` record, the model puts one more word on a line with Arabic, Latin and emoji words. Chromium puts it on the next line.
-- The cause of these widths is not known yet. The field `widthLine` of the next run gives the margin of each one.
+
+### The margins of the `width` records (42415353609)
+
+The field `widthLine` gives the model width of the first different line. The box width minus that width is the margin. The records are in 3 classes.
+
+| Class | Records | Margin | Cause |
+|---|---|---|---|
+| A space before a skin tone modifier | `drawn:19` in each arm, 3 sizes | 21 to 120 px | A break opportunity, not a width |
+| Rounding of each segment | `mixed:15` on macOS and Windows, 2 sizes | -0.012 and -0.019 px | `layoutText` rounds each segment to 1/64 px |
+| A system fallback font | `drawn:5` on Linux | 13 px | The stack does not cover the pictographs of the sample |
+
+- `Intl.Segmenter` gives a space and a modifier after it (" 🏼") as one word segment. `layoutText` breaks only at a segment that is all white space. Thus the model has no break there. UAX #14 gives a break before the modifier, so Chromium breaks.
+- The cause of those records was `width` because the old cause split the text at each white space. The cause uses the split of `layoutText` now, so these records are `opportunity` records. T12 and layout-contract#255 fix them.
+- A negative margin tells that the model line is wider than the box: 200.0116 px in a box of 200 px. The sum of the rounded segments fits, but the line does not. The fix goes to `layoutText` of layout-contract.
+- The `drawn` samples are the uncovered set. No font of the stack has their characters, so Chromium takes a font of the system. The model cannot know that font. These records stay in the uncovered cells.
 
 ### The gate of the stacks
 

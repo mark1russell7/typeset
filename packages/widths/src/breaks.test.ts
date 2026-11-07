@@ -29,6 +29,9 @@ describe("the records", () => {
     expect(withWidthLine(other, (line) => line.length).widthLine).toEqual({ line: 0, model: 1 });
     expect(withWidthLine(same, (line) => line.length)).toBe(same);
     expect(han.cause).toBe("opportunity");
+    // The run 42415353609: Chromium breaks at the space before a skin tone modifier, and the model has no break there
+    const modifier = breakRecord("s", { id: "m", kind: "drawn", text: "nv 💀 🏼👏" }, 10, 200, ["nv 💀", "🏼👏"], ["nv", "💀 🏼👏"]);
+    expect(modifier.cause).toBe("opportunity");
     expect(breakCells([same, other, drawn, han])).toEqual([
       { stack: "s", set: "covered", n: 3, same: 1, opportunity: 1, width: 1, firstDifferent: "y 16px 128px" },
       { stack: "s", set: "uncovered", n: 1, same: 1, opportunity: 0, width: 0 },
