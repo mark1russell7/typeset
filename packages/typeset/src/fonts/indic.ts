@@ -4,6 +4,7 @@
  * and the rules of the mode `COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT`. The table of the categories comes from `hb-ot-shaper-indic-table.cc`.
  */
 import type { Font } from "./font.ts";
+import { alt, any, compile, longestMatch, opt, seq, set, star, type Machine, type Pattern } from "./machine.ts";
 import { normalForms, normalizeCodePoints, type NormalForms } from "./normalize.ts";
 import { LIGATED, MULTIPLIED, SUBSTITUTED, type GlyphInfo } from "./substitution.ts";
 import { isHidden } from "./normalize.ts";
@@ -129,55 +130,62 @@ const letters = new Map<number, string>([
   [X, "x"], [C, "c"], [V, "v"], [N, "n"], [H, "h"], [ZWNJ, "w"], [ZWJ, "j"], [M, "m"], [SM, "s"], [A, "a"], [PLACEHOLDER, "p"],
   [DOTTEDCIRCLE, "d"], [RS, "r"], [MPST, "q"], [REPHA, "f"], [RA, "R"], [CM, "k"], [SYMBOL, "y"], [CS, "S"], [SMPST, "t"],
 ]);
-const c = "[cR]";
-const n = "(?:w?r)?(?:nn?)?";
-const z = "[wj]";
-const reph = "(?:Rh|f)";
-const sm = "[st]";
-const cn = `${c}j?${n}`;
-const matraGroup = `${z}*(?:m|${sm}?q)n?h?`;
-const syllableTail = `(?:${z}?${sm}${sm}?w?)?a*`;
-const halantGroup = `(?:${z}?h(?:jn?)?)`;
-const finalHalantGroup = `(?:${halantGroup}|hw)`;
-const complexSyllableTail = `(?:${halantGroup}${cn})*k?(?:${finalHalantGroup}|(?:${matraGroup})*)${syllableTail}`;
-/** The rules of the machine in the order of HarfBuzz. A tie of two lengths goes to the first rule. */
-const machine: readonly (readonly [RegExp, number])[] = (
-  [
-    [`[fS]?${cn}${complexSyllableTail}`, CONSONANT_SYLLABLE],
-    [`${reph}?v${n}(?:j|${complexSyllableTail})`, VOWEL_SYLLABLE],
-    [`(?:[fS]?p|${reph}?d)${n}${complexSyllableTail}`, STANDALONE_CLUSTER],
-    [`yn?${syllableTail}`, SYMBOL_CLUSTER],
-    ["t", NON_INDIC_CLUSTER],
-    [`${reph}?${n}${complexSyllableTail}`, BROKEN_CLUSTER],
-    ["[^]", NON_INDIC_CLUSTER],
-  ] as const
-).map(([rule, type]) => [new RegExp(`^(?:${rule})$`), type] as const);
+const c = set("cR");
+const n = seq(opt(seq(opt("w"), "r")), opt(seq("n", opt("n"))));
+const z = set("wj");
+const reph = alt("Rh", "f");
+const sm = set("st");
+const cn = seq(c, opt("j"), n);
+const matraGroup = seq(star(z), alt("m", seq(opt(sm), "q")), opt("n"), opt("h"));
+const syllableTail = seq(opt(seq(opt(z), sm, opt(sm), opt("w"))), star("a"));
+const halantGroup = seq(opt(z), "h", opt(seq("j", opt("n"))));
+const finalHalantGroup = alt(halantGroup, "hw");
+const complexSyllableTail = seq(star(seq(halantGroup, cn)), opt("k"), alt(finalHalantGroup, star(matraGroup)), syllableTail);
+/** The rules of the machine in the order of HarfBuzz, with the type of each. A tie of two lengths goes to the first rule. */
+const indicRules: readonly (readonly [Pattern, number])[] = [
+  [seq(opt(set("fS")), cn, complexSyllableTail), CONSONANT_SYLLABLE],
+  [seq(opt(reph), "v", n, alt("j", complexSyllableTail)), VOWEL_SYLLABLE],
+  [seq(alt(seq(opt(set("fS")), "p"), seq(opt(reph), "d")), n, complexSyllableTail), STANDALONE_CLUSTER],
+  [seq("y", opt("n"), syllableTail), SYMBOL_CLUSTER],
+  ["t", NON_INDIC_CLUSTER],
+  [seq(opt(reph), n, complexSyllableTail), BROKEN_CLUSTER],
+  [any, NON_INDIC_CLUSTER],
+];
+const machines: readonly Machine[] = indicRules.map(([rule]) => compile(rule));
 
 /**
- * This function divides the glyphs into syllables, as the machine of HarfBuzz does. At each position, it takes the
- * longest match of the rules. Each glyph gets the syllable byte. Its high 4 bits are a serial number from 1 to 15, and
- * its low 4 bits are the type. The function tells if a syllable is a broken cluster.
+ * This function divides a text of category letters into syllables, as the machine of HarfBuzz does. At each position,
+ * it takes the longest match of the rules, in one pass. It gives the length and the type of each syllable.
+ */
+export function letterSyllables(text: string): (readonly [length: number, type: number])[] {
+  const out: (readonly [number, number])[] = [];
+  let at = 0;
+  while (at < text.length) {
+    // No rule but the last one matches the category X, so a syllable stops before it
+    const next = text.indexOf("x", at + 1);
+    const match = longestMatch(machines, text, at, next < 0 ? text.length : next);
+    const length = match?.length ?? 1;
+    out.push([length, match === undefined ? NON_INDIC_CLUSTER : indicRules[match.rule]![1]]);
+    at += length;
+  }
+  return out;
+}
+
+/** This function gives the category letter of each code point of a text. The tests use it. */
+export function indicLetters(text: string): string {
+  return Array.from(text, (character) => letters.get(indicProperties(character.codePointAt(0)!)[0]) ?? "x").join("");
+}
+
+/**
+ * This function divides the glyphs into syllables. Each glyph gets the syllable byte. Its high 4 bits are a serial
+ * number from 1 to 15, and its low 4 bits are the type. The function tells if a syllable is a broken cluster.
  */
 function findSyllables(infos: GlyphInfo[]): boolean {
   const text = infos.map((info) => letters.get(info.category) ?? "x").join("");
   let serial = 1;
   let broken = false;
   let at = 0;
-  while (at < text.length) {
-    // No rule but the last one matches the category X, so a syllable stops before it
-    const next = text.indexOf("x", at + 1);
-    let length = 1;
-    let type = NON_INDIC_CLUSTER;
-    search: for (let end = next < 0 ? text.length : next; end > at; end--) {
-      const piece = text.slice(at, end);
-      for (const [rule, kind] of machine) {
-        if (rule.test(piece)) {
-          length = end - at;
-          type = kind;
-          break search;
-        }
-      }
-    }
+  for (const [length, type] of letterSyllables(text)) {
     if (type === BROKEN_CLUSTER) broken = true;
     for (let i = at; i < at + length; i++) infos[i]!.syllable = (serial << 4) | type;
     serial = serial === 15 ? 1 : serial + 1;
