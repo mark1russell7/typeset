@@ -75,6 +75,9 @@ describe.skipIf(folder === undefined)("fontAdvance with the real fonts", () => {
 /** The width limit of a stack cell, in px: 1.28 in 1/64 px, as the prediction of T11 gives it. */
 const stackLimit = 1.28 / 64;
 
+/** The segmenter of the grapheme clusters, as the layout of layout-contract divides a text. */
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
 /** This function tells if a font has a glyph for each code point of a text. */
 function coversText(font: ReturnType<typeof readFont>, text: string): boolean {
   return [...text].every((character) => font.glyph(character.codePointAt(0)!) !== 0);
@@ -116,18 +119,30 @@ describe.skipIf(folder === undefined)("fontAdvance with a font stack, as Blink f
   for (const stack of fontStacks) {
     it.skipIf(!stack.fonts.every(present))(`lays out the texts of a stack through the measurer of layout-contract: ${stack.id}`, { timeout: 300_000 }, () => {
       const list = stack.fonts.map((id) => readFont(bytesOf(id), { instance: cssInstance() }));
-      const texts = [...mixedTexts(stack, 1), ...markTexts(stack, list)].filter(({ text }) => missingInStack(list, text) === 0);
+      const texts = [...mixedTexts(stack, 1, list), ...markTexts(stack, list)];
+      expect(texts.every(({ text }) => missingInStack(list, text) === 0), stack.id).toBe(true);
       expect(texts.length, stack.id).toBeGreaterThan(0);
       for (const engine of names) {
         const advance = fontAdvance({ faces: stack.fonts.map((id) => ({ family: `typeset-${id}`, data: bytesOf(id) })), engine });
         for (const { id, text } of texts) {
           for (const size of [10, 16, 48]) {
             const font = stackFont(stack, size);
-            // The measurer rounds each part to whole units. So the line differs from the whole text by 0.5 unit for each request at most.
-            const measurer = createMeasurer(advance);
+            // The layout measures each part between two break opportunities alone, with the CSS list of the stack. The
+            // measurer rounds each part to whole units. So the line differs from the sum of its parts by 0.5 unit for each part at most.
+            // The whole text can differ more: the layout loses a kern across a break in a word, as "л," and "、そ" show.
+            const parts: string[] = [];
+            const measurer = createMeasurer((segment, css) => {
+              expect(css, id).toBe(font);
+              parts.push(segment);
+              return advance(segment, css);
+            }, { maxEntries: 0 });
             const line = layoutText(text, { font, measurer, lineHeight: size * 1.25 });
-            const bound = (measurer.stats().requests * 0.5) / TEXT_UNITS + stackLimit;
-            expect(Math.abs(line.widths[0]! - advance(text, font)), `${id} ${engine} ${size}px`).toBeLessThanOrEqual(bound);
+            // The layout measures the space one time, and puts it between each two words. A space with a lone skin tone
+            // modifier after it is one grapheme cluster, so it is in a word.
+            const pieces = parts.filter((part) => part !== " ");
+            const spaces = [...graphemes.segment(text)].filter(({ segment }) => segment === " ").length;
+            const sum = pieces.reduce((total, part) => total + advance(part, font), 0) + spaces * advance(" ", font);
+            expect(Math.abs(line.widths[0]! - sum), `${id} ${engine} ${size}px`).toBeLessThanOrEqual(((pieces.length + spaces) * 0.5) / TEXT_UNITS);
             const wrapped = layoutText(text, { font, measurer, lineHeight: size * 1.25, wrapWidth: size * 8 });
             expect(wrapped.lines.join(" ").split(/\s+/u), `${id} ${engine} ${size}px`).toEqual(text.split(/\s+/u));
             for (const width of wrapped.widths) expect(Number.isInteger(width * TEXT_UNITS), id).toBe(true);

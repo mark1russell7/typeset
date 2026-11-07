@@ -269,7 +269,7 @@ async function main(): Promise<void> {
     const stackModel = fontAdvance({ faces: ids.map((id) => ({ family: `typeset-${id}`, data: readFileSync(join(values.fonts!, fileName(id))) })), engine });
     for (const stack of fontStacks) {
       const list = stack.fonts.map((id) => fonts.get(id)!);
-      const texts = [...mixedTexts(stack, 1), ...markTexts(stack, list)];
+      const texts = [...mixedTexts(stack, 1, list), ...markTexts(stack, list)];
       const canvas = await stackWidths(page, fontSizes.map((size) => stackFont(stack, size)), texts.map((text) => text.text));
       stackRows.push(...stackRecords(stack, list, texts, fontSizes, canvas, stackModel));
     }

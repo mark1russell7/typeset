@@ -44,13 +44,28 @@ const markCount = 6;
 /** The Latin letter of the `mark` texts. */
 const markBase = "a";
 
-/** This function gives the `mixed` texts of a stack. Each text has words of each script, in the order of the stack. */
-export function mixedTexts(stack: FontStack, seed: number): StackText[] {
+/** The largest count of corpus words that `mixedTexts` draws for one word of a text. */
+const wordTries = 400;
+
+/**
+ * This function gives the `mixed` texts of a stack. Each text has words of each script, in the order of the stack.
+ * Each word comes from the corpus, and a word with a code point that no font of `fonts` has is skipped. So the canvas
+ * uses no font of the system, and each text has a width to compare.
+ */
+export function mixedTexts(stack: FontStack, seed: number, fonts: readonly Font[]): StackText[] {
+  const next = new Map<ScriptId, number>();
+  const word = (script: ScriptId): string => {
+    for (let tries = 0; tries < wordTries; tries++) {
+      const index = next.get(script) ?? 0;
+      next.set(script, index + 1);
+      const text = generateSample(seed, script, "word", index).text;
+      if (missingInStack(fonts, text) === 0) return text;
+    }
+    throw new Error(`${stack.id}: no word of ${script} in ${wordTries} words has all its code points in the fonts of the stack`);
+  };
   return Array.from({ length: mixedCount }, (_, index) => {
     const words: string[] = [];
-    for (let round = 0; round < rounds; round++) {
-      stack.scripts.forEach((script, place) => words.push(generateSample(seed, script, "word", index * rounds * stack.scripts.length + round * stack.scripts.length + place).text));
-    }
+    for (let round = 0; round < rounds; round++) for (const script of stack.scripts) words.push(word(script));
     return { id: `${stack.id}:mixed:${index}`, kind: "mixed", text: words.join(" ") };
   });
 }

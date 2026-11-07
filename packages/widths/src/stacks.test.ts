@@ -26,14 +26,22 @@ describe("the stacks", () => {
 });
 
 describe("mixedTexts", () => {
+  const all = [{ glyph: () => 1 } as unknown as Font];
+
+  it("skips each word with a code point that no font of the list has", () => {
+    const latinOnly = [{ glyph: (code: number) => (/\p{Script=Han}/u.test(String.fromCodePoint(code)) ? 0 : 1) } as unknown as Font];
+    expect(() => mixedTexts(stack, 1, latinOnly)).toThrow(/no word of han/);
+    for (const { text } of mixedTexts(stack, 1, all)) expect(missingInStack(all, text)).toBe(0);
+  });
+
   it("gives the same texts for a seed, and different texts for each index", () => {
-    const texts = mixedTexts(stack, 1);
-    expect(mixedTexts(stack, 1)).toEqual(texts);
+    const texts = mixedTexts(stack, 1, all);
+    expect(mixedTexts(stack, 1, all)).toEqual(texts);
     expect(new Set(texts.map((text) => text.text)).size).toBe(texts.length);
   });
 
   it("has Latin and Han in each text", () => {
-    for (const { text } of mixedTexts(stack, 1)) {
+    for (const { text } of mixedTexts(stack, 1, all)) {
       expect(text).toMatch(/\p{Script=Latin}/u);
       expect(text).toMatch(/\p{Script=Han}/u);
     }

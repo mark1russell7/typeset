@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readFont } from "@mark1russell7/typeset/fonts";
 import { fontAdvance } from "@mark1russell7/typeset/measurer";
-import { fileName, fontStacks, missingInStack, mixedTexts, stackFont, type FontStack } from "@typeset/widths";
+import { fileName, fontStacks, mixedTexts, stackFont, type FontStack } from "@typeset/widths";
 import { defineCase, type BenchCase, type CaseModule } from "../case.ts";
 
 /** The environment variable with the folder of the pinned font files. `bench.yml` fetches them with their SHA-256. */
@@ -26,7 +26,7 @@ function stackCase(stack: FontStack): BenchCase {
   return defineCase({
     setup: () => {
       const fonts = stack.fonts.map((id) => readFont(bytesOf(id)));
-      const texts = mixedTexts(stack, 1).filter(({ text }) => missingInStack(fonts, text) === 0).map(({ text }) => text);
+      const texts = mixedTexts(stack, 1, fonts).map(({ text }) => text);
       const advance = fontAdvance({ faces: stack.fonts.map((id) => ({ family: `typeset-${id}`, data: bytesOf(id) })), engine: "freetype" });
       return { advance, texts, font: stackFont(stack, size) };
     },
