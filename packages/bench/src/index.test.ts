@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { aa, arms, cases, fontCases, fontFolder, modules } from "./cases/index.ts";
+import { aa, arms, balancedRounds, cases, fontCases, fontFolder, modules } from "./cases/index.ts";
 import { measure, roundOrder, runBench } from "./index.ts";
 import { rescore } from "./rescore.ts";
 
@@ -20,6 +20,16 @@ describe("roundOrder", () => {
 });
 
 describe("the cases of the bench", () => {
+  it("puts each arm, the 2 arms of the A/A pair too, at each position 2 times in a balanced count of rounds", () => {
+    const counts = new Map<string, number>();
+    for (let round = 0; round < balancedRounds; round++) roundOrder(arms, round).forEach((arm, position) => counts.set(`${arm.arm}@${position}`, (counts.get(`${arm.arm}@${position}`) ?? 0) + 1));
+    expect(counts.size).toBe(arms.length * arms.length);
+    expect([...counts.values()].every((count) => count === 2)).toBe(true);
+    // In half of the rounds the first arm of the pair runs first.
+    const first = Array.from({ length: balancedRounds }, (_, round) => roundOrder(arms, round)).filter((order) => order.findIndex((arm) => arm.arm === aa[0]) < order.findIndex((arm) => arm.arm === aa[1]));
+    expect(first).toHaveLength(balancedRounds / 2);
+  });
+
   it("has each module of the folder cases in the list of cases/index.ts", () => {
     const files = readdirSync(fileURLToPath(new URL("./cases/", import.meta.url))).filter((name) => name.endsWith(".ts") && name !== "index.ts");
     expect(Object.keys(modules).sort()).toEqual(files.sort());

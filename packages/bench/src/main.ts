@@ -5,12 +5,12 @@
 import { appendFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { aa, arms } from "./cases/index.ts";
+import { aa, arms, balancedRounds } from "./cases/index.ts";
 import { runBench } from "./harness.ts";
 
 const { values } = parseArgs({
   options: {
-    rounds: { type: "string", default: "20" },
+    rounds: { type: "string", default: String(balancedRounds) },
     samples: { type: "string", default: "15" },
     "min-sample-ms": { type: "string", default: "5" },
     "warmup-ms": { type: "string", default: "300" },
@@ -18,6 +18,9 @@ const { values } = parseArgs({
     label: { type: "string", default: "" },
   },
 });
+
+// A count of rounds that is not a multiple of the balanced count puts some arms at some positions more often. Then the A/A pair can show a bias of order.
+if (Number(values.rounds) % balancedRounds !== 0) console.warn(`warning: ${values.rounds} rounds is not a multiple of ${balancedRounds}, so the order of the arms is not balanced`);
 
 const record = runBench({
   module: fileURLToPath(new URL("./cases/index.ts", import.meta.url)),

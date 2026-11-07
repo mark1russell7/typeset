@@ -24,7 +24,7 @@ The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` st
 - Each round starts one fresh process for each arm. The order of the arms turns by one place each round, and it goes backward in each second turn. Thus each arm is at each position the same number of times.
 - A process does a warm-up, doubles its batch until a batch takes 5 ms, and then times 15 batches. Its value is the median time of one call.
 - The statistics come from `@mark1russell7/rigor-statistics` (`median`, `quantile`, `summarize`, `bootstrapMedian`).
-- Two arms with the same case make the A/A pair. Its ratio is the median over the rounds, with a 90 % bootstrap interval. This ratio is the noise floor of the bench.
+- Two arms with the same case make the A/A pair. Its ratio is the median over the rounds, with a 90 % bootstrap interval. The interval must hold 1. An interval without 1 is a bias of the harness, not noise.
 - The record (schema `typeset-bench/1`) has the CPU model, the Node version, the mode (`ci` or `local`), each process and the summary of each arm.
 - The bench fails when a process fails or when the record does not have all its processes.
 
@@ -32,8 +32,9 @@ The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` st
 
 Timing runs go to CI, not to a shared machine. The workflow `bench.yml` runs the bench.
 
-- A pull request that changes the corpus, the package `@mark1russell7/typeset`, the widths tools, the bench or the workflow runs 6 rounds. The check `Bench OK` gives the result.
-- A run of `workflow_dispatch` runs 20 rounds by default. Give the identifier of its prediction in the input `prediction`.
+- A pull request that changes the corpus, the package `@mark1russell7/typeset`, the widths tools, the bench or the workflow runs a balanced count of rounds. The check `Bench OK` gives the result.
+- The balanced count is 2 times the count of arms. Then each arm is at each position 2 times, one time in each direction of the order.
+- A run of `workflow_dispatch` also runs the balanced count by default. Give the identifier of its prediction in the input `prediction`.
 - The input `runs` of `workflow_dispatch` gives the count of bench jobs. Each job has its own runner. At most 3 jobs run at the same time.
 - Each job uploads its record as the artifact `bench-records-<n>`.
 - A limit comes from 5 runs or more: the worst value plus the spread of the runs.
