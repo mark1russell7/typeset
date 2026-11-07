@@ -132,6 +132,12 @@
         </div>
         <div class="table-scroll"><table class="heat" id="ci-table"></table></div>
         <div class="detail" id="ci-detail" aria-live="polite"><p class="hint">Select a cell to see its count of texts and its worst text.</p></div>
+        <div id="stack-block" hidden>
+          <h3 class="sub-head">Font stacks</h3>
+          <p class="hint">Each row is a CSS font list. The model gives each character cluster to the first font that has it, as Chromium does. Each cell shows the worst error over 6 sizes. The limit is 1.28/64 px.</p>
+          <div class="table-scroll"><table class="heat" id="stack-table"></table></div>
+          <div class="detail" id="stack-detail" aria-live="polite"><p class="hint">Select a cell to see the worst error at each size.</p></div>
+        </div>
       </section>
 
       <div class="legend" id="legend" aria-label="The color scale of the error"></div>

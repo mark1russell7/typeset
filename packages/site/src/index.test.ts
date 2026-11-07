@@ -17,6 +17,9 @@ import {
   readSnapshot,
   scriptOrder,
   snapshotOf,
+  stackLimit64,
+  stackMatrix,
+  stackWorstPx,
   statOf,
   sweepTask,
 } from "./index.ts";
@@ -210,5 +213,41 @@ describe("allLeftOut", () => {
   });
   it("is false when nothing was left out", () => {
     expect(allLeftOut([cell(0, 0), undefined])).toBe(false);
+  });
+});
+
+describe("stackMatrix", () => {
+  const stacks = {
+    list: [{ id: "latin-han", fonts: ["noto-sans", "noto-sans-jp"] }, { id: "all-scripts", fonts: ["noto-sans", "noto-sans-arabic"] }],
+    cells: [
+      { stack: "latin-han", size: 10, n: 30, excluded: 0, worst64: 0.4, worstSample: "latin-han:mixed:0" },
+      { stack: "latin-han", size: 48, n: 30, excluded: 0, worst64: 1.123456 },
+      { stack: "all-scripts", size: 10, n: 0, excluded: 30, worst64: 0 },
+    ],
+    records: [{ big: "the snapshot leaves the records out" }],
+  };
+  const snapshot = snapshotOf([{ ...armFile("linux-1", "freetype", 1), stacks }, armFile("windows-1", "directwrite", 1)], run);
+
+  it("keeps the stack cells with 4 digits and the font list of each stack, with no records", () => {
+    expect(snapshot.arms[0]!.stacks?.[1]?.worst64).toBe(1.123);
+    expect(snapshot.arms[0]!.stacks?.[0]?.worstSample).toBe("latin-han:mixed:0");
+    expect(snapshot.arms[1]!.stacks).toBeUndefined();
+    expect(snapshot.stackFonts?.["latin-han"]).toEqual(["noto-sans", "noto-sans-jp"]);
+    expect(JSON.stringify(snapshot)).not.toContain("records");
+  });
+
+  it("gives one row for each stack, with the cells of each arm, and the worst error over the sizes", () => {
+    const rows = stackMatrix(snapshot);
+    expect(rows.map((row) => row.stack)).toEqual(["latin-han", "all-scripts"]);
+    expect(rows[0]!.fonts).toEqual(["noto-sans", "noto-sans-jp"]);
+    expect(rows[0]!.cells.map((cells) => cells.length)).toEqual([2, 0]);
+    expect(stackWorstPx(rows[0]!.cells[0]!)).toBeCloseTo(1.123 / 64, 12);
+    expect(stackWorstPx(rows[0]!.cells[0]!) * 64).toBeLessThanOrEqual(stackLimit64);
+    expect(stackWorstPx(rows[1]!.cells[0]!)).toBeNaN();
+    expect(stackWorstPx([])).toBeNaN();
+  });
+
+  it("gives no rows for a run before T11", () => {
+    expect(stackMatrix(snapshotOf([armFile("linux-1", "freetype", 1)], run))).toEqual([]);
   });
 });

@@ -9,6 +9,9 @@ export {
   readSnapshot,
   snapshotOf,
   snapshotSchema,
+  stackLimit64,
+  stackMatrix,
+  stackWorstPx,
   statOf,
   type ArmSnapshot,
   type ExtraSummary,
@@ -16,6 +19,7 @@ export {
   type ModelChoice,
   type RunInfo,
   type Snapshot,
+  type StackRow,
   type Statistic,
   type Summary,
 } from "./snapshot.ts";
