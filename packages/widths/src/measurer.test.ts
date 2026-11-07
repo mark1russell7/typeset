@@ -6,7 +6,7 @@ import { fontAdvance } from "@mark1russell7/typeset/measurer";
 import { fontsFor, generateSample, scriptIds, type FontId, type ScriptId } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
-import { fontStacks, markTexts, stackFont } from "./stacks.ts";
+import { fontStacks, markTexts, missingInStack, mixedTexts, stackFont } from "./stacks.ts";
 
 // The test needs the pinned font files in the folder `TYPESET_FONTS`. `fetch.ts` downloads them. A script with no file is skipped.
 const folder = process.env["TYPESET_FONTS"];
@@ -107,6 +107,30 @@ describe.skipIf(folder === undefined)("fontAdvance with a font stack, as Blink f
             }
             const got = advance(text, stackFont(stack, size));
             expect(Math.abs(got - want), `${id} ${engine} ${size}px: ${got} against ${want}`).toBeLessThanOrEqual(stackLimit);
+          }
+        }
+      }
+    });
+  }
+
+  for (const stack of fontStacks) {
+    it.skipIf(!stack.fonts.every(present))(`lays out the texts of a stack through the measurer of layout-contract: ${stack.id}`, { timeout: 300_000 }, () => {
+      const list = stack.fonts.map((id) => readFont(bytesOf(id), { instance: cssInstance() }));
+      const texts = [...mixedTexts(stack, 1), ...markTexts(stack, list)].filter(({ text }) => missingInStack(list, text) === 0);
+      expect(texts.length, stack.id).toBeGreaterThan(0);
+      for (const engine of names) {
+        const advance = fontAdvance({ faces: stack.fonts.map((id) => ({ family: `typeset-${id}`, data: bytesOf(id) })), engine });
+        for (const { id, text } of texts) {
+          for (const size of [10, 16, 48]) {
+            const font = stackFont(stack, size);
+            // The measurer rounds each part to whole units. So the line differs from the whole text by 0.5 unit for each request at most.
+            const measurer = createMeasurer(advance);
+            const line = layoutText(text, { font, measurer, lineHeight: size * 1.25 });
+            const bound = (measurer.stats().requests * 0.5) / TEXT_UNITS + stackLimit;
+            expect(Math.abs(line.widths[0]! - advance(text, font)), `${id} ${engine} ${size}px`).toBeLessThanOrEqual(bound);
+            const wrapped = layoutText(text, { font, measurer, lineHeight: size * 1.25, wrapWidth: size * 8 });
+            expect(wrapped.lines.join(" ").split(/\s+/u), `${id} ${engine} ${size}px`).toEqual(text.split(/\s+/u));
+            for (const width of wrapped.widths) expect(Number.isInteger(width * TEXT_UNITS), id).toBe(true);
           }
         }
       }
