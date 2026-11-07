@@ -2,15 +2,21 @@ import type { Arm } from "../harness.ts";
 import type { CaseModule } from "../case.ts";
 import { cases as breaking } from "./breaking.ts";
 import { cases as corpus } from "./corpus.ts";
+import { cases as measurer, fontFolder } from "./measurer.ts";
 
 /**
  * The case modules of the bench, by file name. `pnpm bench` starts each case of each module. A test fails when a
  * file of this folder is not in this list, so each case gets a run.
  */
-export const modules: Readonly<Record<string, CaseModule>> = { "breaking.ts": breaking, "corpus.ts": corpus };
+export const modules: Readonly<Record<string, CaseModule>> = { "breaking.ts": breaking, "corpus.ts": corpus, "measurer.ts": measurer };
 
 /** The cases of all modules in one record. The harness gets this module. Two modules do not use the same case name. */
 export const cases: CaseModule = Object.assign({}, ...Object.values(modules)) as CaseModule;
+
+/** The cases that read the pinned font files of the folder `TYPESET_FONTS`. Without the folder, their setup throws. */
+export const fontCases: ReadonlySet<string> = new Set(Object.keys(measurer));
+
+export { fontFolder };
 
 /** The two arms of the A/A pair. They time the same case. */
 export const aa: readonly [string, string] = ["corpus.generate", "corpus.generate#aa"];

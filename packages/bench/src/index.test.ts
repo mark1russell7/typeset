@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { aa, arms, cases, modules } from "./cases/index.ts";
+import { aa, arms, cases, fontCases, fontFolder, modules } from "./cases/index.ts";
 import { measure, roundOrder, runBench } from "./index.ts";
 import { rescore } from "./rescore.ts";
 
@@ -32,8 +32,12 @@ describe("the cases of the bench", () => {
     expect(arms.find((arm) => arm.arm === aa[1])?.case).toBe(aa[0]);
   });
 
-  it("each case runs and gives a result", () => {
+  // The Bench job fetches the fonts. A test job without them skips the font cases, and the bench fails on them.
+  const fonts = (process.env[fontFolder] ?? "") !== "";
+
+  it("each case runs and gives a result", { timeout: 120_000 }, () => {
     for (const [name, benchCase] of Object.entries(cases)) {
+      if (!fonts && fontCases.has(name)) continue;
       const result = measure(name, benchCase, { samples: 2, minSampleMs: 0, warmupMs: 0 });
       expect(result.samples).toHaveLength(2);
       expect(result.samples.every((s) => s > 0)).toBe(true);
