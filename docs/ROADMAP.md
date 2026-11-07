@@ -21,4 +21,5 @@ Each item has a prediction before its code: the claims, how each claim is measur
 | T7 | A text corpus generator (scripts, lengths, fonts, edit sequences) and the CI bench | P1 | done | |
 | T8 | An adapter for the `/text` measurer interface of `@mark1russell7/layout-contract`: `fontAdvance` of `@mark1russell7/typeset/measurer` gives the widths of the font model from the font files of the host. The font model moves to the subpath `./fonts`, and `./fonts/inspect` has 5 functions for the tools (typeset#50) | P1 | done | T2 |
 | T9 | Use the rigor homes: `rigor-generators` for the random numbers of the corpus, `rigor-statistics` for the statistics of the bench | P1 | done | T7 |
+| T10 | The weight of each public entry as a CI gate: minified and `gzip` bytes against the last release, in `Bench OK`, with a limit from the first CI measure | P2 | in progress | T6 |
 | S1 | The site on GitHub Pages: the font tables against canvas `measureText` in the browser, a sweep of the corpus, and the grid of a CI fonts run (typeset#35, typeset#37) | P1 | done | T1c |
