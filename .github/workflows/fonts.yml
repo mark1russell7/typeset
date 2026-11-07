@@ -198,6 +198,9 @@ jobs:
           path: arms
       - name: Score the outcomes
         run: node packages/widths/src/score.ts arms --out outcomes.json
+      # The gate of the font stacks: each width cell at most 1.28/64 px, and each break cell a pass or a known gap with a dated item
+      - name: Gate the font stacks
+        run: node packages/widths/src/stack-gate.ts arms
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: font-outcomes

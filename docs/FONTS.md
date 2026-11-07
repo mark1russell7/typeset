@@ -579,3 +579,13 @@ A font stack is a list of corpus fonts in the order of a CSS `font-family` list.
 - `width`: each line of Chromium ends at white space, so a width moves the break.
 - `layoutText` 0.5.3 breaks only at white space. Chromium also breaks between ideographs, kana, Hangul syllables and Thai words, as UAX #14 and a dictionary tell.
 - So a text of these scripts gives `opportunity` records until `layoutText` uses the break positions of `lineBreaks` (T12).
+
+### The gate of the stacks
+
+- The report job of the Fonts workflow starts `packages/widths/src/stack-gate.ts` on the files of the 4 arms.
+- A width cell fails above 1.28/64 px. An arm with no record of the stacks fails.
+- A break cell passes when at least 97 of each 100 records have the same lines as Chromium.
+- A cell under the bar fails, except a known gap of `breakGaps`. A gap names its items and their due date.
+- A known gap holds only when the bar holds with the `opportunity` records counted as the same. A `width` record is never excused.
+- A listed cell that passes the bar fails as a stale gap. So the list stays true.
+- The Thai cells stay known gaps until T12b ships the Thai word breaks. A known gap is not a pass.

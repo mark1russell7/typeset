@@ -140,3 +140,4 @@ export function withRunWidths(advance: (text: string, font: string) => number, f
     return total;
   };
 }
+
