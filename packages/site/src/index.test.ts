@@ -223,6 +223,7 @@ describe("stackMatrix", () => {
       { stack: "latin-han", size: 10, n: 30, excluded: 0, worst64: 0.4, worstSample: "latin-han:mixed:0" },
       { stack: "latin-han", size: 48, n: 30, excluded: 0, worst64: 1.123456 },
       { stack: "all-scripts", size: 10, n: 0, excluded: 30, worst64: 0 },
+      { stack: "all-scripts", set: "uncovered", size: 10, n: 24, excluded: 0, worst64: 0.5, missingTexts: 23, words: 1134, missingWords: 52 },
     ],
     records: [{ big: "the snapshot leaves the records out" }],
   };
@@ -236,9 +237,15 @@ describe("stackMatrix", () => {
     expect(JSON.stringify(snapshot)).not.toContain("records");
   });
 
-  it("gives one row for each stack, with the cells of each arm, and the worst error over the sizes", () => {
+  it("reads a cell with no set as covered, and keeps the counts of an uncovered cell", () => {
+    expect(snapshot.arms[0]!.stacks?.[0]?.set).toBe("covered");
+    expect(snapshot.arms[0]!.stacks?.[3]).toEqual({ stack: "all-scripts", set: "uncovered", size: 10, n: 24, excluded: 0, worst64: 0.5, missingTexts: 23, words: 1134, missingWords: 52 });
+  });
+
+  it("gives one row for each stack and set, with the cells of each arm, and the worst error over the sizes", () => {
     const rows = stackMatrix(snapshot);
-    expect(rows.map((row) => row.stack)).toEqual(["latin-han", "all-scripts"]);
+    expect(rows.map((row) => `${row.stack} ${row.set}`)).toEqual(["latin-han covered", "all-scripts covered", "all-scripts uncovered"]);
+    expect(rows[2]!.cells[0]!.map((cell) => cell.missingWords)).toEqual([52]);
     expect(rows[0]!.fonts).toEqual(["noto-sans", "noto-sans-jp"]);
     expect(rows[0]!.cells.map((cells) => cells.length)).toEqual([2, 0]);
     expect(stackWorstPx(rows[0]!.cells[0]!)).toBeCloseTo(1.123 / 64, 12);

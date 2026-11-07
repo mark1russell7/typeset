@@ -367,6 +367,7 @@ function stackLines(title: string, cells: readonly StackCell[]): string[] {
   const lines = [title];
   for (const cell of cells) {
     if (cell.n === 0) lines.push(`${cell.size} px: no widths, ${cell.excluded} texts left out for a missing glyph`);
+    else if (cell.set === "uncovered") lines.push(`${cell.size} px: worst ${formatPx(cell.worst64 / 64)} px outside the missing runs (${cell.worst64 <= stackLimit64 ? "in" : "above"} the limit), ${cell.n} widths, ${cell.missingWords ?? 0} of ${cell.words ?? 0} words with a missing glyph`);
     else lines.push(`${cell.size} px: worst ${formatPx(cell.worst64 / 64)} px (${cell.worst64 <= stackLimit64 ? "in" : "above"} the limit), ${cell.n} widths${cell.excluded > 0 ? `, ${cell.excluded} left out` : ""}`);
   }
   return lines;
@@ -382,12 +383,12 @@ function renderStacks(): void {
   for (const arm of snapshot.arms) head.append(make("th", "arm", armLabels[arm.arm]?.os ?? arm.arm));
   const body = rows.map((row) => {
     const tr = make("tr");
-    const th = make("th", "row-head", row.stack);
+    const th = make("th", "row-head", `${row.stack}, ${row.set}`);
     if (row.fonts.length > 0) th.append(make("span", "arm-note", row.fonts.join(", ")));
     tr.append(th);
     row.cells.forEach((cells, i) => {
       const arm = snapshot.arms[i]!;
-      const title = `${row.stack} on ${armLabels[arm.arm]?.os ?? arm.arm} (${arm.arm})`;
+      const title = `${row.stack}, ${row.set} texts, on ${armLabels[arm.arm]?.os ?? arm.arm} (${arm.arm})`;
       const lines = stackLines(title, cells);
       tr.append(heatCell(stackWorstPx(cells), lines, () => {
         $("stack-detail").replaceChildren(make("h3", "", lines[0]!), ...lines.slice(1).map((line) => make("p", "", line)));

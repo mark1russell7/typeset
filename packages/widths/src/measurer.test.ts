@@ -6,7 +6,7 @@ import { fontAdvance } from "@mark1russell7/typeset/measurer";
 import { fontsFor, generateSample, scriptIds, type FontId, type ScriptId } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
-import { fontStacks, markTexts, missingInStack, mixedTexts, stackFont } from "./stacks.ts";
+import { drawnTexts, fontStacks, markTexts, missingInStack, mixedTexts, stackFont } from "./stacks.ts";
 
 // The test needs the pinned font files in the folder `TYPESET_FONTS`. `fetch.ts` downloads them. A script with no file is skipped.
 const folder = process.env["TYPESET_FONTS"];
@@ -119,9 +119,10 @@ describe.skipIf(folder === undefined)("fontAdvance with a font stack, as Blink f
   for (const stack of fontStacks) {
     it.skipIf(!stack.fonts.every(present))(`lays out the texts of a stack through the measurer of layout-contract: ${stack.id}`, { timeout: 300_000 }, () => {
       const list = stack.fonts.map((id) => readFont(bytesOf(id), { instance: cssInstance() }));
-      const texts = [...mixedTexts(stack, 1, list), ...markTexts(stack, list)];
-      expect(texts.every(({ text }) => missingInStack(list, text) === 0), stack.id).toBe(true);
-      expect(texts.length, stack.id).toBeGreaterThan(0);
+      const covered = [...mixedTexts(stack, 1, list), ...markTexts(stack, list)];
+      expect(covered.every(({ text }) => missingInStack(list, text) === 0), stack.id).toBe(true);
+      // A drawn text can have a code point that no font has. The model and the layout still give it a width: the .notdef advance.
+      const texts = [...covered, ...drawnTexts(stack, 1)];
       for (const engine of names) {
         const advance = fontAdvance({ faces: stack.fonts.map((id) => ({ family: `typeset-${id}`, data: bytesOf(id) })), engine });
         for (const { id, text } of texts) {
@@ -143,6 +144,7 @@ describe.skipIf(folder === undefined)("fontAdvance with a font stack, as Blink f
             const spaces = [...graphemes.segment(text)].filter(({ segment }) => segment === " ").length;
             const sum = pieces.reduce((total, part) => total + advance(part, font), 0) + spaces * advance(" ", font);
             expect(Math.abs(line.widths[0]! - sum), `${id} ${engine} ${size}px`).toBeLessThanOrEqual(((pieces.length + spaces) * 0.5) / TEXT_UNITS);
+            expect(Number.isFinite(line.widths[0]!) && line.widths[0]! > 0, `${id} ${engine} ${size}px`).toBe(true);
             const wrapped = layoutText(text, { font, measurer, lineHeight: size * 1.25, wrapWidth: size * 8 });
             expect(wrapped.lines.join(" ").split(/\s+/u), `${id} ${engine} ${size}px`).toEqual(text.split(/\s+/u));
             for (const width of wrapped.widths) expect(Number.isInteger(width * TEXT_UNITS), id).toBe(true);

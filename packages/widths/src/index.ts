@@ -19,5 +19,5 @@ export {
 } from "./compare.ts";
 export { allArms, arabicNoRegressionScripts, engineScripts, floatSumScripts, score, scoreAdvances, scoreArabic, scoreCauses, scoreEngines, scoreFloatSum, scoreGsub, scoreKana, unroundedArms, type ArmFile, type Outcome } from "./score.ts";
 export { breakdownOf, exactDeltaErrors, featureSettings, substitutionTrace, summarizeFeatures, type BreakdownRow, type FeatureGroup, type FeatureRecord, type FeatureSetting, type FeatureSummary, type SubstitutionStep } from "./features.ts";
-export { fontStacks, markTexts, missingInStack, mixedTexts, stackCells, stackFont, stackRecords, type FontStack, type StackCell, type StackRecord, type StackText } from "./stacks.ts";
+export { drawnTexts, fontStacks, markTexts, missingInStack, missingRuns, mixedTexts, runTexts, setOf, stackCells, stackFont, stackRecords, type FontStack, type MissingRun, type StackCell, type StackRecord, type StackSet, type StackText } from "./stacks.ts";
 export { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags, sourceUrl, type FontSource } from "./sources.ts";

@@ -22,7 +22,7 @@ import { blinkScale } from "./bounds.ts";
 import { openReferenceFont } from "./harfbuzz.ts";
 import { isProbed, sequenceEntries } from "./sequences.ts";
 import { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags } from "./sources.ts";
-import { fontStacks, markTexts, mixedTexts, stackCells, stackFont, stackRecords, type StackRecord } from "./stacks.ts";
+import { drawnTexts, fontStacks, markTexts, missingRuns, mixedTexts, runTexts, stackCells, stackFont, stackRecords, type StackRecord } from "./stacks.ts";
 
 const origin = "https://typeset.test";
 
@@ -269,9 +269,14 @@ async function main(): Promise<void> {
     const stackModel = fontAdvance({ faces: ids.map((id) => ({ family: `typeset-${id}`, data: readFileSync(join(values.fonts!, fileName(id))) })), engine });
     for (const stack of fontStacks) {
       const list = stack.fonts.map((id) => fonts.get(id)!);
-      const texts = [...mixedTexts(stack, 1, list), ...markTexts(stack, list)];
-      const canvas = await stackWidths(page, fontSizes.map((size) => stackFont(stack, size)), texts.map((text) => text.text));
-      stackRows.push(...stackRecords(stack, list, texts, fontSizes, canvas, stackModel));
+      const texts = [...mixedTexts(stack, 1, list), ...markTexts(stack, list), ...drawnTexts(stack, 1)];
+      const cssFonts = fontSizes.map((size) => stackFont(stack, size));
+      const canvas = await stackWidths(page, cssFonts, texts.map((text) => text.text));
+      // The canvas draws a missing run with a font of the system. The width of the run is the part of the error that the CSS list does not define.
+      const runs = runTexts(texts.flatMap((text) => missingRuns(list, text.text)));
+      const runWidths = await stackWidths(page, cssFonts, runs);
+      const runCanvas = runWidths.map((widths) => new Map(runs.map((run, i) => [run, widths[i]!])));
+      stackRows.push(...stackRecords(stack, list, texts, fontSizes, canvas, stackModel, runCanvas));
     }
   } finally {
     await browser.close();
@@ -377,7 +382,7 @@ async function main(): Promise<void> {
     ``,
     `The model of the engine ${engine} (sum ${engineSum}), worst paragraph and page error in px: ${Object.entries(engineSummary).map(([script, cells]) => `${script} ${format(cells.paragraph?.worstPx ?? Number.NaN, 4)} and ${format(cells.page?.worstPx ?? Number.NaN, 4)}`).join(", ")}.`,
     ``,
-    `Font stacks against a canvas with the same family list, worst error in 1/64 px of the engine ${engine}, as stack size: ${stackCells(stackRows).map((cell) => `${cell.stack} ${cell.size}: ${format(cell.worst64, 2)} (n ${cell.n}, excluded ${cell.excluded})`).join(", ")}`,
+    `Font stacks against a canvas with the same family list, worst error in 1/64 px of the engine ${engine}, as stack size: ${stackCells(stackRows).map((cell) => `${cell.stack} ${cell.set} ${cell.size}: ${format(cell.worst64, 2)} (n ${cell.n}, ${cell.set === "covered" ? `excluded ${cell.excluded}` : `${cell.missingTexts} texts and ${cell.missingWords} of ${cell.words} words with a missing code point`})`).join(", ")}`,
     ``,
     `| font | weight | model instance | probe found | tied | error at the weight px | matches |`,
     `|---|---|---|---|---|---|---|`,

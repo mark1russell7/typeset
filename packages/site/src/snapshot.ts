@@ -3,7 +3,7 @@
  * `scripts/snapshot.ts` writes it from the artifacts of the run, and the explorer reads it.
  */
 import type { LengthClass, ScriptId } from "@typeset/corpus";
-import type { Cell, StackCell } from "@typeset/widths";
+import type { Cell, StackCell, StackSet } from "@typeset/widths";
 
 /** The cells of one summary, by script and by length class. */
 export type Summary = Partial<Record<ScriptId, Partial<Record<LengthClass, Cell>>>>;
@@ -93,8 +93,12 @@ function roundCells<K extends string>(table: unknown): Partial<Record<K, Partial
 function stackCellsOf(value: unknown): StackCell[] | undefined {
   if (!isObject(value) || !Array.isArray(value["cells"])) return undefined;
   return value["cells"].filter(isObject).map((c) => {
-    const cell: StackCell = { stack: String(c["stack"]), size: Number(c["size"]), n: Number(c["n"]), excluded: Number(c["excluded"]), worst64: round(Number(c["worst64"])) };
-    return typeof c["worstSample"] === "string" ? { ...cell, worstSample: c["worstSample"] } : cell;
+    // A file of a run before the two sets has only covered cells.
+    const set = c["set"] === "uncovered" ? "uncovered" : "covered";
+    let cell: StackCell = { stack: String(c["stack"]), set, size: Number(c["size"]), n: Number(c["n"]), excluded: Number(c["excluded"]), worst64: round(Number(c["worst64"])) };
+    if (typeof c["worstSample"] === "string") cell = { ...cell, worstSample: c["worstSample"] };
+    if (set === "uncovered") cell = { ...cell, missingTexts: Number(c["missingTexts"] ?? 0), words: Number(c["words"] ?? 0), missingWords: Number(c["missingWords"] ?? 0) };
+    return cell;
   });
 }
 
@@ -210,19 +214,20 @@ export function allLeftOut(cells: readonly (Cell | undefined)[]): boolean {
 /** The limit of a stack cell, in 1/64 px: the bar of T11. */
 export const stackLimit64 = 1.28;
 
-/** One row of the stack table: a font stack, with its cells for each arm, in the order of the arms of the snapshot. */
+/** One row of the stack table: a font stack and a set of texts. It has the cells of each arm, in the order of the arms. */
 export interface StackRow {
   readonly stack: string;
+  readonly set: StackSet;
   readonly fonts: readonly string[];
   /** The cells of each size of the stack, for each arm. An arm with no stacks has no cells. */
   readonly cells: readonly (readonly StackCell[])[];
 }
 
-/** This function gives one row for each font stack of a snapshot, in the order of the first arm that has the stack. */
+/** This function gives one row for each font stack and set of a snapshot, in the order of the first arm that has it. */
 export function stackMatrix(snapshot: Snapshot): StackRow[] {
-  const order: string[] = [];
-  for (const arm of snapshot.arms) for (const cell of arm.stacks ?? []) if (!order.includes(cell.stack)) order.push(cell.stack);
-  return order.map((stack) => ({ stack, fonts: snapshot.stackFonts?.[stack] ?? [], cells: snapshot.arms.map((arm) => (arm.stacks ?? []).filter((cell) => cell.stack === stack)) }));
+  const order: { stack: string; set: StackSet }[] = [];
+  for (const arm of snapshot.arms) for (const cell of arm.stacks ?? []) if (!order.some((row) => row.stack === cell.stack && row.set === cell.set)) order.push({ stack: cell.stack, set: cell.set });
+  return order.map(({ stack, set }) => ({ stack, set, fonts: snapshot.stackFonts?.[stack] ?? [], cells: snapshot.arms.map((arm) => (arm.stacks ?? []).filter((cell) => cell.stack === stack && cell.set === set)) }));
 }
 
 /** This function gives the worst error of the cells of a stack over all sizes, in px. It gives NaN when no cell has a text. */
