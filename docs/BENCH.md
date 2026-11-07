@@ -17,6 +17,9 @@ The package `@typeset/corpus` (`packages/corpus`) generates the text that the it
 
 The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` starts it.
 
+- The file `cases/index.ts` has the list of the case modules. The bench starts each case of each module in its own arm.
+- A test fails when a module of the folder `cases` is not in the list. Thus each case gets a run.
+
 - Each round starts one fresh process for each arm. The order of the arms turns by one place each round, and it goes backward in each second turn. Thus each arm is at each position the same number of times.
 - A process does a warm-up, doubles its batch until a batch takes 5 ms, and then times 15 batches. Its value is the median time of one call.
 - The statistics come from `@mark1russell7/rigor-statistics` (`median`, `quantile`, `summarize`, `bootstrapMedian`).
@@ -28,7 +31,7 @@ The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` st
 
 Timing runs go to CI, not to a shared machine. The workflow `bench.yml` runs the bench.
 
-- A pull request that changes the corpus, the bench or the workflow runs 6 rounds. The check `Bench OK` gives the result.
+- A pull request that changes the corpus, the package `@mark1russell7/typeset`, the bench or the workflow runs 6 rounds. The check `Bench OK` gives the result.
 - A run of `workflow_dispatch` runs 20 rounds by default. Give the identifier of its prediction in the input `prediction`.
 - The input `runs` of `workflow_dispatch` gives the count of bench jobs. Each job has its own runner. At most 3 jobs run at the same time.
 - Each job uploads its record as the artifact `bench-records-<n>`.
