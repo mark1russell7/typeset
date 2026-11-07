@@ -61,8 +61,28 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 ## The rule for a claim of speed
 
 - Each claim of an item that says "faster" or "slower" compares two arms in one job.
-- A change of the ratio under 0.017 is "not a result". It is not a hit and not a miss.
+- A claim of speed comes from a run of several jobs. Each job has its own A/A pair.
+- The floor of a run is the spread of its jobs. Do not use a fixed floor from an earlier run.
+- A change of speed counts only when its interval over the jobs leaves out 1 and the A/A range of the same run.
+- Else the change is "not a result". It is not a hit and not a miss.
 - Do not compare the times of two jobs. The runners have different CPU models.
+- The values 0.017 and 0.012 are figures for a plan: they tell how many jobs a claim needs. They are not the gate.
+
+## The bias of an order that does not reverse (T11)
+
+- The run 42402596103 had 6 rounds for 10 arms, so the order did not reverse. Its A/A was 1.0253 [1.0036, 1.0419]. That is a bias of the order.
+- The balanced count of rounds removes it. The run 42414121767 has 5 jobs of 20 balanced rounds.
+
+| Job | CPU | A/A ratio | 90 % interval |
+|---|---|---|---|
+| 1 | AMD EPYC 9V74 | 1.0003 | [0.9986, 1.0102] |
+| 2 | Intel Xeon Platinum 8573C | 1.0019 | [0.9940, 1.0126] |
+| 3 | AMD EPYC 9V45 | 0.9902 | [0.9788, 1.0015] |
+| 4 | AMD EPYC 7763 | 0.9984 | [0.9918, 1.0052] |
+| 5 | AMD EPYC 9V45 | 0.9964 | [0.9886, 1.0086] |
+
+- Each of the 5 intervals holds 1. The spread of the ratios is 0.0117, and the largest distance from 1 is 0.0098.
+- The arms of the pair never share a process. Each arm and round has a new process.
 
 ## The change to the rigor homes (T9)
 
