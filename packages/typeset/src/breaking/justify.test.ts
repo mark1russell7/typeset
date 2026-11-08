@@ -11,6 +11,7 @@ const textsOf = (paragraph: Paragraph, breaker: Breaker, width: number): string[
 const box = (text: string): Item => ({ type: "box", text, width: count(text) });
 
 describe("stretch and shrink of glue", () => {
+  // This file takes up to 8.4 s on a CI runner. One corpus test went over the default limit of 5 s on main at 79b7734
   it("puts the options on each glue, and no field without the options", () => {
     const { items } = paragraphOf("ab cd", { widthOf: count, stretch: 0.5, shrink: 0.25 });
     expect(items[1]).toEqual({ type: "glue", text: " ", width: 1, stretch: 0.5, shrink: 0.25 });
@@ -18,14 +19,14 @@ describe("stretch and shrink of glue", () => {
     expect(Object.keys(paragraphOf("ab cd", { widthOf: count, stretch: 0, shrink: 0 }).items[1]!)).toEqual(["type", "text", "width"]);
   });
 
-  it("gives the same breaks as the code before them, from each breaker, on 300 corpus paragraphs", () => {
+  it("gives the same breaks as the code before them, from each breaker, on 300 corpus paragraphs", { timeout: 60_000 }, () => {
     expect(beforeScripts.length * beforePerScript).toBeGreaterThanOrEqual(200);
     expect(Object.keys(before)).toHaveLength(108);
     expect(fingerprints(breakers)).toEqual(before);
     expect(fingerprints(breakers, { stretch: 0, shrink: 0 })).toEqual(before);
   });
 
-  it("changes the breaks of total fit when the glue has stretch, so the fingerprints see the change", () => {
+  it("changes the breaks of total fit when the glue has stretch, so the fingerprints see the change", { timeout: 60_000 }, () => {
     const space = codePointPx(" ");
     const changed = fingerprints({ "total-fit": knuthPlass }, { stretch: space / 2, shrink: space / 3 });
     const same = Object.entries(changed).filter(([key, value]) => (before as Record<string, string>)[key] === value);
@@ -111,7 +112,7 @@ describe("total fit with the adjustment ratio", () => {
     expect(textsOf(paragraph, knuthPlass, 11)).toEqual(["aaa bbb ccc", "ddd e"]);
   });
 
-  it("does not choose a line below -1 in a corpus paragraph that has a feasible set of breaks", () => {
+  it("does not choose a line below -1 in a corpus paragraph that has a feasible set of breaks", { timeout: 60_000 }, () => {
     const scripts: readonly ScriptId[] = ["latin", "greek", "cyrillic"];
     let feasible = 0;
     let infeasible = 0;
