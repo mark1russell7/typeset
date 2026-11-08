@@ -50,5 +50,7 @@ console.log(lines.join("\n"));
 const summary = process.env["GITHUB_STEP_SUMMARY"];
 if (summary) appendFileSync(summary, `${lines.join("\n")}\n`);
 
+// A `null` limit only reports, so the check line tells that the gate read no entry.
+if (limit === null) console.log(`::warning title=Weight no read::no read: the limit is null, so the gate gives no verdict for the ${rows.length} entries.`);
 if (!repeat) console.error("two measures of one tree gave different bytes");
 if (!repeat || rows.some((row) => row.over)) process.exitCode = 1;
