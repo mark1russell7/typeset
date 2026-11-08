@@ -194,3 +194,24 @@ table { border-collapse: collapse; font-size: 14px; }
   .heat { border-spacing: 2px; }
   .progress { flex-wrap: wrap; }
 }
+
+/* The segments of the lab text. Each segment ends with a bar: a thin bar for a break place, a thick bar for a required break. */
+.seg-controls { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom: 10px; }
+.seg-kind { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); cursor: pointer; font-size: 15px; }
+.seg-kind:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.seg-kind .hint { margin-left: auto; font-size: 12px; }
+.seg-count { font: 600 14px/1.4 var(--mono); margin: 0 0 8px; }
+.seg-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 20px; line-height: 2; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; max-height: 320px; overflow-y: auto; margin-bottom: 8px; }
+.seg { border-right: 2px solid var(--tick); padding-right: 1px; border-radius: 2px; }
+.seg:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+.seg:hover { background: var(--surface-2); }
+.seg.hard { border-right: 5px solid var(--accent); }
+.seg-text[data-kind="graphemes"] .seg:nth-child(odd), .seg-text[data-kind="words"] .seg:nth-child(odd) { background: var(--surface-2); }
+.seg-table { width: 100%; }
+.seg-table td, .seg-table th { padding: 6px 10px; text-align: left; vertical-align: top; }
+.seg-table .hint { font-size: 12px; margin-top: 2px; max-width: 42ch; }
+.seg-passed { font-family: var(--mono); white-space: nowrap; }
+.seg-bar { min-width: 140px; position: relative; }
+.seg-bar > span:first-child { display: block; height: 10px; border-radius: 5px; background: var(--bar-canvas); margin-top: 5px; }
+.seg-other .seg-bar > span:first-child { background: var(--faint); }
+.seg-share { font: 12px var(--mono); color: var(--muted); }
