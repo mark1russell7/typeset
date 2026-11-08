@@ -13,7 +13,7 @@ export interface Segment {
   readonly text: string;
   /** The offset of the first UTF-16 code unit of the segment. */
   readonly start: number;
-  /** This value is `true` when the break at the end of the segment is a required line break. */
+  /** This value is `true` when the line must break at the end of the segment. */
   readonly required: boolean;
 }
 
@@ -21,7 +21,7 @@ export interface Segment {
 export interface SegmentView {
   readonly kind: SegmentKind;
   readonly segments: readonly Segment[];
-  /** The count of required line breaks. It is 0 for the other kinds. */
+  /** The count of the places where a line must break. It is 0 for the other kinds. */
   readonly required: number;
 }
 

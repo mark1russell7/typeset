@@ -520,7 +520,7 @@ function renderSegments(): void {
   const [one, many] = segmentNames[segmentKind];
   const count = view.segments.length;
   $("seg-count").textContent =
-    segmentKind === "lines" ? `${count} ${count === 1 ? one : many}, ${view.required} required, in ${state.text.length} UTF-16 code units` : `${count} ${count === 1 ? one : many} in ${state.text.length} UTF-16 code units`;
+    segmentKind === "lines" ? `${count} ${count === 1 ? one : many}, ${view.required} where the line must break, in ${state.text.length} UTF-16 code units` : `${count} ${count === 1 ? one : many} in ${state.text.length} UTF-16 code units`;
   const box = $("seg-text");
   box.dataset["kind"] = segmentKind;
   if (loaded !== undefined) box.style.fontFamily = `"${loaded.family}", system-ui, sans-serif`;
@@ -528,7 +528,7 @@ function renderSegments(): void {
     ...view.segments.map((segment, index) => {
       const span = make("span", segment.required ? "seg hard" : "seg", segment.text);
       const lines = [`${one} ${index + 1} of ${count}`, `offsets ${segment.start} to ${segment.start + segment.text.length}`, codePoints(segment.text)];
-      if (segment.required) lines.push("a required line break follows");
+      if (segment.required) lines.push("the line must break after this segment");
       span.tabIndex = 0;
       span.addEventListener("pointerenter", () => showTip(span, lines));
       span.addEventListener("pointerleave", hideTip);
