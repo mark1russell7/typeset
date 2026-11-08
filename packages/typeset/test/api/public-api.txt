@@ -86,6 +86,7 @@ graphemes: build/segmentation.d.ts#graphemes
 lineBreaks: build/segmentation.d.ts#lineBreaks
 unicodeVersion: build/segmentation.d.ts#unicodeVersion
 wordBreaks: build/segmentation.d.ts#wordBreaks
+wordBreaksOf: build/segmentation.d.ts#wordBreaksOf
 
 ## ./text (build/text.d.ts): names
 
@@ -436,3 +437,6 @@ export declare const unicodeVersion = "17.0.0";
 
 ### build/segmentation.d.ts#wordBreaks
 export declare function wordBreaks(text: string): readonly number[];
+
+### build/segmentation.d.ts#wordBreaksOf
+export declare function wordBreaksOf(words: readonly string[]): readonly (readonly number[])[];

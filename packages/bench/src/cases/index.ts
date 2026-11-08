@@ -3,12 +3,13 @@ import type { CaseModule } from "../case.ts";
 import { cases as breaking } from "./breaking.ts";
 import { cases as corpus } from "./corpus.ts";
 import { cases as fonts } from "./fonts.ts";
+import { cases as segmentation } from "./segmentation.ts";
 
 /**
  * The case modules of the bench, by file name. `pnpm bench` starts each case of each module. A test fails when a
  * file of this folder is not in this list, so each case gets a run.
  */
-export const modules: Readonly<Record<string, CaseModule>> = { "breaking.ts": breaking, "corpus.ts": corpus, "fonts.ts": fonts };
+export const modules: Readonly<Record<string, CaseModule>> = { "breaking.ts": breaking, "corpus.ts": corpus, "fonts.ts": fonts, "segmentation.ts": segmentation };
 
 /** The cases of all modules in one record. The harness gets this module. Two modules do not use the same case name. */
 export const cases: CaseModule = Object.assign({}, ...Object.values(modules)) as CaseModule;

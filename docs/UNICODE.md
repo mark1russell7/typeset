@@ -15,6 +15,7 @@ The subpath `@mark1russell7/typeset/segmentation` gives the break positions of U
 |---|---|---|
 | `graphemes` | UAX #29 grapheme clusters, through `Intl.Segmenter` | `GraphemeBreakTest.txt` |
 | `wordBreaks` | UAX #29 word boundaries, through `Intl.Segmenter` | `WordBreakTest.txt` |
+| `wordBreaksOf` | The boundaries of `wordBreaks` for each word of a list, in one pass | A property test against `wordBreaks` of each word |
 | `lineBreaks` | UAX #14 rules, in this package | `LineBreakTest.txt` |
 | `canvasWords` | The word cache of Blink, not a Unicode algorithm | `WordBreakTest.txt`, as a report only |
 
@@ -29,6 +30,7 @@ The subpath `@mark1russell7/typeset/segmentation` gives the break positions of U
 
 - The job uses one exact version of Node, so the pass rates are for the ICU of that version. The record of each run tells the Node, Unicode and ICU versions.
 - `graphemes` and `wordBreaks` use `Intl.Segmenter`, so they follow the ICU of the runtime. A different runtime can give different positions.
+- `wordBreaksOf` joins the words with line feeds, because UAX #29 breaks before and after a line feed. A word that ends in a carriage return gets its own pass.
 - `lineBreaks` uses its own table, so it follows the pinned version on each runtime.
 - The pin is one version older than the latest Unicode version, because the runtime has Unicode 17.0.
 - The test files examine rule pairs. They do not examine real text, and they do not examine the tailoring of a locale.
