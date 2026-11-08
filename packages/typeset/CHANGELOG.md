@@ -1,8 +1,15 @@
 # Changes of `@mark1russell7/typeset`
 
-## 0.1.9
+## 0.2.0
 
-This version adds the subpath `./bidi` and three exports of `./segmentation`. Before 1.0.0, a new export increases PATCH.
+This version adds the subpath `./bidi` and three exports of `./segmentation`. It also changes the output of `canvasSegments` and of the sum `float32` of `./fonts` for some texts. Before 1.0.0, a change of behavior increases MINOR. The version 0.1.9 had the same code, and it was not published.
+
+### The change of behavior
+
+- `canvasSegments` of `./fonts/inspect` and the sum `float32` follow explicit controls, marks of direction and paired brackets. The old model ignored them.
+- A text with one of these characters can get other segments and another width in single precision.
+- On the corpus of the Fonts run 42481402694, each of the 224 cells of the engine has the same error on the 4 arms.
+- The new order is the order of UAX #9, which Blink also uses. No browser has compared these texts yet. The roadmap item T13b adds that compare.
 
 Runtime dependencies: no change against `0.1.8` (`@mark1russell7/collections` `^0.9.3`, `@mark1russell7/rigor-generators` `^0.1.0`).
 
@@ -11,7 +18,7 @@ Runtime dependencies: no change against `0.1.8` (`@mark1russell7/collections` `^
 - The new subpath `./bidi` has the rules P1 to L2 of UAX #9 for Unicode 17.0.0: explicit embeddings, isolates and paired brackets (rule N0).
 - Its exports are `resolveText`, `resolveLevels`, `visualIndexes`, `visualOrder`, `bidiClass`, `bracketOf`, `removed`, `unicodeVersion` and the types `BidiClass`, `BidiParagraph`, `ParagraphDirection` and `ResolvedBidi`.
 - `BidiTest.txt` passes 256747 of 256747 tests for the levels and for the order, in each paragraph direction. `BidiCharacterTest.txt` passes all 91707 tests. The record is CI run 42481403118.
-- A change of behavior: the canvas model of `./fonts` uses the same rules. So `canvasSegments` of `./fonts/inspect` and the sum `float32` follow explicit controls, marks of direction and paired brackets. The old model ignored them.
+- The canvas model of `./fonts` uses the same rules. The section above tells the change of behavior.
 - The Fonts run 42481402694 compares the model with the base run on the 4 arms. Each of the 224 cells of the engine has the same error.
 
 ### The hook `complex` of `lineBreaks` (T12b)
