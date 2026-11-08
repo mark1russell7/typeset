@@ -203,7 +203,7 @@ function resolveWeak(sequenceTypes: number[], sos: number): void {
   for (let k = 0; k < n; k++) {
     const type = sequenceTypes[k]!;
     if (type & (L | R | AL)) last = type;
-    else if (type === EN && last === AL) sequenceTypes[k] = EN;
+    else if (type === EN && last === AL) sequenceTypes[k] = AN;
     if (type === AL) sequenceTypes[k] = R;
   }
   for (let k = 1; k + 1 < n; k++) {
