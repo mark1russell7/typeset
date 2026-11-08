@@ -1,6 +1,6 @@
 /**
  * The `Text` rope: a persistent balanced tree of strings with the width and the length of each subtree. An edit makes a
- * new rope. The new rope shares the subtrees that do not change. The tree is the `SummaryTree` of
+ * new rope. The new rope shares the subtrees that do not change. The tree is the `summary-tree` record of
  * `@mark1russell7/collections`, and this module gives it the summary of a text.
  *
  * A width function gives the width of a run of text. The rope uses it only for the leaves and for the windows at the
@@ -11,7 +11,8 @@
  * `width(p + s + q) = width(p + s) + width(s + q) - width(s)`. The model of `@mark1russell7/typeset/fonts` obeys it for a space and a
  * tab. It shapes each word alone, and its kerning goes only between two adjacent glyphs.
  */
-import { SummaryTree, type SummarySpec } from "@mark1russell7/collections";
+import * as Tree from "@mark1russell7/collections/summary-tree";
+import type { SummarySpec, SummaryTreeRecord } from "@mark1russell7/collections/summary-tree";
 import type { WidthOf } from "../breaking/paragraph.ts";
 
 /** The options of a rope. */
@@ -160,9 +161,9 @@ const lengthOf = (summary: Summary): number => summary.length;
  */
 export class Text {
   readonly #context: Context;
-  readonly #tree: SummaryTree<string, Summary>;
+  readonly #tree: SummaryTreeRecord<string, Summary>;
 
-  private constructor(context: Context, tree: SummaryTree<string, Summary>) {
+  private constructor(context: Context, tree: SummaryTreeRecord<string, Summary>) {
     this.#context = context;
     this.#tree = tree;
   }
@@ -179,22 +180,22 @@ export class Text {
     const context = contextOf(width, separators, chunk);
     // A new rope measures again: the width function can change its result when a font loads
     context.windows.clear();
-    return new Text(context, SummaryTree.of(context.spec, chunksOf(context, text)));
+    return new Text(context, Tree.of(context.spec, chunksOf(context, text)));
   }
 
   /** The count of UTF-16 code units of the text. */
   get length(): number {
-    return this.#tree.summary.length;
+    return Tree.summary(this.#tree).length;
   }
 
   /** The width of the text. It is equal to the width of the flat string when the width function obeys the separator law. */
   get width(): number {
-    return this.#tree.summary.width;
+    return Tree.summary(this.#tree).width;
   }
 
   /** The height of the tree: 0 for a text of one leaf. The tests use it to examine the balance. */
   get height(): number {
-    return Math.max(0, this.#tree.height - 1);
+    return Math.max(0, Tree.height(this.#tree) - 1);
   }
 
   /** This function gives the flat string. */
@@ -204,19 +205,19 @@ export class Text {
 
   /** This function gives the strings of the leaves in the order of the text. */
   chunks(): string[] {
-    return [...this.#tree];
+    return Tree.toArray(this.#tree);
   }
 
   /** This function gives the text from `start` to `end`, as a new rope. */
   slice(start: number, end: number = this.length): Text {
     this.#check(start, end);
-    if (start === end) return new Text(this.#context, this.#tree.slice(0, 0));
-    const first = this.#tree.locate(lengthOf, start)!;
-    const last = this.#tree.locate(lengthOf, end - 1)!;
+    if (start === end) return new Text(this.#context, Tree.slice(this.#tree, 0, 0));
+    const first = Tree.locate(this.#tree, lengthOf, start)!;
+    const last = Tree.locate(this.#tree, lengthOf, end - 1)!;
     const stop = first.offset + end - start;
-    const middle = this.#tree.slice(first.index, last.index + 1);
-    if (first.index === last.index) return new Text(this.#context, middle.set(0, first.leaf.slice(first.offset, stop)));
-    return new Text(this.#context, middle.set(-1, last.leaf.slice(0, last.offset + 1)).set(0, first.leaf.slice(first.offset)));
+    const middle = Tree.slice(this.#tree, first.index, last.index + 1);
+    if (first.index === last.index) return new Text(this.#context, Tree.set(middle, 0, first.leaf.slice(first.offset, stop)));
+    return new Text(this.#context, Tree.set(Tree.set(middle, -1, last.leaf.slice(0, last.offset + 1)), 0, first.leaf.slice(first.offset)));
   }
 
   /** This function gives the width of the text from `start` to `end`. */
@@ -227,7 +228,7 @@ export class Text {
   /** This function gives this text and then `other`. The two ropes must have the same width function and options. */
   concat(other: Text): Text {
     if (other.#context !== this.#context) throw new TypeError("the two ropes have different width functions or options");
-    return new Text(this.#context, this.#tree.concat(other.#tree));
+    return new Text(this.#context, Tree.concat(this.#tree, other.#tree));
   }
 
   /** This function puts `text` at the offset `at`. */
@@ -244,24 +245,24 @@ export class Text {
   replace(start: number, end: number, text: string): Text {
     this.#check(start, end);
     if (start === end && text.length === 0) return this;
-    const size = this.#tree.size;
+    const size = Tree.size(this.#tree);
     if (size === 0) return Text.from(text, this.#context.width, this.#context);
-    const first = this.#tree.locate(lengthOf, start) ?? this.#lastPlace();
-    const last = start === end ? first : this.#tree.locate(lengthOf, end - 1)!;
+    const first = Tree.locate(this.#tree, lengthOf, start) ?? this.#lastPlace();
+    const last = start === end ? first : Tree.locate(this.#tree, lengthOf, end - 1)!;
     const lastEnd = start === end ? first.offset : last.offset + 1;
     const fresh = first.leaf.slice(0, first.offset) + text + last.leaf.slice(lastEnd);
     const leaves = chunksOf(this.#context, fresh);
     // One long leaf in place of one leaf changes only a path. A short leaf goes through the seams, so that it can merge
     if (first.index === last.index && leaves.length === 1 && leaves[0]!.length * 2 >= this.#context.chunk) {
-      return new Text(this.#context, this.#tree.set(first.index, leaves[0]!));
+      return new Text(this.#context, Tree.set(this.#tree, first.index, leaves[0]!));
     }
-    return new Text(this.#context, this.#tree.splice(first.index, last.index - first.index + 1, leaves));
+    return new Text(this.#context, Tree.splice(this.#tree, first.index, last.index - first.index + 1, leaves));
   }
 
   /** This function gives the place after the last code unit: the end of the last leaf. */
   #lastPlace(): { index: number; leaf: string; offset: number } {
-    const leaf = this.#tree.at(-1)!;
-    return { index: this.#tree.size - 1, leaf, offset: leaf.length };
+    const leaf = Tree.at(this.#tree, -1)!;
+    return { index: Tree.size(this.#tree) - 1, leaf, offset: leaf.length };
   }
 
   #check(start: number, end: number): void {

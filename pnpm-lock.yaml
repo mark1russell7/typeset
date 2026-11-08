@@ -300,8 +300,8 @@ importers:
   packages/typeset:
     dependencies:
       '@mark1russell7/collections':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.9.3
+        version: 0.9.3
       '@mark1russell7/rigor-generators':
         specifier: ^0.1.0
         version: 0.1.6
@@ -558,8 +558,8 @@ packages:
       dependency-cruiser:
         optional: true
 
-  '@mark1russell7/collections@0.1.0':
-    resolution: {integrity: sha512-B2cS+i9eTjgW9XE4atBQfYlpbwxMaYqp9TJTQOXS9eKTIBUYTdRmpzuIhllXEh+PwNHh3UHEIs1u2A1aqbXrvg==}
+  '@mark1russell7/collections@0.9.3':
+    resolution: {integrity: sha512-d8Sd9JQX88qPg++tBP96vX1n1s7FI/gStGWP61BWtNs3Z8jAv2uIvGPOTyD8QQfD7DU69OZD2sQtGR4IGa1mvw==}
     engines: {node: '>=22.12'}
 
   '@mark1russell7/conventions@0.35.0':
@@ -574,6 +574,10 @@ packages:
 
   '@mark1russell7/layout-contract@0.5.3':
     resolution: {integrity: sha512-TGueNRUCq097mpbl+LluJNVtcikHoacmAfR+6Jur2GJIiX8brYxn1+45VW96+YA0z+lkCmJ7G6IhIEluF9A3DQ==}
+    engines: {node: '>=22.12'}
+
+  '@mark1russell7/optional@1.2.0':
+    resolution: {integrity: sha512-vS5jF21WC/VApRv4p8afRZahcMl9cuNp03LxbVngY9nYkzq+S7Oit6ksySt2baML+tp46UF60sxnHxn1jlwtTg==}
     engines: {node: '>=22.12'}
 
   '@mark1russell7/rigor-generators@0.1.5':
@@ -1725,7 +1729,9 @@ snapshots:
       '@swc/core': 1.16.20
       dependency-cruiser: 18.7.0
 
-  '@mark1russell7/collections@0.1.0': {}
+  '@mark1russell7/collections@0.9.3':
+    dependencies:
+      '@mark1russell7/optional': 1.2.0
 
   '@mark1russell7/conventions@0.35.0':
     dependencies:
@@ -1737,6 +1743,8 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.5
       '@mark1russell7/typeset': 0.1.0
+
+  '@mark1russell7/optional@1.2.0': {}
 
   '@mark1russell7/rigor-generators@0.1.5': {}
 
