@@ -5,7 +5,7 @@
  * category, so that this entry has no class table. `@mark1russell7/typeset/bidi` has the exact classes.
  */
 import { bracketOf } from "../bidi/brackets.ts";
-import { removed, resolveLevels, type BidiClass } from "../bidi/resolve.ts";
+import { icuDirection, removed, resolveLevels, type BidiClass } from "../bidi/resolve.ts";
 
 const nonSpacingMark = /[\p{Mn}\p{Me}]/u;
 const currency = /\p{Sc}/u;
@@ -60,6 +60,14 @@ export function bidiLevels(text: string): number[] {
     else level = levels[i]!;
   }
   return levels;
+}
+
+/**
+ * This function tells if ICU gives the direction `mixed` to a text in a paragraph with the base level 0. Blink divides
+ * the text of a canvas into bidi runs only then. ICU reads the classes R, AL and AN and the controls RLE, RLO and RLI.
+ */
+export function isMixed(text: string): boolean {
+  return icuDirection([...text].map(bidiClass), 0) === "mixed";
 }
 
 export { visualOrder } from "../bidi/resolve.ts";

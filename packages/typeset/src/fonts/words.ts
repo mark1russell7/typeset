@@ -1,10 +1,11 @@
 /**
  * The words of the text of a canvas. Blink shapes the text of `fillText` and `measureText` one word at a time, so no GSUB
  * context and no pair kerning goes across two words. This module follows `NextWordEndIndex` of
- * `third_party/blink/renderer/platform/fonts/plain_text_node.cc` and the CJK table of `character_property_data.h`.
+ * `third_party/blink/renderer/platform/fonts/plain_text_node.cc`, the CJK table of `character_property_data.h` and
+ * `TreatAsZeroWidthSpaceInComplexScriptLegacy` of `character.h`.
  * The Chromium Authors wrote these files under a BSD-style license.
  */
-import { bidiLevels, visualOrder } from "./bidi.ts";
+import { bidiLevels, isMixed, visualOrder } from "./bidi.ts";
 
 /** The single code points of the CJK table of Blink. */
 const cjkValues: ReadonlySet<number> = new Set([
@@ -49,17 +50,41 @@ function isDelimiter(character: string): boolean {
   return character === " " || character === "\t" || character === "​";
 }
 
+/** The space characters of the canvas text preparation: U+0020, U+0009, U+000A, U+000C and U+000D. */
+const canvasSpaces = /[ \t\n\f\r]/u;
+/** The characters of `TreatAsZeroWidthSpaceInComplexScriptLegacy` in Blink that are not canvas spaces. */
+const zeroWidthSpaceLike = /[­​‎‏‪-‮﻿￼]/u;
+
+/**
+ * This function gives the character that Blink shapes in place of the character `character` of a canvas text. A canvas
+ * space becomes U+0020. U+00AD, U+FEFF, U+FFFC, the marks LRM and RLM and the controls LRE to RLO become U+200B, and
+ * that ends a word.
+ */
+function canvasCharacter(character: string): string {
+  if (canvasSpaces.test(character)) return " ";
+  return zeroWidthSpaceLike.test(character) ? "​" : character;
+}
+
+/**
+ * This function gives the text that Blink shapes for the text of a canvas, as `NormalizeSpacesAndMaybeBidi` of
+ * `plain_text_node.cc` gives it. It changes only characters of the Basic Multilingual Plane, so the length stays.
+ */
+export function canvasText(text: string): string {
+  return text.replace(/[ \t\n\f\r­​‎‏‪-‮﻿￼]/gu, canvasCharacter);
+}
+
 /**
  * This function divides the text of a canvas into the words that Blink shapes one at a time. Each space, tab and zero
- * width space is a word alone. Each CJK character starts a word, with its marks and the CJK characters of the script
- * Common after it.
+ * width space is a word alone. Each character that `canvasText` changes into one of them is also a word alone. Each CJK
+ * character starts a word, with its marks and the CJK characters of the script Common after it.
  */
 export function canvasWords(text: string): string[] {
   const characters = [...text];
+  const shaped = characters.map(canvasCharacter);
   const words: string[] = [];
   let start = 0;
   while (start < characters.length) {
-    const end = wordEnd(characters, start);
+    const end = wordEnd(shaped, start);
     words.push(characters.slice(start, end).join(""));
     start = end;
   }
@@ -67,16 +92,19 @@ export function canvasWords(text: string): string[] {
 }
 
 /**
- * This function gives the segments of the text of a canvas in the visual order. A segment is a word of `canvasWords`, or a
- * part of a word where the bidi level changes. Blink shapes each bidi run alone and adds the widths of the words in this order.
+ * This function gives the segments of the text of a canvas and their bidi levels, in the logical order. A segment is a word
+ * of `canvasWords`, or a part of a word where the bidi level changes. Blink divides a text into bidi runs only when ICU
+ * gives the paragraph the direction `mixed`. Else each segment is a word at the level 0.
  */
-export function canvasSegments(text: string): string[] {
+export function canvasRuns(text: string): { segments: string[]; levels: number[] } {
+  const words = canvasWords(text);
+  if (!isMixed(text)) return { segments: words, levels: words.map(() => 0) };
   const characters = [...text];
   const levels = bidiLevels(text);
   const segments: string[] = [];
   const segmentLevels: number[] = [];
   let at = 0;
-  for (const word of canvasWords(text)) {
+  for (const word of words) {
     const end = at + [...word].length;
     let start = at;
     for (let i = at + 1; i <= end; i++) {
@@ -87,7 +115,16 @@ export function canvasSegments(text: string): string[] {
     }
     at = end;
   }
-  return visualOrder(segments, segmentLevels);
+  return { segments, levels: segmentLevels };
+}
+
+/**
+ * This function gives the segments of `canvasRuns` in the visual order. Blink shapes each bidi run alone and adds the
+ * widths of the words in this order.
+ */
+export function canvasSegments(text: string): string[] {
+  const { segments, levels } = canvasRuns(text);
+  return visualOrder(segments, levels);
 }
 
 /** This function gives the index after the last character of the word that starts at `start`. */

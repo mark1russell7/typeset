@@ -119,12 +119,22 @@ function firstStrong(original: Int32Array, start: number, end: number, match: In
   return 0;
 }
 
-/** This function applies the rules X1 to X9. It sets `levels` and it changes `types` where an override applies. */
-function resolveExplicit(original: Int32Array, types: Int32Array, match: Int32Array, levels: number[], start: number, end: number, paragraph: number): void {
+/** This function gives the flag of a level: `L` for an even level and `R` for an odd level, as `DIRPROP_FLAG_LR` of ICU. */
+function sideOf(level: number): number {
+  return level & 1 ? R : L;
+}
+
+/**
+ * This function applies the rules X1 to X9. It sets `levels` and it changes `types` where an override applies. It gives
+ * the flags of `resolveExplicitLevels` in `ubidi.cpp` of ICU, and `icuDirection` uses them.
+ */
+function resolveExplicit(original: Int32Array, types: Int32Array, match: Int32Array, levels: number[], start: number, end: number, paragraph: number): number {
   const stack: Status[] = [{ level: paragraph, override: 0, isolate: false }];
   let overflowIsolates = 0;
   let overflowEmbeddings = 0;
   let validIsolates = 0;
+  let flags = 0;
+  let previous = paragraph;
   for (let i = start; i < end; i++) {
     const type = original[i]!;
     let top = stack.at(-1)!;
@@ -134,8 +144,17 @@ function resolveExplicit(original: Int32Array, types: Int32Array, match: Int32Ar
       if (isolate && top.override) types[i] = top.override;
       const right = type & (RLE | RLO | RLI) || (type === FSI && firstStrong(original, i + 1, match[i]!, match) === 1);
       const level = right ? (top.level + 1) | 1 : (top.level + 2) & ~1;
+      if (isolate) {
+        flags |= ON | sideOf(top.level);
+        previous = top.level;
+      } else {
+        flags |= BN;
+      }
       if (level <= maxDepth && overflowIsolates === 0 && overflowEmbeddings === 0) {
-        if (isolate) validIsolates++;
+        if (isolate) {
+          validIsolates++;
+          flags |= right ? RLI : LRI;
+        }
         stack.push({ level, override: type === RLO ? R : type === LRO ? L : 0, isolate });
       } else if (isolate) {
         overflowIsolates++;
@@ -146,6 +165,7 @@ function resolveExplicit(original: Int32Array, types: Int32Array, match: Int32Ar
       if (overflowIsolates > 0) {
         overflowIsolates--;
       } else if (validIsolates > 0) {
+        flags |= PDI;
         overflowEmbeddings = 0;
         while (!stack.at(-1)!.isolate) stack.pop();
         stack.pop();
@@ -154,21 +174,31 @@ function resolveExplicit(original: Int32Array, types: Int32Array, match: Int32Ar
       top = stack.at(-1)!;
       levels[i] = top.level;
       if (top.override) types[i] = top.override;
+      flags |= ON | sideOf(top.level);
+      previous = top.level;
     } else if (type === PDF) {
       levels[i] = removed;
+      flags |= BN;
       if (overflowIsolates === 0) {
         if (overflowEmbeddings > 0) overflowEmbeddings--;
         else if (!top.isolate && stack.length > 1) stack.pop();
       }
     } else if (type === BN) {
       levels[i] = removed;
+      flags |= BN;
     } else if (type === B) {
       levels[i] = paragraph;
+      flags |= B;
     } else {
       levels[i] = top.level;
       if (top.override) types[i] = top.override;
+      // ICU marks a change of the embedding level with the flag of an embedding or an override of that side
+      if (top.level !== previous) flags |= top.level & 1 ? (top.override ? RLO : RLE) : top.override ? LRO : LRE;
+      previous = top.level;
+      flags |= type;
     }
   }
+  return flags;
 }
 
 /** This function applies the rule BD13. It gives the indexes of each isolating run sequence. */
@@ -346,6 +376,45 @@ export function resolveLevels(classes: readonly BidiClass[], brackets: readonly 
     start = end;
   }
   return { levels, paragraphs };
+}
+
+/** The direction of a paragraph that `ubidi_getDirection` of ICU gives. */
+export type IcuDirection = "ltr" | "rtl" | "mixed";
+
+const towardRight = R | AL | RLE | RLO | RLI;
+const towardLeft = L | EN | AN | LRE | LRO | LRI;
+const possibleNeutrals = ON | CS | ES | ET | WS | B | S | BN | LRE | RLE | LRO | RLO | PDF | isolates | PDI;
+
+/** This function gives the direction of a set of flags, as `directionFromFlags` of ICU. A number next to a neutral can make it RTL. */
+function directionOfFlags(flags: number): IcuDirection {
+  if (!(flags & towardRight || (flags & AN && flags & possibleNeutrals))) return "ltr";
+  return flags & towardLeft ? "mixed" : "rtl";
+}
+
+/**
+ * This function gives the direction that `ubidi_getDirection` of ICU gives to a text of one paragraph at the level
+ * `paragraph`. ICU first reads the flags of the classes. When they are mixed and the text has a control, it reads the
+ * flags of the explicit levels. Blink divides the text of a canvas into bidi runs only for the direction `mixed`.
+ */
+export function icuDirection(classes: readonly BidiClass[], paragraph: 0 | 1): IcuDirection {
+  const n = classes.length;
+  const original = new Int32Array(n);
+  for (let i = 0; i < n; i++) original[i] = bits[classes[i]!];
+  const match = new Int32Array(n);
+  matchIsolates(original, 0, n, match);
+  let classFlags = sideOf(paragraph);
+  let explicit = false;
+  for (let i = 0; i < n; i++) {
+    const type = original[i]!;
+    explicit ||= (type & (RLE | LRE | RLO | LRO | PDF | isolates | PDI)) !== 0;
+    // ICU gives an FSI the class of the isolate that the rules P2 and P3 choose
+    classFlags |= type === FSI ? (firstStrong(original, i + 1, match[i]!, match) === 1 ? RLI : LRI) : type;
+  }
+  const direction = directionOfFlags(classFlags);
+  if (direction !== "mixed" || !explicit) return direction;
+  let flags = resolveExplicit(original, original.slice(), match, new Array<number>(n).fill(0), 0, n, paragraph);
+  if (flags & (NSM | possibleNeutrals)) flags |= sideOf(paragraph);
+  return directionOfFlags(flags);
 }
 
 /**
