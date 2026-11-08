@@ -9,6 +9,7 @@ import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { gateLine, writeGateLine } from "@mark1russell7/rigor-bench";
 import { version } from "esbuild";
 import { compareWeights, latestTag, sameWeights, weighRelease, weighTree, type CapLines, type NewEntryLines } from "./weight.ts";
 
@@ -52,7 +53,11 @@ console.log(lines.join("\n"));
 const summary = process.env["GITHUB_STEP_SUMMARY"];
 if (summary) appendFileSync(summary, `${lines.join("\n")}\n`);
 
-// A `null` limit only reports, so the check line tells that the gate read no entry.
-if (limit === null) console.log(`::warning title=Weight no read::no read: the limit is null, so the gate gives no verdict for the ${rows.length} entries.`);
+// The check line names each entry over a line as a block, and an error decides the check. A `null` limit only reports,
+// so each other entry is then a no-read, and the line is a warning.
+const reads = rows.map((row) => ({ case: row.entry, outcome: row.over ? "beyond" : limit === null ? "no read" : "pass" }));
+const causes = rows.filter((row) => row.over).map((row) => `${row.entry}: ${row.cause ?? "over"}`);
+const reasons = [...(causes.length > 0 ? [`the rules: ${causes.join(", ")}`] : []), ...(limit === null ? ["the limit is null, so the gate gives no verdict"] : [])];
+writeGateLine(gateLine(reads, { title: `Weight against ${tag}`, enforced: rows.some((row) => row.over), reason: reasons.join(", and ") }));
 if (!repeat) console.error("two measures of one tree gave different bytes");
 if (!repeat || rows.some((row) => row.over)) process.exitCode = 1;

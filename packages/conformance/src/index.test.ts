@@ -133,14 +133,14 @@ describe("the table", () => {
     expect(["AI", "SG", "XX"].map((name) => resolveClass(name, 0x41))).toEqual(["AL", "AL", "AL"]);
     expect(resolveClass("CJ", 0x3041)).toBe("NS");
     expect(resolveClass("SA", 0x0e31)).toBe("CM");
-    expect(resolveClass("SA", 0x0e01)).toBe("AL");
+    expect(resolveClass("SA", 0x0e01)).toBe("SA");
     expect(resolveClass("BA", 0x20)).toBe("BA");
   });
 
   it("reads ranges and the defaults of a property file", () => {
     const table = makeTable("0041..0042 ; ID # x\n0043 ; SA # y\n", "# @missing: 0041..0041; W\n0042 ; N # x\n");
-    expect(table.classNames).toEqual(["AL", "ID"]);
-    expect(table.classes.startsWith("1tA2B")).toBe(true);
+    expect(table.classNames).toEqual(["AL", "ID", "SA"]);
+    expect(table.classes.startsWith("1tA2B1C")).toBe(true);
     expect(table.eastAsian.split(" ").slice(0, 2)).toEqual(["1t", "1"]);
   });
 
