@@ -6,6 +6,7 @@
 import { appendFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { gateLine, writeGateLine, type GateLine } from "@mark1russell7/rigor-bench";
 import type { ScriptId } from "@typeset/corpus";
 import type { AdvanceModelRow } from "./advances.ts";
 import type { Cell, Fractions, InstanceProbe } from "./compare.ts";
@@ -309,14 +310,16 @@ export function scoreAll(files: ReadonlyMap<string, ArmFile>): Readonly<Record<s
 const noRead = /(?:^|[:;] )no |\bNaN\b/u;
 
 /**
- * This function gives a GitHub warning annotation for each outcome with a no-read. A no-read holds `false`, but the job
- * passes, so the warning puts it on the check line of the pull request.
+ * This function gives one check line for each prediction with a no-read. Each outcome is a case of the line. The reason
+ * names the details of the no-reads. A no-read holds `false`, but the job passes, so the warning puts it on the check line.
  */
-export function noReadLines(predictions: Readonly<Record<string, readonly Outcome[]>>): string[] {
-  const escape = (text: string): string => text.replace(/%/gu, "%25").replace(/\r/gu, "%0D").replace(/\n/gu, "%0A");
-  return Object.entries(predictions).flatMap(([id, outcomes]) =>
-    outcomes.filter((o) => noRead.test(o.detail)).map((o) => `::warning title=Fonts no read::${escape(`${id} ${o.outcome}: ${o.detail}`)}`),
-  );
+export function noReadGates(predictions: Readonly<Record<string, readonly Outcome[]>>): GateLine[] {
+  return Object.entries(predictions).flatMap(([id, outcomes]) => {
+    const reads = outcomes.map((o) => ({ case: o.outcome, outcome: noRead.test(o.detail) ? "no read" : "pass" }));
+    const details = outcomes.filter((o) => noRead.test(o.detail)).map((o) => `${o.outcome}: ${o.detail}`);
+    const line = gateLine(reads, { title: `Fonts ${id}`, reason: details.join(" | ") });
+    return line === undefined ? [] : [line];
+  });
 }
 
 function main(): void {
@@ -333,7 +336,7 @@ function main(): void {
   console.log(lines.join("\n"));
   const stepSummary = process.env["GITHUB_STEP_SUMMARY"];
   if (stepSummary !== undefined) appendFileSync(stepSummary, `${lines.join("\n")}\n`);
-  for (const line of noReadLines(predictions)) console.log(line);
+  for (const line of noReadGates(predictions)) writeGateLine(line);
 }
 
 if (import.meta.main) main();
