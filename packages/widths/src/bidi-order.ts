@@ -35,7 +35,7 @@ export interface OrderCase {
 /** The marks of direction LRM, RLM and ALM. Their classes are L, R and AL, but they have no width, so the compare does not read them. */
 const marks: ReadonlySet<number> = new Set([0x200e, 0x200f, 0x061c]);
 
-/** This function tells if the compare reads the character at an index: its class is in the list, and it is not a mark of direction. */
+/** This function tells if the compare reads a character: its class is in the list, and it is not a mark of direction. */
 function isCompared(text: string, index: number): boolean {
   const codePoint = text.codePointAt(index)!;
   return !marks.has(codePoint) && compared.has(bidiClass(codePoint));

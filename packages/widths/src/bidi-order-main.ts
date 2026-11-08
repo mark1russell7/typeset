@@ -1,6 +1,6 @@
 /**
- * The command of the bidi order read in one browser (T13b). It opens Chromium, Firefox or WebKit with Playwright, lays out
- * each seeded text on one line of an LTR paragraph, and reads the center of each compared character from a DOM range. It
+ * The command of the bidi order read in one browser (T13b). It opens Chromium, Firefox or WebKit with Playwright. It lays
+ * out each seeded text on one line of an LTR paragraph, and a DOM range gives the center of each compared character. It
  * writes the count of matched texts and the first mismatches. `bidi-order-merge.ts` joins the records of the browsers.
  */
 import { writeFileSync } from "node:fs";

@@ -3,17 +3,10 @@ name: Bidi order
 # The visual order of mixed-direction texts in Chromium, Firefox and WebKit (T13b). Each browser lays out 600 seeded texts
 # with Latin and Hebrew letters, both kinds of digits, paired brackets, marks of direction and explicit controls. The job
 # reads the place of each character from a DOM range and compares the order with visualIndexes of ./bidi. Each browser
-# uploads its record. The merge job joins them: a mismatch in Chromium fails it, a mismatch in the others is a warning.
+# uploads its record. The job "Join the records" joins them: a mismatch in Chromium fails it, a mismatch in the others is a warning.
 
 on:
   pull_request:
-    paths:
-      - packages/typeset/src/bidi.ts
-      - packages/typeset/src/bidi/**
-      - packages/widths/src/bidi-order*.ts
-      - packages/widths/package.json
-      - pnpm-lock.yaml
-      - .github/workflows/bidi-order.yml
   workflow_dispatch:
     inputs:
       seed:
@@ -29,16 +22,39 @@ permissions:
   contents: read
 
 concurrency:
-  group: bidi-order-${{ github.ref }}-${{ github.event_name }}
+  group: bidi-order-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # A pull request runs the read when the bidi code, the read or the lock changes. Each other event is a match.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
+        with:
+          paths: |
+            packages/typeset/src/bidi.ts
+            packages/typeset/src/bidi/**
+            packages/widths/src/bidi-order*.ts
+            packages/widths/package.json
+            pnpm-lock.yaml
+            .github/workflows/bidi-order.yml
+
   order:
     name: Order (${{ matrix.browser }})
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
+      max-parallel: 3
       matrix:
         browser: [chromium, firefox, webkit]
     env:
@@ -66,9 +82,9 @@ jobs:
           if-no-files-found: error
 
   merge:
-    name: Bidi order OK
-    if: ${{ !cancelled() }}
-    needs: order
+    name: Join the records
+    needs: [changes, order]
+    if: ${{ !cancelled() && needs.changes.outputs.match == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -93,3 +109,14 @@ jobs:
           name: bidi-order
           path: bidi-order.json
           if-no-files-found: error
+
+  bidi-order-ok:
+    name: Bidi order OK
+    if: always()
+    needs: [changes, order, merge]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
+        with:
+          needs: ${{ toJSON(needs) }}
