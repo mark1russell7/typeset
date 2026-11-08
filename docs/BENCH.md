@@ -106,3 +106,14 @@ The tag has no bytes for a new entry, so the growth rule cannot hold it. Before 
 - The `gzip` bytes of the entry fail when they are more than the limit of the line.
 - When a release has the entry, the gate ignores the line and the tag is the base. Remove the line after that release.
 - This gate is a release gate. It goes to the shared gate of `rigor` when that package exists, and it does not grow before then.
+
+### The cap of an entry (T10c)
+
+The limit holds the growth of one release. Two releases can each grow under the limit, so the limit alone lets an entry grow with no end.
+
+- An entry can have a line in `caps` of `packages/bench/weight.json`. A line has the base, its tag, its CI run, a count of releases and a reason.
+- The gate computes the cap: `cap = baseGzipBytes + releases * limitGzipBytes`. The file holds no cap number.
+- The `gzip` bytes of the entry fail `Bench OK` with the cause `cap` when they are more than the cap. A growth under the limit does not change this.
+- The root entry `.` gives each area as a namespace. Thus it grows with each subpath, and it has the first line.
+- Its cap is 26480 + 4 × 1792 = 33648. The base is the size at `v0.1.6`. The 4 releases are the roadmap items that grow `.` before `1.0.0`.
+- A new budget needs a new line with its reason, not a larger count of releases after the measure.

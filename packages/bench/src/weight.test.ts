@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { compareWeights, publicEntries, sameWeights, weighTree, type Weights } from "./weight.ts";
+import { readFileSync } from "node:fs";
+import { capOf, compareWeights, publicEntries, sameWeights, weighTree, type CapLines, type Weights } from "./weight.ts";
 
 const weights = (gzip: Record<string, number>): Weights => Object.fromEntries(Object.entries(gzip).map(([entry, bytes]) => [entry, { minified: bytes * 2, gzip: bytes, files: {} }]));
 
@@ -51,6 +52,35 @@ describe("compareWeights", () => {
     const row = compareWeights(weights({ ".": 1100 }), release, 1792, { ".": { ...line, limitGzipBytes: 10, baseGzipBytes: 10 } })[0];
     expect(row).toMatchObject({ releaseGzip: 1000, growth: 100, over: false });
     expect(row).not.toHaveProperty("line");
+  });
+});
+
+describe("the cap of an entry", () => {
+  const release = weights({ ".": 33000 });
+  const caps: CapLines = { ".": { baseGzipBytes: 26480, baseTag: "v0.1.6", run: "1", releases: 4, reason: "a test" } };
+
+  it("computes the cap as the base plus the releases times the limit", () => {
+    expect(capOf(caps["."]!, 1792)).toBe(26480 + 4 * 1792);
+  });
+
+  it("passes a size equal to the cap, and fails one byte more with a growth under the limit", () => {
+    const atCap = compareWeights(weights({ ".": 33648 }), release, 1792, {}, caps)[0]!;
+    expect(atCap).toMatchObject({ cap: 33648, growth: 648, over: false });
+    const over = compareWeights(weights({ ".": 33649 }), release, 1792, {}, caps)[0]!;
+    expect(over).toMatchObject({ cap: 33648, growth: 649, over: true, cause: "cap" });
+  });
+
+  it("gives no cap to an entry with no cap line, and no cap when the limit is null", () => {
+    expect(compareWeights(weights({ "./text": 99999 }), weights({ "./text": 99999 }), 1792, {}, caps)[0]).not.toHaveProperty("cap");
+    expect(compareWeights(weights({ ".": 99999 }), release, null, {}, caps)[0]).toMatchObject({ over: false });
+  });
+
+  it("has a cap line for the root entry in weight.json, with no cap number written by hand", () => {
+    const config = JSON.parse(readFileSync(new URL("../weight.json", import.meta.url), "utf8")) as { limitGzipBytes: number; caps: CapLines };
+    const root = config.caps["."]!;
+    expect(root).toMatchObject({ baseGzipBytes: 26480, baseTag: "v0.1.6", releases: 4 });
+    expect(root).not.toHaveProperty("capGzipBytes");
+    expect(capOf(root, config.limitGzipBytes)).toBe(33648);
   });
 });
 

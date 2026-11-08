@@ -1,6 +1,7 @@
 import { random as createRandom, type Random } from "@mark1russell7/rigor-generators";
 import { describe, expect, it } from "vitest";
 import { Text } from "../text.ts";
+import record from "../../test/rope-calls.json" with { type: "json" };
 
 /**
  * A fake shaper that obeys the separator law. Each word between two separators gets a ligature, a contextual form and a
@@ -42,6 +43,19 @@ function randomText(random: Random, maxLength: number): string {
   let text = "";
   for (let i = 0; i < count; i++) text += alphabet[random.below(alphabet.length)];
   return text;
+}
+
+/** This function gives about `length` code units of words between spaces, from the seed of the record. */
+function wordText(length: number): string {
+  const random = createRandom(7);
+  const words: string[] = [];
+  let size = 0;
+  while (size < length) {
+    const word = randomText(random, 10).replace(/[ 	]/g, "") || "a";
+    words.push(word);
+    size += word.length + 1;
+  }
+  return words.join(" ").slice(0, length);
 }
 
 function counted(width: (text: string) => number) {
@@ -128,31 +142,84 @@ describe("the Text rope", () => {
     expect(text.width).toBe(square(text.toString()));
   });
 
-  it("calls the width function a number of times of the order of log n for one edit", () => {
-    const random = createRandom(7);
-    const words: string[] = [];
-    let length = 0;
-    while (length < 100_000) {
-      const word = randomText(random, 10).replace(/[ \t]/g, "") || "a";
-      words.push(word);
-      length += word.length + 1;
-    }
-    const flat = words.join(" ").slice(0, 100_000);
+  it("stays within the record of the width calls of one insert, with and without the memory of the windows", () => {
+    const flat = wordText(100_000);
     expect(flat.length).toBeGreaterThan(99_000);
     const { counter, measure } = counted(fakeWidth);
     const text = Text.from(flat, measure);
-    let worstCalls = 0;
-    let worstUnits = 0;
-    for (const at of [0, 1, 777, 31_415, 50_000, flat.length - 1, flat.length]) {
+    expect(text.chunks().length).toBe(record.leaves);
+    const offsets = [0, 1, 777, 31_415, 50_000, flat.length - 1, flat.length];
+    const warm: number[] = [];
+    const units: number[] = [];
+    for (const at of offsets) {
       counter.calls = 0;
       counter.units = 0;
       const edited = text.insert(at, "x");
-      worstCalls = Math.max(worstCalls, counter.calls);
-      worstUnits = Math.max(worstUnits, counter.units);
+      warm.push(counter.calls);
+      units.push(counter.units);
       expect(edited.width).toBeCloseTo(fakeWidth(edited.toString()), 6);
     }
-    expect(worstCalls).toBeLessThanOrEqual(8 * Math.log2(100_000) + 16);
-    expect(worstUnits).toBeLessThanOrEqual(4096);
+    const cold = offsets.map((at) => {
+      // A new rope of the same width function clears the memory
+      Text.from("", measure);
+      counter.calls = 0;
+      text.insert(at, "x");
+      return counter.calls;
+    });
+    warm.forEach((calls, i) => {
+      expect(calls).toBeLessThanOrEqual(record.warm[i]!);
+      expect(calls).toBeLessThanOrEqual(record.base[i]!);
+    });
+    cold.forEach((calls, i) => {
+      expect(calls).toBeLessThanOrEqual(record.cold[i]!);
+      expect(calls).toBeLessThanOrEqual(32);
+    });
+    expect(Math.max(...units)).toBeLessThanOrEqual(4096);
+  });
+
+  it("uses the width function of the order of log n times for one edit, on a grid of lengths", () => {
+    for (const length of [1_000, 10_000, 100_000, 400_000]) {
+      const flat = wordText(length);
+      const { counter, measure } = counted(fakeWidth);
+      const text = Text.from(flat, measure);
+      const limit = 8 * Math.log2(flat.length) + 16;
+      for (const at of [0, 1, flat.length >> 2, flat.length >> 1, flat.length - 1, flat.length]) {
+        Text.from("", measure);
+        counter.calls = 0;
+        text.insert(at, "x");
+        expect(counter.calls, `${length} at ${at}`).toBeLessThanOrEqual(limit);
+      }
+    }
+  });
+
+  it("measures again in a new rope, because a width function can change when a font loads", () => {
+    let scale = 1;
+    const width = (text: string): number => scale * fakeWidth(text);
+    const flat = "the office of the fish and the official fish of the office ".repeat(20);
+    Text.from(flat, width, { chunk: 16 });
+    scale = 2;
+    const text = Text.from(flat, width, { chunk: 16 }).insert(7, "x y");
+    expect(text.width).toBeCloseTo(width(text.toString()), 9);
+  });
+
+  it("stays exact when the windows go over the limit of the memory", () => {
+    const random = createRandom(11);
+    let flat = wordText(120_000);
+    let text = Text.from(flat, fakeWidth, { chunk: 4 });
+    for (let step = 0; step < 40; step++) {
+      const at = random.int(0, flat.length);
+      text = text.insert(at, "fi o");
+      flat = flat.slice(0, at) + "fi o" + flat.slice(at);
+    }
+    expect(text.toString()).toBe(flat);
+    expect(text.width).toBeCloseTo(fakeWidth(flat), 5);
+  });
+
+  it("joins two ropes of one width function and shares no state with another", () => {
+    const left = Text.from("left side ", fakeWidth, { chunk: 4 });
+    const right = Text.from("right side", fakeWidth, { chunk: 4 });
+    expect(left.concat(right).width).toBeCloseTo(fakeWidth("left side right side"), 9);
+    expect(() => left.concat(Text.from("right side", fakeWidth, { chunk: 5 }))).toThrow(TypeError);
   });
 
   it("refuses a range out of the text and two ropes of different width functions", () => {
