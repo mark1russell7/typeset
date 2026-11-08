@@ -1,7 +1,8 @@
 /**
  * The Unicode gate of typeset. This command reads the test files of the pinned version, checks each SHA-256, and scores the
  * break functions and the bidi resolver. It exits with 1 when a failed test has no reason in `data/reasons.json`.
- * `docs/UNICODE.md` tells the rule.
+ * `docs/UNICODE.md` tells the rule. The command also holds the gate of the language sets of `./hyphen`. `docs/HYPHENATION.md`
+ * tells that rule.
  */
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -13,6 +14,8 @@ import { canvasWords } from "@mark1russell7/typeset/fonts/inspect";
 import { graphemes, lineBreaks, unicodeVersion as tableVersion, wordBreaks } from "@mark1russell7/typeset/segmentation";
 import { eachBidiTest, eachCharacterTest, resolveCharacterTest, resolveClassTest, scoreBidi, type BidiScore } from "./bidi.ts";
 import { classOf, offsetsOf, unlistedFailures, type Reasons } from "./check.ts";
+import { hyphenGate } from "./hyphen/gate.ts";
+import { hyphenUrl } from "./hyphen/sources.ts";
 import { parseTests, scoreTests, type Score } from "./parse.ts";
 import { fileUrl, propertyFiles, testFiles, unicodeVersion, type UnicodeFile } from "./sources.ts";
 import { bidiTableSource, makeBidiTable, makeTable, tableSource } from "./tables.ts";
@@ -24,18 +27,21 @@ const here = dirname(fileURLToPath(import.meta.url));
 const tablePath = join(here, "..", "..", "typeset", "src", "segmentation", "line-table.ts");
 const bidiTablePath = join(here, "..", "..", "typeset", "src", "bidi", "table.ts");
 
-/** This function gives the text of a file. It downloads the file when the folder does not have the correct bytes. */
-async function textOf(file: UnicodeFile): Promise<string> {
-  const path = join(folder, file.path.replace(/^.*\//u, ""));
+/** This function gives the text of a pinned file. It downloads the file when the folder does not have the correct bytes. */
+async function pinnedText(name: string, url: string, sha: string): Promise<string> {
+  const path = join(folder, name);
   const sha256 = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("hex");
-  if (existsSync(path) && sha256(readFileSync(path)) === file.sha256) return readFileSync(path, "utf8");
-  const response = await fetch(fileUrl(file));
-  if (!response.ok) throw new Error(`${file.path}: HTTP ${response.status}`);
+  if (existsSync(path) && sha256(readFileSync(path)) === sha) return readFileSync(path, "utf8");
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
-  if (sha256(bytes) !== file.sha256) throw new Error(`${file.path}: the SHA-256 is ${sha256(bytes)}, not ${file.sha256}`);
+  if (sha256(bytes) !== sha) throw new Error(`${name}: the SHA-256 is ${sha256(bytes)}, not ${sha}`);
   writeFileSync(path, bytes);
   return readFileSync(path, "utf8");
 }
+
+/** This function gives the text of a file of the Unicode Character Database. */
+const textOf = (file: UnicodeFile): Promise<string> => pinnedText(file.path.replace(/^.*\//u, ""), fileUrl(file), file.sha256);
 
 mkdirSync(folder, { recursive: true });
 const table = tableSource(makeTable(await textOf(propertyFiles.lineBreak), await textOf(propertyFiles.eastAsianWidth)), unicodeVersion);
@@ -52,6 +58,9 @@ if (tableVersion !== unicodeVersion) problems.push(`the table has Unicode ${tabl
 if (bidiTableVersion !== unicodeVersion) problems.push(`the bidi table has Unicode ${bidiTableVersion}, and the gate pins ${unicodeVersion}`);
 if (readFileSync(tablePath, "utf8") !== table) problems.push("the committed table differs from the table of the property files");
 if (readFileSync(bidiTablePath, "utf8") !== bidiTable) problems.push("the committed bidi table differs from the table of the property files");
+
+const hyphens = await hyphenGate(join(here, "..", "..", ".."), (file) => pinnedText(file.name, hyphenUrl(file), file.sha256), values.write === true);
+problems.push(...hyphens.problems);
 
 const wordTests = parseTests(await textOf(testFiles.word));
 const scores: Record<string, Score> = {
@@ -93,6 +102,7 @@ const record = {
     seconds: bidiSeconds,
     scores: Object.fromEntries(Object.entries(bidiScores).map(([name, score]) => [name, { tests: score.tests, passed: score.passed, failures: score.failures.slice(0, keptFailures).map((failure) => ({ ...failure, reason: reasons.failures[`${name}:${failure.line}`] })) }])),
   },
+  hyphen: hyphens.record,
 };
 if (values.out !== undefined) writeFileSync(values.out, `${JSON.stringify(record, null, 2)}\n`);
 
@@ -109,6 +119,10 @@ const lines = [
     const [file, direction, measure] = name.split(".");
     return `| \`resolveLevels\`, ${direction}, ${measure} | \`${file === "bidi" ? "BidiTest" : "BidiCharacterTest"}\` | ${score.passed} of ${score.tests} | ${rate(score)} |`;
   }),
+  "",
+  "| Language | Confirmed | Found | Gzip bytes |",
+  "|---|---|---|---|",
+  ...Object.entries(hyphens.record.languages).map(([name, language]) => `| \`${name}\` | ${language.confirmed} | ${language.found} | ${language.weight.gzip} |`),
 ];
 console.log(lines.join("\n"));
 const summary = process.env["GITHUB_STEP_SUMMARY"];

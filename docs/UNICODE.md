@@ -9,6 +9,7 @@ The subpath `@mark1russell7/typeset/segmentation` gives the break positions of U
 - A failed test stops the gate if `packages/conformance/data/reasons.json` has no reason for it.
 - The gate also stops if the runtime has a different Unicode version.
 - The gate also stops if `line-table.ts` or `bidi/table.ts` differs from the table of the property files.
+- The same job holds the gate of the hyphen sets. `docs/HYPHENATION.md` tells that gate.
 - `ci-ok` needs this job, so a change that breaks a position cannot merge.
 
 | Function | Algorithm | Test file |
