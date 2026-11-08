@@ -17,6 +17,7 @@ import { fontAdvance } from "@mark1russell7/typeset/measurer";
 import { createMeasurer, layoutText } from "@mark1russell7/layout-contract/text";
 import { chromium, type Page } from "playwright";
 import { advanceModelRow, diagnosticWeights, type AdvanceModelName, type AdvanceModelRow } from "./advances.ts";
+import { engineBoundCells } from "./engine-bounds.ts";
 import { checkBounds, engineRecords, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
 import { breakdownOf, exactDeltaErrors, featureSettings, substitutionTrace, summarizeFeatures, type FeatureGroup, type FeatureRecord, type FeatureSetting, type SubstitutionStep } from "./features.ts";
 import { blinkScale } from "./bounds.ts";
@@ -370,6 +371,8 @@ async function main(): Promise<void> {
   // The errors of the model of the engine of this arm, with the rounding and the sum of its row
   const engineSummary = summarize(engineRecords(corpusRecords, engineRounding, engineSum));
   const engineExtraSummary = Object.fromEntries(extraWeights.map((weight) => [weight, summarize(engineRecords(records.filter((r) => r.font === extraSource.id && r.weight === weight), engineRounding, engineSum))["latin"] ?? {}]));
+  // T4b: the error of the engine row of this arm against this canvas, for each script, font, weight and size
+  const engineBounds = engineBoundCells(records, { arm: values.arm, engine, rounding: engineRounding, sum: engineSum });
   const features = { settings: featureSettings, summary: summarizeFeatures(featureRecords), records: featureRecords };
   const deltaErrors = exactDeltaErrors(records.filter((record) => record.font !== extraSource.id));
   const breakdown = breakdownOf(records, new Map(samples.map((sample) => [sample.id, sample.text])));
@@ -407,6 +410,7 @@ async function main(): Promise<void> {
     extraSummary,
     engineSummary,
     engineExtraSummary,
+    engineBounds,
     sequenceProbe,
     stacks: { list: fontStacks, cells: stackCells(stackRows), records: stackRows, breaks: { cells: withVerdicts(breakCells(breakRows)), records: breakRows } },
     records,

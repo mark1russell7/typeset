@@ -24,6 +24,8 @@ type ParagraphOptions: build/chunks/paragraph.d.ts#ParagraphOptions
 type Penalty: build/chunks/paragraph.d.ts#Penalty
 type TotalFitOptions: build/chunks/breaking.d.ts#TotalFitOptions
 type WidthOf: build/chunks/paragraph.d.ts#WidthOf
+adjustmentRatio: build/chunks/paragraph.d.ts#adjustmentRatio
+adjustmentRatios: build/chunks/breaking.d.ts#adjustmentRatios
 balanced: build/chunks/breaking.d.ts#balanced
 balancedBreaker: build/chunks/breaking.d.ts#balancedBreaker
 breakers: build/chunks/breaking.d.ts#breakers
@@ -37,6 +39,7 @@ paragraphOf: build/chunks/paragraph.d.ts#paragraphOf
 raggedness: build/chunks/breaking.d.ts#raggedness
 spread: build/chunks/breaking.d.ts#spread
 totalFit: build/chunks/breaking.d.ts#totalFit
+worstRatio: build/chunks/breaking.d.ts#worstRatio
 
 ## ./fonts (build/fonts.d.ts): names
 
@@ -60,12 +63,35 @@ widthBound: build/chunks/fonts.d.ts#widthBound
 
 ## ./fonts/inspect (build/fonts-inspect.d.ts): names
 
+type IndicSyllableType: build/fonts-inspect.d.ts#IndicSyllableType
 canvasSegments: build/fonts-inspect.d.ts#canvasSegments
 canvasWords: build/fonts-inspect.d.ts#canvasWords
 defaultFeatures: build/chunks/font.d.ts#defaultFeatures
 glyphAdvances: build/chunks/font.d.ts#glyphAdvances
+indicSyllables: build/fonts-inspect.d.ts#indicSyllables
 readTables: build/chunks/sfnt.d.ts#readTables
 shapingWords: build/chunks/font.d.ts#shapingWords
+
+## ./hyphen (build/hyphen.d.ts): names
+
+type HyphenSource: build/chunks/hyphen.d.ts#HyphenSource
+type PatternSet: build/chunks/hyphen.d.ts#PatternSet
+hyphenator: build/chunks/hyphen.d.ts#hyphenator
+
+## ./hyphen/en-us (build/hyphen/en-us.d.ts): names
+
+hyphenate: build/hyphen/en-us.d.ts#hyphenate
+source: build/hyphen/en-us.d.ts#source
+
+## ./hyphen/de (build/hyphen/de.d.ts): names
+
+hyphenate: build/hyphen/de.d.ts#hyphenate
+source: build/hyphen/de.d.ts#source
+
+## ./hyphen/fr (build/hyphen/fr.d.ts): names
+
+hyphenate: build/hyphen/fr.d.ts#hyphenate
+source: build/hyphen/fr.d.ts#source
 
 ## ./measurer (build/measurer.d.ts): names
 
@@ -77,12 +103,81 @@ fontAdvance: build/chunks/measurer.d.ts#fontAdvance
 parseFont: build/chunks/measurer.d.ts#parseFont
 scriptTag: build/chunks/measurer.d.ts#scriptTag
 
+## ./bidi (build/bidi.d.ts): names
+
+type BidiClass: build/bidi.d.ts#BidiClass
+type BidiParagraph: build/bidi.d.ts#BidiParagraph
+type ParagraphDirection: build/bidi.d.ts#ParagraphDirection
+type ResolvedBidi: build/bidi.d.ts#ResolvedBidi
+bidiClass: build/bidi.d.ts#bidiClass
+bracketOf: build/bidi.d.ts#bracketOf
+removed: build/bidi.d.ts#removed
+resolveLevels: build/bidi.d.ts#resolveLevels
+resolveText: build/bidi.d.ts#resolveText
+unicodeVersion: build/bidi.d.ts#unicodeVersion
+visualIndexes: build/bidi.d.ts#visualIndexes
+visualOrder: build/bidi.d.ts#visualOrder
+
+## ./segmentation (build/segmentation.d.ts): names
+
+type LineBreak: build/segmentation.d.ts#LineBreak
+type LineBreakOptions: build/segmentation.d.ts#LineBreakOptions
+complexBreaks: build/segmentation.d.ts#complexBreaks
+graphemes: build/segmentation.d.ts#graphemes
+lineBreaks: build/segmentation.d.ts#lineBreaks
+unicodeVersion: build/segmentation.d.ts#unicodeVersion
+wordBreaks: build/segmentation.d.ts#wordBreaks
+wordBreaksOf: build/segmentation.d.ts#wordBreaksOf
+
 ## ./text (build/text.d.ts): names
 
 Text: build/chunks/text.d.ts#Text
 type TextOptions: build/chunks/text.d.ts#TextOptions
 
 ## Declarations
+
+### build/bidi.d.ts#BidiClass
+type BidiClass = "L" | "R" | "AL" | "EN" | "ES" | "ET" | "AN" | "CS" | "NSM" | "BN" | "B" | "S" | "WS" | "ON" | "LRE" | "LRO" | "RLE" | "RLO" | "PDF" | "LRI" | "RLI" | "FSI" | "PDI";
+
+### build/bidi.d.ts#BidiParagraph
+interface BidiParagraph {
+  readonly start: number;
+  readonly end: number;
+  readonly level: number;
+}
+
+### build/bidi.d.ts#ParagraphDirection
+type ParagraphDirection = 0 | 1 | "auto";
+
+### build/bidi.d.ts#ResolvedBidi
+interface ResolvedBidi {
+  readonly levels: number[];
+  readonly paragraphs: readonly BidiParagraph[];
+}
+
+### build/bidi.d.ts#bidiClass
+export declare function bidiClass(codePoint: number): BidiClass;
+
+### build/bidi.d.ts#bracketOf
+export declare function bracketOf(codePoint: number): number;
+
+### build/bidi.d.ts#removed
+export declare const removed = -1;
+
+### build/bidi.d.ts#resolveLevels
+export declare function resolveLevels(classes: readonly BidiClass[], brackets?: readonly number[], direction?: ParagraphDirection): ResolvedBidi;
+
+### build/bidi.d.ts#resolveText
+export declare function resolveText(text: string, direction?: ParagraphDirection): ResolvedBidi;
+
+### build/bidi.d.ts#unicodeVersion
+export declare const unicodeVersion = "17.0.0";
+
+### build/bidi.d.ts#visualIndexes
+export declare function visualIndexes({ levels, paragraphs }: ResolvedBidi): number[];
+
+### build/bidi.d.ts#visualOrder
+export declare function visualOrder<T>(items: readonly T[], levels: readonly number[]): T[];
 
 ### build/chunks/breaking.d.ts#BalancedOptions
 interface BalancedOptions {
@@ -101,6 +196,9 @@ interface TotalFitOptions {
   readonly flaggedCost?: number;
 }
 
+### build/chunks/breaking.d.ts#adjustmentRatios
+declare function adjustmentRatios(paragraph: Paragraph, lines: readonly Line[], width: number): number[];
+
 ### build/chunks/breaking.d.ts#balanced
 declare const balanced: Breaker;
 
@@ -112,7 +210,7 @@ declare const breakers: Readonly<Record<"greedy" | "total-fit" | "balanced", Bre
 
 ### build/chunks/breaking.d.ts#breaking_d_exports
 declare namespace breaking_d_exports {
-  export { BalancedOptions, Box, Breaker, Glue, Item, Line, Paragraph, ParagraphOptions, Penalty, TotalFitOptions, WidthOf, balanced, balancedBreaker, breakers, greedy, isBreak, knuthPlass, lineStart, lineWidth, linesOf, paragraphOf, raggedness, spread, totalFit };
+  export { BalancedOptions, Box, Breaker, Glue, Item, Line, Paragraph, ParagraphOptions, Penalty, TotalFitOptions, WidthOf, adjustmentRatio, adjustmentRatios, balanced, balancedBreaker, breakers, greedy, isBreak, knuthPlass, lineStart, lineWidth, linesOf, paragraphOf, raggedness, spread, totalFit, worstRatio };
 }
 
 ### build/chunks/breaking.d.ts#greedy
@@ -129,6 +227,9 @@ declare function spread(lines: readonly Line[]): number;
 
 ### build/chunks/breaking.d.ts#totalFit
 declare function totalFit(options?: TotalFitOptions): Breaker;
+
+### build/chunks/breaking.d.ts#worstRatio
+declare function worstRatio(paragraph: Paragraph, lines: readonly Line[], width: number): number;
 
 ### build/chunks/engines.d.ts#EngineName
 type EngineName = keyof typeof engines;
@@ -250,6 +351,33 @@ declare function shapingRisks(font: Font, text: string, options?: MeasureOptions
 ### build/chunks/fonts.d.ts#widthBound
 declare function widthBound(font: Font, characters: string, options?: MeasureOptions): WidthBound;
 
+### build/chunks/hyphen.d.ts#HyphenSource
+interface HyphenSource {
+  readonly language: string;
+  readonly file: string;
+  readonly commit: string;
+  readonly sha256: string;
+  readonly license: string;
+  readonly words: {
+    readonly list: string;
+    readonly independent: boolean;
+    readonly count: number;
+    readonly found: number;
+    readonly confirmed: number;
+  };
+}
+
+### build/chunks/hyphen.d.ts#PatternSet
+interface PatternSet {
+  readonly patterns: string;
+  readonly exceptions: string;
+  readonly left: number;
+  readonly right: number;
+}
+
+### build/chunks/hyphen.d.ts#hyphenator
+declare function hyphenator(set: PatternSet): (word: string) => readonly number[];
+
 ### build/chunks/measurer.d.ts#AdvanceFn
 type AdvanceFn = (text: string, font: string) => number;
 
@@ -306,6 +434,8 @@ interface Glue {
   readonly type: "glue";
   readonly text: string;
   readonly width: number;
+  readonly stretch?: number;
+  readonly shrink?: number;
 }
 
 ### build/chunks/paragraph.d.ts#Item
@@ -328,8 +458,11 @@ interface Paragraph {
 interface ParagraphOptions {
   readonly widthOf: WidthOf;
   readonly hyphenate?: (word: string) => readonly number[];
+  readonly breaks?: (word: string) => readonly number[];
   readonly hyphen?: string;
   readonly hyphenCost?: number;
+  readonly stretch?: number;
+  readonly shrink?: number;
 }
 
 ### build/chunks/paragraph.d.ts#Penalty
@@ -343,6 +476,9 @@ interface Penalty {
 
 ### build/chunks/paragraph.d.ts#WidthOf
 type WidthOf = (text: string) => number;
+
+### build/chunks/paragraph.d.ts#adjustmentRatio
+declare function adjustmentRatio(items: readonly Item[], start: number, end: number, width: number): number;
 
 ### build/chunks/paragraph.d.ts#isBreak
 declare function isBreak(items: readonly Item[], index: number): boolean;
@@ -393,8 +529,64 @@ declare namespace text_d_exports {
   export { Text, TextOptions };
 }
 
+### build/fonts-inspect.d.ts#IndicSyllableType
+type IndicSyllableType = "consonant" | "vowel" | "standalone" | "symbol" | "broken" | "non-indic";
+
 ### build/fonts-inspect.d.ts#canvasSegments
 export declare function canvasSegments(text: string): string[];
 
 ### build/fonts-inspect.d.ts#canvasWords
 export declare function canvasWords(text: string): string[];
+
+### build/fonts-inspect.d.ts#indicSyllables
+export declare function indicSyllables(text: string): {
+  readonly text: string;
+  readonly type: IndicSyllableType;
+}[];
+
+### build/hyphen/de.d.ts#hyphenate
+export declare const hyphenate: (word: string) => readonly number[];
+
+### build/hyphen/de.d.ts#source
+export declare const source: HyphenSource;
+
+### build/hyphen/en-us.d.ts#hyphenate
+export declare const hyphenate: (word: string) => readonly number[];
+
+### build/hyphen/en-us.d.ts#source
+export declare const source: HyphenSource;
+
+### build/hyphen/fr.d.ts#hyphenate
+export declare const hyphenate: (word: string) => readonly number[];
+
+### build/hyphen/fr.d.ts#source
+export declare const source: HyphenSource;
+
+### build/segmentation.d.ts#LineBreak
+interface LineBreak {
+  readonly offset: number;
+  readonly required: boolean;
+}
+
+### build/segmentation.d.ts#LineBreakOptions
+interface LineBreakOptions {
+  readonly complex?: (run: string) => readonly number[];
+}
+
+### build/segmentation.d.ts#complexBreaks
+export declare function complexBreaks(run: string): readonly number[];
+
+### build/segmentation.d.ts#graphemes
+export declare function graphemes(text: string): readonly string[];
+
+### build/segmentation.d.ts#lineBreaks
+export declare function lineBreaks(text: string, options?: LineBreakOptions): readonly LineBreak[];
+
+### build/segmentation.d.ts#unicodeVersion
+export declare const unicodeVersion = "17.0.0";
+
+### build/segmentation.d.ts#wordBreaks
+export declare function wordBreaks(text: string): readonly number[];
+
+### build/segmentation.d.ts#wordBreaksOf
+export declare function wordBreaksOf(words: readonly string[]): readonly (readonly number[])[];

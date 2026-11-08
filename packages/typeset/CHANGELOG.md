@@ -1,0 +1,131 @@
+# Changes of `@mark1russell7/typeset`
+
+## 0.2.0
+
+This version adds the subpath `./bidi` and three exports of `./segmentation`. It also changes the output of `canvasSegments` and of the sum `float32` of `./fonts` for some texts. Before 1.0.0, a change of behavior increases MINOR. The version 0.1.9 had the same code, and it was not published.
+
+### The change of behavior
+
+- `canvasSegments` of `./fonts/inspect` and the sum `float32` follow explicit controls, marks of direction and paired brackets. The old model ignored them.
+- A text with one of these characters can get other segments and another width in single precision.
+- On the corpus of the Fonts run 42481402694, each of the 224 cells of the engine has the same error on the 4 arms.
+- The new order is the order of UAX #9, which Blink also uses. No browser has compared these texts yet. The roadmap item T13b adds that compare.
+
+Runtime dependencies: no change against `0.1.8` (`@mark1russell7/collections` `^0.9.3`, `@mark1russell7/rigor-generators` `^0.1.0`).
+
+### The full bidi algorithm in `./bidi` (T13)
+
+- The new subpath `./bidi` has the rules P1 to L2 of UAX #9 for Unicode 17.0.0: explicit embeddings, isolates and paired brackets (rule N0).
+- Its exports are `resolveText`, `resolveLevels`, `visualIndexes`, `visualOrder`, `bidiClass`, `bracketOf`, `removed`, `unicodeVersion` and the types `BidiClass`, `BidiParagraph`, `ParagraphDirection` and `ResolvedBidi`.
+- `BidiTest.txt` passes 256747 of 256747 tests for the levels and for the order, in each paragraph direction. `BidiCharacterTest.txt` passes all 91707 tests. The record is CI run 42481403118.
+- The canvas model of `./fonts` uses the same rules. The section above tells the change of behavior.
+- The Fonts run 42481402694 compares the model with the base run on the 4 arms. Each of the 224 cells of the engine has the same error.
+
+### The hook `complex` of `lineBreaks` (T12b)
+
+- `lineBreaks(text, options)` takes the optional `LineBreakOptions`. Its hook `complex` gives the word places inside a run of class SA, for Thai, Lao, Khmer and Myanmar.
+- `complexBreaks` is a hook from `Intl.Segmenter` of the runtime. With no hook, the places do not change.
+
+### A batch form of `wordBreaks` (T12d)
+
+- `wordBreaksOf(words)` gives the word boundaries of each word of a list in one pass. Each entry equals `wordBreaks` of its word.
+- The Bench run 42485515480 times the 1465 words of 1000 short Latin labels: the batch takes 491.4 µs, and one call for each word takes 4668.0 µs, a ratio of 0.105.
+
+### The weight against `0.1.8`
+
+These are the `gzip` bytes of each entry, from the Bench run 42485515480 of the T12d pull request. The full rules make `./fonts` larger, and the root `.` exports `./fonts`.
+
+| Entry | `gzip` bytes | Growth |
+|---|---|---|
+| `.` | 29583 | 1496 |
+| `./breaking` | 1423 | 0 |
+| `./fonts` | 22997 | 1516 |
+| `./fonts/inspect` | 12051 | 1542 |
+| `./measurer` | 24244 | 1515 |
+| `./bidi` | 4070 | new |
+| `./segmentation` | 5042 | 455 |
+| `./text` | 3146 | 0 |
+
+## 0.1.8
+
+This version changes no export and no type. Its change is inside `./segmentation`. A change with no effect on the public API increases PATCH.
+
+### A short path of `lineBreaks` (T12c)
+
+- `lineBreaks` gives the places of a text with only ASCII letters, digits and spaces from a short path. The places do not change.
+- The rules of UAX #14 also use a table of the ASCII classes, so they do not read the full table for a code point under 128.
+- `LineBreakTest.txt` of Unicode 17.0.0 passes 19338 of 19338 tests. A property test compares the short path with the full rules on 12000 generated texts.
+- The Bench run 42456960316 times the line places of 1000 short labels of the corpus. They take 74.9 µs, and a split at white space takes 61.2 µs, a ratio of 1.224. Before the change, the ratio was 9.37 (run 42445210578).
+
+### The weight against `0.1.7`
+
+These are the `gzip` bytes of each entry, from the Bench run 42456960316 of the T12c pull request.
+
+| Entry | `gzip` bytes | Growth |
+|---|---|---|
+| `.` | 28087 | 0 |
+| `./breaking` | 1423 | 0 |
+| `./fonts` | 21481 | 0 |
+| `./fonts/inspect` | 10509 | 0 |
+| `./measurer` | 22729 | 0 |
+| `./segmentation` | 4587 | 167 |
+| `./text` | 3146 | 0 |
+
+## 0.1.7
+
+This version changes no export and no type. Its change is inside `./text`. A change with no effect on the public API increases PATCH.
+
+### The rope of `./text` (T2b)
+
+- The `Text` rope keeps its API and its `Summary`. Its tree uses the summary-tree functions of `@mark1russell7/collections` (`^0.9.3`), a new dependency.
+- The local tree of the rope is gone. An edit finds its leaf by the length, changes the leaf, and joins the leaves at the seams.
+- One insert in a rope of 99999 code units uses at most 2 width calls, on a rope that has the measures of its leaves. The record is `test/rope-calls.json`.
+- The Fonts run 42440764598 examines the rope with the real fonts. `text.test.ts` passes 14 of 14 tests on each of the 4 arms.
+
+### The weight against `0.1.6`
+
+These are the `gzip` bytes of each entry, from the Bench run 42440764584 of the T2b pull request.
+
+| Entry | `gzip` bytes | Growth |
+|---|---|---|
+| `.` | 28087 | 1607 |
+| `./breaking` | 1423 | 0 |
+| `./fonts` | 21481 | 0 |
+| `./fonts/inspect` | 10509 | 0 |
+| `./measurer` | 22729 | 0 |
+| `./segmentation` | 4420 | 0 |
+| `./text` | 3146 | 1650 |
+
+The root entry `.` contains `./text`, so it grows by approximately the same bytes. The cap of `.` is 33648 bytes.
+
+## 0.1.6
+
+This version adds a public entry and two exports. It removes no export. Before `1.0.0`, a new feature increases PATCH.
+
+### A new entry: `./segmentation`
+
+- `./segmentation` gives `graphemes`, `wordBreaks`, `lineBreaks` and `unicodeVersion`. They follow UAX #29 and UAX #14 (T12).
+- CI examines them against the official test files of Unicode. Each line of `GraphemeBreakTest`, `WordBreakTest` and `LineBreakTest` passes.
+- The weight of the entry is 4420 `gzip` bytes and 10306 minified bytes (CI run 42422258304). Its limit in the weight gate is 10000 `gzip` bytes.
+- `ParagraphOptions` has a new optional hook `breaks`. It gives the break places inside a word, for example from `lineBreaks`.
+
+### Fixes (T16)
+
+- The Indic syllable search is one linear pass. Before this fix, a long Devanagari word with no break took a time of the order of the square of its length.
+- `./fonts/inspect` gives `indicSyllables` and the type `IndicSyllableType`.
+- The font parse reads `16px/ 1.2 Arial` as the family `Arial`, not `1.2 Arial`.
+- The cache of font instances has a bound of 256 instances.
+
+### The weight against `0.1.5`
+
+These are the `gzip` bytes of each entry, from the Bench run 42428838514 of the T16 pull request.
+
+| Entry | `gzip` bytes | Growth |
+|---|---|---|
+| `.` | 26480 | 519 |
+| `./breaking` | 1423 | 33 |
+| `./fonts` | 21481 | 457 |
+| `./fonts/inspect` | 10509 | 631 |
+| `./measurer` | 22729 | 472 |
+| `./segmentation` | 4420 | new |
+| `./text` | 1496 | 0 |

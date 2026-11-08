@@ -1,6 +1,8 @@
 import { brotliCompressSync, brotliDecompressSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { Bytes, advances, pointCounts, tableSet, buildTtf } from "../../test/fonts.ts";
+import { generateCorpus } from "@typeset/corpus";
+import { removed, resolveText } from "../bidi.ts";
 import { Reader } from "./binary.ts";
 import { readPointCounts, readTransformedPointCounts } from "./gvar.ts";
 import { bidiLevels, canvasSegments, canvasWords, defaultFeatures, engines, glyphAdvances, isCjkIdeographOrSymbol, isEngineName, measureWidth, readFont, readTables, shapingWords, visualOrder, type Font } from "./index.ts";
@@ -364,6 +366,46 @@ describe("the bidi order of a canvas", () => {
     expect(canvasSegments("ab cd")).toEqual(canvasWords("ab cd"));
     expect(canvasSegments("אב 12 גד")).toEqual(["גד", " ", "12", " ", "אב"]);
     expect(canvasSegments("12 אב.")).toEqual(["12", " ", "אב", "."]);
+  });
+
+  it("applies the explicit characters and the isolates", () => {
+    // RLO makes L of the letters R, and the removed characters take the level of the character before them
+    expect(bidiLevels("\u202Eab\u202C")).toEqual([0, 1, 1, 0]);
+    expect(bidiLevels("\u2067ab\u2069")).toEqual([0, 2, 2, 0]);
+    expect(bidiLevels("אב\u2068גד\u2069")).toEqual([1, 1, 0, 1, 1, 0]);
+  });
+
+  it("splits the segments at an explicit character, and keeps a removed character with the text before it", () => {
+    expect(canvasSegments("A\u202BV")).toEqual(["A\u202B", "V"]);
+    expect(canvasSegments("א\u202Aב")).toEqual(["ב", "א\u202A"]);
+    expect(canvasSegments("A\u200FV")).toEqual(["A", "\u200F", "V"]);
+    expect(canvasSegments("A\u034FV")).toEqual(["A\u034FV"]);
+  });
+
+  it("gives the marks of direction their strong classes", () => {
+    expect(bidiLevels("a\u200F")).toEqual([0, 1]);
+    expect(bidiLevels("\u061C1")).toEqual([1, 2]);
+    expect(bidiLevels("א\u200Eב")).toEqual([1, 0, 1]);
+  });
+
+  it("applies the rule N0 to paired brackets", () => {
+    // Without N0 the closing bracket goes to the base level, because it is between R and L
+    expect(bidiLevels("א(ב)a")).toEqual([1, 1, 1, 1, 0]);
+  });
+
+  it("keeps a format character with the text, and gives the base level to one at the end", () => {
+    expect(bidiLevels("א\u200Dב")).toEqual([1, 1, 1]);
+    expect(bidiLevels("א\u200D")).toEqual([1, 0]);
+    expect(bidiLevels("א\u200D ")).toEqual([1, 0, 0]);
+    expect(bidiLevels("\u200D")).toEqual([0]);
+  });
+
+  it("gives the levels of the exact table for each script of the corpus", () => {
+    for (const { text } of generateCorpus({ seed: 1, perCell: 1 })) {
+      let level = 0;
+      const exact = resolveText(text, 0).levels.map((value) => (value === removed ? level : (level = value)));
+      expect(bidiLevels(text)).toEqual(exact);
+    }
   });
 });
 

@@ -1,4 +1,4 @@
-import { isBreak, lineStart, lineWidth, type Paragraph } from "./paragraph.ts";
+import { adjustmentRatio, isBreak, lineStart, lineWidth, type Paragraph } from "./paragraph.ts";
 
 /**
  * A breaker: a strategy that chooses the breaks of a paragraph for the line width `width`. It gives the indices of the
@@ -59,9 +59,14 @@ export interface TotalFitOptions {
 }
 
 /**
- * This function gives the total fit breaker of Knuth and Plass for text with a ragged right edge. It chooses the breaks with
- * the least sum of demerits over all the lines. The demerits of a line are `(linePenalty + 100 r²)²` plus the square of the
- * cost of its penalty. The ratio `r` is the free space of the line divided by the width. The last line has `r = 0`.
+ * This function gives the total fit breaker of Knuth and Plass. It chooses the breaks with the least sum of demerits over all
+ * the lines. A paragraph with no stretch and no shrink has a ragged right edge. The demerits of a line are then
+ * `(linePenalty + 100 r²)²` plus the square of the cost of its penalty. The ratio `r` is the free space divided by the width.
+ * The last line has `r = 0`.
+ *
+ * A paragraph with glue that has stretch or shrink has a justified edge. The demerits then use `100 |r|³` with the ratio of
+ * `adjustmentRatio`, and the last line does not stretch. A line that needs more shrink than it has counts first. Thus the
+ * breaker keeps such a line only when each set of breaks has one.
  */
 export function totalFit(options: TotalFitOptions = {}): Breaker {
   const linePenalty = options.linePenalty ?? 10;
@@ -75,6 +80,9 @@ export function totalFit(options: TotalFitOptions = {}): Breaker {
 /** The total fit breaker with the default options. */
 export const knuthPlass: Breaker = totalFit();
 
+/** The largest badness of a justified line. An infinite ratio gets this value, so the sum of the demerits stays finite. */
+const worstBadness = 1e8;
+
 /** This function gives the breaks of the total fit breaker, by dynamic programming over the break opportunities. */
 function totalFitBreaks(paragraph: Paragraph, width: number, linePenalty: number, flaggedCost: number): number[] {
   const { items } = paragraph;
@@ -84,6 +92,10 @@ function totalFitBreaks(paragraph: Paragraph, width: number, linePenalty: number
   nodes.push(items.length);
   const best = new Array<number>(nodes.length).fill(Infinity);
   const previous = new Array<number>(nodes.length).fill(-1);
+  const justified = items.some((item) => item.type === "glue" && ((item.stretch ?? 0) > 0 || (item.shrink ?? 0) > 0));
+  // The count of lines over their shrink comes before the demerits. It stays 0 for a ragged edge.
+  const over = new Array<number>(nodes.length).fill(justified ? Infinity : 0);
+  over[0] = 0;
   best[0] = 0;
   for (let a = 0; a < nodes.length - 1; a++) {
     if (best[a] === Infinity) continue;
@@ -93,7 +105,8 @@ function totalFitBreaks(paragraph: Paragraph, width: number, linePenalty: number
       const end = nodes[b]!;
       const last = b === nodes.length - 1;
       const used = lineWidth(items, start, end);
-      const overflow = used > width;
+      const fit = justified ? adjustmentRatio(items, start, end, width) : 0;
+      const overflow = justified ? fit < -1 : used > width;
       // A line wider than the width is possible only when no break opportunity is inside it
       if (overflow && b > a + 1) {
         if (items[end]?.type === "penalty") continue;
@@ -102,12 +115,15 @@ function totalFitBreaks(paragraph: Paragraph, width: number, linePenalty: number
       const penalty = items[end];
       const cost = penalty?.type === "penalty" ? penalty.cost : 0;
       const ratio = last || overflow ? 0 : (width - used) / width;
-      let demerits = (linePenalty + 100 * ratio * ratio) ** 2;
+      const badness = justified ? Math.min(100 * Math.abs(last ? Math.min(fit, 0) : fit) ** 3, worstBadness) : 100 * ratio * ratio;
+      let demerits = (linePenalty + badness) ** 2;
       if (cost > 0) demerits += cost * cost;
       else if (cost > -Infinity && cost < 0) demerits -= cost * cost;
       if (flaggedBefore && isFlagged(paragraph, end)) demerits += flaggedCost;
       const total = best[a]! + demerits;
-      if (total < best[b]!) {
+      const count = over[a]! + (justified && overflow ? 1 : 0);
+      if (count < over[b]! || (count === over[b]! && total < best[b]!)) {
+        over[b] = count;
         best[b] = total;
         previous[b] = a;
       }

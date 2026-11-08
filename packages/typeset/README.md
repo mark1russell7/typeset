@@ -6,6 +6,8 @@ This package measures text and breaks it into lines. Each area has its own subpa
 | --- | --- |
 | `@mark1russell7/typeset/breaking` | The paragraph model of boxes, glue and penalties, and the greedy, total fit and balanced line breakers. |
 | `@mark1russell7/typeset/fonts` | The font model: it reads a font file and gives the width of a text as a browser engine gives it. |
+| `@mark1russell7/typeset/hyphen` | `hyphenator`: the matcher of Liang, with no language data. |
+| `@mark1russell7/typeset/hyphen/en-us`, `/de`, `/fr` | The hyphen patterns of one language, for the hook `hyphenate`. |
 | `@mark1russell7/typeset/measurer` | `fontAdvance`: the advance function of a layout engine, from the font files of the host. |
 | `@mark1russell7/typeset/text` | The `Text` rope: a text with its width, and edits that measure only the changed parts. |
 
@@ -21,7 +23,30 @@ const lines = linesOf(paragraph, knuthPlass.breaks(paragraph, 120));
 
 - Each breaker takes any width function. The function gives the width of a run of text in any unit.
 - `greedy` fills each line as a browser does. `knuthPlass` chooses the breaks with the least sum of demerits. `balanced` keeps the greedy line count with more equal lines.
-- The option `hyphenate` gives the offsets of the hyphen breaks of a word.
+- The option `hyphenate` gives the offsets of the hyphen breaks of a word. A language subpath gives a function for this option.
+- The options `stretch` and `shrink` make a justified paragraph. Total fit then uses the adjustment ratio of Knuth and Plass.
+- `worstRatio` measures the justified edge. `docs/BREAKING.md` in the repository defines it.
+
+```ts
+import { knuthPlass, linesOf, paragraphOf, worstRatio } from "@mark1russell7/typeset/breaking";
+import { hyphenate } from "@mark1russell7/typeset/hyphen/en-us";
+
+const paragraph = paragraphOf("The quick brown fox jumps over the lazy dog", { widthOf, hyphenate, stretch: 4, shrink: 2.5 });
+const lines = linesOf(paragraph, knuthPlass.breaks(paragraph, 120));
+const edge = worstRatio(paragraph, lines, 120);
+```
+
+### The sizes and the licenses of the language sets
+
+Each set is on its own subpath, so an application pays only for the sets that it imports. The bytes are for one bundled set with the matcher, minified, at gzip level 9.
+
+| Subpath | Gzip bytes | Source file of `tex-hyphen` | License |
+| --- | --- | --- | --- |
+| `./hyphen/en-us` | 18202 | `hyph-en-us.tex` | The all-permissive notice of Gerard D.C. Kuiken |
+| `./hyphen/de` | 123851 | `hyph-de-1996.tex` | MIT |
+| `./hyphen/fr` | 5568 | `hyph-fr.tex` | MIT |
+
+The license of a pattern file applies to its data. The header of each file stays at the top of its module and in a bundle. `docs/HYPHENATION.md` in the repository has the sources and the results.
 
 ## The Text rope
 
@@ -36,6 +61,7 @@ console.log(edited.toString(), edited.width);
 
 - Each edit gives a new rope. The old rope does not change, and the two share the parts that the edit does not touch.
 - An edit uses the width function of the order of `log n` times, on the changed leaves and on short windows.
+- The rope keeps the widths of short windows, so an edit measures only the windows that it changes. `Text.from` clears them, so a new rope sees a font that loaded.
 - The width is exact when the width function obeys the separator law: `width(p + s + q) = width(p + s) + width(s + q) - width(s)`.
 - The separator `s` is a space or a tab. The option `separators` changes the set.
 - The font model of `./fonts` obeys the law for its shaping `dom` and `canvas`, with the sum `exact`.

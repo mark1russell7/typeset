@@ -61,8 +61,37 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 ## The rule for a claim of speed
 
 - Each claim of an item that says "faster" or "slower" compares two arms in one job.
-- A change of the ratio under 0.017 is "not a result". It is not a hit and not a miss.
+- A claim of speed comes from a run of several jobs. Each job has its own A/A pair.
+- The floor of a run is the spread of its jobs. Do not use a fixed floor from an earlier run.
+- A change of speed counts only when its interval over the jobs leaves out 1 and the A/A range of the same run.
+- Else the change is "not a result". It is not a hit and not a miss.
 - Do not compare the times of two jobs. The runners have different CPU models.
+- The values 0.017 and 0.012 are figures for a plan: they tell how many jobs a claim needs. They are not the gate.
+
+## The bias of an order that does not reverse (T11)
+
+- The run 42402596103 had 6 rounds for 10 arms, so the order did not reverse. Its A/A was 1.0253 [1.0036, 1.0419]. That is a bias of the order.
+- The balanced count of rounds removes it. The run 42414121767 has 5 jobs of 20 balanced rounds.
+
+| Job | CPU | A/A ratio | 90 % interval |
+|---|---|---|---|
+| 1 | AMD EPYC 9V74 | 1.0003 | [0.9986, 1.0102] |
+| 2 | Intel Xeon Platinum 8573C | 1.0019 | [0.9940, 1.0126] |
+| 3 | AMD EPYC 9V45 | 0.9902 | [0.9788, 1.0015] |
+| 4 | AMD EPYC 7763 | 0.9984 | [0.9918, 1.0052] |
+| 5 | AMD EPYC 9V45 | 0.9964 | [0.9886, 1.0086] |
+
+- Each of the 5 intervals holds 1. The spread of the ratios is 0.0117, and the largest distance from 1 is 0.0098.
+- The arms of the pair never share a process. Each arm and round has a new process.
+
+## A no-read is not a pass (T10d)
+
+A gate that cannot read a case gives a GitHub warning on its check line. The job log alone is not sufficient, because the check stays green.
+
+- The bench has no limit, so each run gives the warning "no read" with its arms, its rounds and its CPU.
+- The fonts scorer gives a warning for each outcome that has no file or no value of an arm. A missing value shows as `NaN`.
+- The weight gate gives a warning when its limit is `null`.
+- A warning changes no verdict. The exit code of each gate does not change.
 
 ## The change to the rigor homes (T9)
 
@@ -72,3 +101,45 @@ T9 replaced the local copies of the random numbers and the statistics with the r
 - `node src/rescore.ts <folder>` calculates the values of old records again. On the 5 records of the run 41446214122, 441 of 445 values are equal with `===`: each process median, each arm median, each spread and each A/A ratio.
 - The 4 values that differ are ends of the bootstrap intervals, because the random source of the bootstrap changed. The largest difference is 0.0016.
 - The bench run 41455318165 (5 jobs, 20 rounds) on the new corpus gives the A/A ratios 0.9973, 1.0056, 0.9987, 1.0022 and 1.0010. The floor is 0.0056 + 0.0082 = 0.0138. The limit 0.017 stays.
+
+## The weight of each entry (T10)
+
+The weight of an entry is the count of bytes that a user pays for it. `pnpm weight` bundles each public entry with `esbuild`, with tree shaking and with its dependencies. It then applies `gzip` at level 9.
+
+Source bytes do not show this cost. A file in the import closure of an entry gives 0 bytes when no export uses it. For example, `fonts/context.ts` gives 0 bytes in `./fonts/inspect`.
+
+- The job `weight` of `bench.yml` compares the head with the newest `v<version>` tag. `Bench OK` fails when the `gzip` bytes of an entry grow over the limit.
+- The limit is `limitGzipBytes` in `packages/bench/weight.json`: 1792 bytes. It is the largest growth of the first CI measure, 1619 bytes, rounded up to a multiple of 256.
+- The limit applies to all the changes since the last release, not to one pull request.
+- The limit is one value for all the entries. Thus `./breaking`, at 1390 bytes, can more than double under it.
+- Both sides use the dependencies of the head. Thus the growth shows only the source of typeset.
+- The job `weight` starts when the pull request changes the source or `package.json` of typeset, the weight code, `weight.json`, `pnpm-lock.yaml` or `bench.yml`. The lock file changes the bytes that a cap examines.
+- For each other pull request, the job `weight` is skipped. `Bench OK` accepts this skip, because no entry changed.
+- The job measures the head two times, and it fails when the two measures differ.
+- The field `measure` of `packages/bench/weight.json` is the committed record: run 41794942191 against `v0.1.4`, with minified and `gzip` bytes at the head and at the tag.
+- The artifact `weight-record` has the bytes of each input file in each entry.
+
+### A new entry (T10b)
+
+The tag has no bytes for a new entry, so the growth rule cannot hold it. Before T10b, the gate let a new entry of any size pass. `./segmentation` merged in T12 through this gap.
+
+- A new entry needs a line in `newEntries` of `packages/bench/weight.json`. A new entry with no line fails `Bench OK`.
+- A line has the limit, the base, the CI run of the base and a reason.
+- The limit is the size that the prediction of the item gave before the code. Thus nobody chooses the number after the measure.
+- A prediction of an item that adds a public entry gives the `gzip` byte limit of each new entry before the code.
+- The T14 prediction gave no byte limit. Thus the limit of each `./hyphen` line is its first CI measure, and a rise needs a PR with its reason.
+- The base is the first CI measure of the entry. The growth above the base has the same limit as the other entries.
+- The `gzip` bytes of the entry fail when they are more than the limit of the line.
+- When a release has the entry, the gate ignores the line and the tag is the base. Remove the line after that release.
+- This gate is a release gate. It goes to the shared gate of `rigor` when that package exists, and it does not grow before then.
+
+### The cap of an entry (T10c)
+
+The limit holds the growth of one release. Two releases can each grow under the limit, so the limit alone lets an entry grow with no end.
+
+- An entry can have a line in `caps` of `packages/bench/weight.json`. A line has the base, its tag, its CI run, a count of releases and a reason.
+- The gate computes the cap: `cap = baseGzipBytes + releases * limitGzipBytes`. The file holds no cap number.
+- The `gzip` bytes of the entry fail `Bench OK` with the cause `cap` when they are more than the cap. A growth under the limit does not change this.
+- The root entry `.` gives each area as a namespace. Thus it grows with each subpath, and it has the first line.
+- Its cap is 26480 + 4 × 1792 = 33648. The base is the size at `v0.1.6`. The 4 releases are the roadmap items that grow `.` before `1.0.0`.
+- A new budget needs a new line with its reason, not a larger count of releases after the measure.

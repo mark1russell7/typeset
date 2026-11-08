@@ -10,6 +10,7 @@
   "scripts": {
     "package": "template package",
     "template": "template repo",
+    "conformance": "pnpm --filter @typeset/conformance conformance",
     "test": "pnpm -r run test && pnpm run test:actions",
     "test:actions": "node --test \".github/actions/*.test.ts\"",
     "typecheck": "pnpm -r run typecheck && pnpm run typecheck:scripts",
@@ -18,7 +19,8 @@
     "check:boundaries": "depcruise --config .dependency-cruiser.ts packages",
     "check:api": "api-report check",
     "check:conventions": "conventions check",
-    "bench": "pnpm --filter @typeset/bench run bench"
+    "bench": "pnpm --filter @typeset/bench run bench",
+    "weight": "pnpm --filter @typeset/bench run weight"
   },
   "devDependencies": {
     "@mark1russell7/template-cli": "^0.1.4",

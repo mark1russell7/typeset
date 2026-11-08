@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/typeset",
-  "version": "0.1.5",
-  "description": "Text measurement and line breaking. The subpath ./fonts reads font tables and gives widths, ./measurer gives the advance function of a layout, ./breaking has the line breakers, and ./text has a rope.",
+  "version": "0.2.0",
+  "description": "Text measurement and line breaking. The subpath ./fonts reads font tables and gives widths, ./measurer gives the advance function of a layout, ./breaking has the line breakers, ./hyphen has hyphen patterns for each language, ./segmentation has the break positions of Unicode, ./bidi has the bidirectional algorithm of Unicode, and ./text has a rope.",
   "keywords": [
     "typeset",
     "line-breaking",
@@ -30,7 +30,13 @@
     "./breaking": "./src/breaking.ts",
     "./fonts": "./src/fonts.ts",
     "./fonts/inspect": "./src/fonts-inspect.ts",
+    "./hyphen": "./src/hyphen.ts",
+    "./hyphen/en-us": "./src/hyphen/en-us.ts",
+    "./hyphen/de": "./src/hyphen/de.ts",
+    "./hyphen/fr": "./src/hyphen/fr.ts",
     "./measurer": "./src/measurer.ts",
+    "./bidi": "./src/bidi.ts",
+    "./segmentation": "./src/segmentation.ts",
     "./text": "./src/text.ts",
     "./package.json": "./package.json"
   },
@@ -64,9 +70,33 @@
         "types": "./build/fonts-inspect.d.ts",
         "default": "./build/fonts-inspect.js"
       },
+      "./hyphen": {
+        "types": "./build/hyphen.d.ts",
+        "default": "./build/hyphen.js"
+      },
+      "./hyphen/en-us": {
+        "types": "./build/hyphen/en-us.d.ts",
+        "default": "./build/hyphen/en-us.js"
+      },
+      "./hyphen/de": {
+        "types": "./build/hyphen/de.d.ts",
+        "default": "./build/hyphen/de.js"
+      },
+      "./hyphen/fr": {
+        "types": "./build/hyphen/fr.d.ts",
+        "default": "./build/hyphen/fr.js"
+      },
       "./measurer": {
         "types": "./build/measurer.d.ts",
         "default": "./build/measurer.js"
+      },
+      "./bidi": {
+        "types": "./build/bidi.d.ts",
+        "default": "./build/bidi.js"
+      },
+      "./segmentation": {
+        "types": "./build/segmentation.d.ts",
+        "default": "./build/segmentation.js"
       },
       "./text": {
         "types": "./build/text.d.ts",
@@ -82,6 +112,7 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
   },
   "dependencies": {
+    "@mark1russell7/collections": "^0.9.3",
     "@mark1russell7/rigor-generators": "^0.1.0"
   },
   "devDependencies": {
