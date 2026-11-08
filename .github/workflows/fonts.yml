@@ -182,7 +182,7 @@ jobs:
   # The outcomes of the prediction, from the files of all the arms. An arm that failed makes its outcomes fail, not this job.
   report:
     needs: [changes, widths]
-    if: always() && needs.changes.outputs.match == 'true'
+    if: ${{ !cancelled() && needs.changes.outputs.match == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

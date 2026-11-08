@@ -54,3 +54,7 @@ if (summary !== undefined && summary !== "") {
   if (record.aa !== undefined) lines.push("", `A/A: ${record.aa.ratio.toFixed(4)}, 90 % interval [${record.aa.interval.map((x) => x.toFixed(4)).join(", ")}]`);
   appendFileSync(summary, `${lines.join("\n")}\n`);
 }
+
+// The bench has no limit, so it reads no case. A green check is not a pass: the warning puts the no-read on the check line.
+const armNames = Object.keys(record.arms);
+console.log(`::warning title=Bench no read::no read: the bench has no limit, so it gives no verdict. ${armNames.length} arms (${armNames.join(", ")}), ${record.config.rounds} rounds, CPU ${record.environment.cpu}.`);

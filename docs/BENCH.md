@@ -62,6 +62,15 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 - A change of the ratio under 0.017 is "not a result". It is not a hit and not a miss.
 - Do not compare the times of two jobs. The runners have different CPU models.
 
+## A no-read is not a pass (T10d)
+
+A gate that cannot read a case gives a GitHub warning on its check line. The job log alone is not sufficient, because the check stays green.
+
+- The bench has no limit, so each run gives the warning "no read" with its arms, its rounds and its CPU.
+- The fonts scorer gives a warning for each outcome that has no file or no value of an arm. A missing value shows as `NaN`.
+- The weight gate gives a warning when its limit is `null`.
+- A warning changes no verdict. The exit code of each gate does not change.
+
 ## The change to the rigor homes (T9)
 
 T9 replaced the local copies of the random numbers and the statistics with the rigor packages.
@@ -82,6 +91,8 @@ Source bytes do not show this cost. A file in the import closure of an entry giv
 - The limit applies to all the changes since the last release, not to one pull request.
 - The limit is one value for all the entries. Thus `./breaking`, at 1390 bytes, can more than double under it.
 - Both sides use the dependencies of the head. Thus the growth shows only the source of typeset.
+- The job `weight` starts when the pull request changes the source or `package.json` of typeset, the weight code, `weight.json`, `pnpm-lock.yaml` or `bench.yml`. The lock file changes the bytes that a cap examines.
+- For each other pull request, the job `weight` is skipped. `Bench OK` accepts this skip, because no entry changed.
 - The job measures the head two times, and it fails when the two measures differ.
 - The field `measure` of `packages/bench/weight.json` is the committed record: run 41794942191 against `v0.1.4`, with minified and `gzip` bytes at the head and at the tag.
 - The artifact `weight-record` has the bytes of each input file in each entry.
@@ -97,3 +108,14 @@ The tag has no bytes for a new entry, so the growth rule cannot hold it. Before 
 - The `gzip` bytes of the entry fail when they are more than the limit of the line.
 - When a release has the entry, the gate ignores the line and the tag is the base. Remove the line after that release.
 - This gate is a release gate. It goes to the shared gate of `rigor` when that package exists, and it does not grow before then.
+
+### The cap of an entry (T10c)
+
+The limit holds the growth of one release. Two releases can each grow under the limit, so the limit alone lets an entry grow with no end.
+
+- An entry can have a line in `caps` of `packages/bench/weight.json`. A line has the base, its tag, its CI run, a count of releases and a reason.
+- The gate computes the cap: `cap = baseGzipBytes + releases * limitGzipBytes`. The file holds no cap number.
+- The `gzip` bytes of the entry fail `Bench OK` with the cause `cap` when they are more than the cap. A growth under the limit does not change this.
+- The root entry `.` gives each area as a namespace. Thus it grows with each subpath, and it has the first line.
+- Its cap is 26480 + 4 × 1792 = 33648. The base is the size at `v0.1.6`. The 4 releases are the roadmap items that grow `.` before `1.0.0`.
+- A new budget needs a new line with its reason, not a larger count of releases after the measure.

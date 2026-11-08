@@ -16,6 +16,15 @@
       "reason": "T13 adds the entry. The limit is the size of specificNewEntry in the T13 prediction, made before the code, as the strategist ruled. The base is the first CI measure, at head 60947ea (the gate proof head, one line from the final code)."
     }
   },
+  "caps": {
+    ".": {
+      "baseGzipBytes": 26480,
+      "baseTag": "v0.1.6",
+      "run": "42440764584",
+      "releases": 4,
+      "reason": "The root entry gives each area as a namespace, so it grows with each subpath. The budget is 4 releases at the limit: the roadmap items that grow it before 1.0.0 (T2b, T13, T11 and T11b, T14). The base is the v0.1.6 size in the weight job of run 42440764584."
+    }
+  },
   "measure": {
     "runId": "41794942191",
     "head": "633eaa9d5b3d6519facac78bbe1d2a24ea9ec713",
