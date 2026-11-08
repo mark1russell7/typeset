@@ -70,6 +70,8 @@ interface Item {
   readonly east: boolean;
   /** This value is `true` when the last code point of the item is U+200D. */
   zwj: boolean;
+  /** This value is `true` when the base character has the class SA. The rules read the item as AL. */
+  readonly complex: boolean;
 }
 
 const breakClasses = new Set(["BK", "CR", "LF", "NL", "SP", "ZW"]);
@@ -85,8 +87,9 @@ function itemsOf(text: string): Item[] {
     const combining = name === "CM" || name === "ZWJ";
     const last = items.at(-1);
     if (combining && last !== undefined && !breakClasses.has(last.name)) last.zwj = name === "ZWJ";
-    else if (combining) items.push({ name: "AL", code: 0x41, start: offset, east: false, zwj: name === "ZWJ" });
-    else items.push({ name, code, start: offset, east: code < 128 ? asciiEast[code]! : indexOfRun(east, code) % 2 === 1, zwj: false });
+    else if (combining) items.push({ name: "AL", code: 0x41, start: offset, east: false, zwj: name === "ZWJ", complex: false });
+    else if (name === "SA") items.push({ name: "AL", code, start: offset, east: indexOfRun(east, code) % 2 === 1, zwj: false, complex: true });
+    else items.push({ name, code, start: offset, east: code < 128 ? asciiEast[code]! : indexOfRun(east, code) % 2 === 1, zwj: false, complex: false });
     offset += character.length;
   }
   return items;
@@ -194,15 +197,29 @@ function ruleAt(items: readonly Item[], i: number): 0 | 1 | 2 {
   return 1;
 }
 
+/** The options of `lineBreaks`. */
+export interface LineBreakOptions {
+  /**
+   * The hook gives the break places inside a run of class SA (Thai, Lao, Khmer, Myanmar and others). It gets the text of the
+   * run and gives offsets in the run. `complexBreaks` is a hook. With no hook, the rule LB1 reads the run as AL, so no break
+   * is inside it, as in `LineBreakTest`.
+   */
+  readonly complex?: (run: string) => readonly number[];
+}
+
 /**
- * This function gives the places where a line of a text can end, by the rules of UAX #14 without tailoring. The last place is
- * the end of the text, and an empty text has no place.
+ * This function gives the places where a line of a text can end, by the rules of UAX #14. With no option, it applies no
+ * tailoring. The last place is the end of the text, and an empty text has no place.
+ *
+ * The hook `complex` adds places inside each run of class SA. The function keeps only the places at the start of an item,
+ * so no place is before a combining mark. The places outside the runs do not change.
  *
  * A text of only ASCII letters, digits and spaces takes a short path, because the rules give it a simple result. A line can
- * end after each run of spaces (LB18), and at no other place (LB7, LB23, LB25 and LB28).
+ * end after each run of spaces (LB18), and at no other place (LB7, LB23, LB25 and LB28). Such a text has no run of class
+ * SA, so the hook adds no place to it.
  */
-export function lineBreaks(text: string): readonly LineBreak[] {
-  return simple.test(text) ? simpleBreaks(text) : ruleBreaks(text);
+export function lineBreaks(text: string, options: LineBreakOptions = {}): readonly LineBreak[] {
+  return simple.test(text) ? simpleBreaks(text) : ruleBreaks(text, options);
 }
 
 /** The texts of the short path of `lineBreaks`. */
@@ -220,13 +237,30 @@ function simpleBreaks(text: string): LineBreak[] {
  * This function gives the places of a text by the rules of UAX #14, with no short path. The tests compare `lineBreaks` with
  * it. The entry `./segmentation` does not export it.
  */
-export function ruleBreaks(text: string): readonly LineBreak[] {
+export function ruleBreaks(text: string, options: LineBreakOptions = {}): readonly LineBreak[] {
   const items = itemsOf(text);
+  const inside = options.complex === undefined ? undefined : complexPlaces(text, items, options.complex);
   const breaks: LineBreak[] = [];
   for (let i = 1; i < items.length; i++) {
     const rule = ruleAt(items, i);
     if (rule !== 0) breaks.push({ offset: items[i]!.start, required: rule === 2 });
+    else if (inside?.has(i)) breaks.push({ offset: items[i]!.start, required: false });
   }
   if (text.length > 0) breaks.push({ offset: text.length, required: true });
   return breaks;
+}
+
+/** This function gives the indexes of the items inside the runs of class SA where the hook gives a place. */
+function complexPlaces(text: string, items: readonly Item[], complex: (run: string) => readonly number[]): Set<number> {
+  const places = new Set<number>();
+  for (let i = 0; i < items.length; i++) {
+    if (!items[i]!.complex) continue;
+    let last = i;
+    while (last + 1 < items.length && items[last + 1]!.complex) last++;
+    const start = items[i]!.start;
+    const offsets = new Set(complex(text.slice(start, items[last + 1]?.start ?? text.length)));
+    for (let k = i + 1; k <= last; k++) if (offsets.has(items[k]!.start - start)) places.add(k);
+    i = last;
+  }
+  return places;
 }

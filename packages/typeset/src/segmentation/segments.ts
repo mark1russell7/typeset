@@ -16,3 +16,12 @@ export function wordBreaks(text: string): readonly number[] {
   if (text.length > 0) offsets.push(text.length);
   return offsets;
 }
+
+/**
+ * This function is a hook `complex` for `lineBreaks`. It gives the word boundaries inside a run of class SA, from
+ * `Intl.Segmenter` of the runtime. The runtime has the dictionary, so the entry ships no dictionary. In a browser, the places
+ * follow the dictionary of that browser.
+ */
+export function complexBreaks(run: string): readonly number[] {
+  return wordBreaks(run).slice(0, -1);
+}
