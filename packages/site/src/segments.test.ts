@@ -60,6 +60,12 @@ describe("readConformance", () => {
     const record = readConformance(conformanceFile);
     expect(record.unicodeVersion).toBe("17.0.0");
     expect(record.rows.filter((row) => row.function !== "canvasWords").every((row) => row.passed === row.total)).toBe(true);
+    expect(record.rows.filter((row) => row.file.startsWith("Bidi")).map((row) => `${row.function} ${row.file}`)).toEqual([
+      "resolveLevels BidiTest",
+      "visualIndexes BidiTest",
+      "resolveLevels BidiCharacterTest",
+      "visualIndexes BidiCharacterTest",
+    ]);
   });
 
   it("refuses a count over the total", () => {

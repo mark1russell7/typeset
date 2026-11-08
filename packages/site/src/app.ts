@@ -558,7 +558,7 @@ function renderConformance(): void {
   $("seg-table").querySelector("tbody")!.replaceChildren(...rows);
   const link = make("a", "", `run ${conformance.run}`);
   link.href = `https://github.com/mark1russell7/typeset/actions/runs/${conformance.run}`;
-  $("seg-run").replaceChildren(`The line break tables have Unicode ${conformance.unicodeVersion}. CI examines each line of each file on each push, in ${conformance.runtime}. Record: `, link, ` at ${conformance.head.slice(0, 7)}.`);
+  $("seg-run").replaceChildren(`The tables of the line break classes and of the bidi classes have Unicode ${conformance.unicodeVersion}. CI examines each line of each file on each push, in ${conformance.runtime}. Record: `, link, ` at ${conformance.head.slice(0, 7)}.`);
 }
 
 // ---------------------------------------------------------------- the events
