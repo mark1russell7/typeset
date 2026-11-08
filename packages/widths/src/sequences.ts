@@ -118,7 +118,10 @@ export const ignorableCodePoints: readonly number[] = [
   0x2066, 0x2067, 0x2068, 0x2069, 0xfe00, 0xfe0e, 0xfe0f, 0xfeff, 0xe0001, 0xe0020, 0xe0100,
 ];
 
-/** This function tells if a Chrome probe measures the entry: a mark in Noto Emoji, or U+034F next to a kerning pair. */
+/**
+ * This function tells if a Chrome probe measures the entry: a mark in Noto Emoji, U+034F next to a kerning pair, or a
+ * control of the group `bidi`. The probe of the group `bidi` reads the order of the sum `float32` in Blink (T13b).
+ */
 export function isProbed(entry: SequenceEntry): boolean {
-  return entry.group === "hidden-kerning" || (entry.font === "noto-emoji" && /\p{M}/u.test(entry.text));
+  return entry.group === "hidden-kerning" || entry.group === "bidi" || (entry.font === "noto-emoji" && /\p{M}/u.test(entry.text));
 }
