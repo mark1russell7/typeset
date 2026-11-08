@@ -77,6 +77,21 @@ fontAdvance: build/chunks/measurer.d.ts#fontAdvance
 parseFont: build/chunks/measurer.d.ts#parseFont
 scriptTag: build/chunks/measurer.d.ts#scriptTag
 
+## ./bidi (build/bidi.d.ts): names
+
+type BidiClass: build/bidi.d.ts#BidiClass
+type BidiParagraph: build/bidi.d.ts#BidiParagraph
+type ParagraphDirection: build/bidi.d.ts#ParagraphDirection
+type ResolvedBidi: build/bidi.d.ts#ResolvedBidi
+bidiClass: build/bidi.d.ts#bidiClass
+bracketOf: build/bidi.d.ts#bracketOf
+removed: build/bidi.d.ts#removed
+resolveLevels: build/bidi.d.ts#resolveLevels
+resolveText: build/bidi.d.ts#resolveText
+unicodeVersion: build/bidi.d.ts#unicodeVersion
+visualIndexes: build/bidi.d.ts#visualIndexes
+visualOrder: build/bidi.d.ts#visualOrder
+
 ## ./segmentation (build/segmentation.d.ts): names
 
 type LineBreak: build/segmentation.d.ts#LineBreak
@@ -91,6 +106,49 @@ Text: build/chunks/text.d.ts#Text
 type TextOptions: build/chunks/text.d.ts#TextOptions
 
 ## Declarations
+
+### build/bidi.d.ts#BidiClass
+type BidiClass = "L" | "R" | "AL" | "EN" | "ES" | "ET" | "AN" | "CS" | "NSM" | "BN" | "B" | "S" | "WS" | "ON" | "LRE" | "LRO" | "RLE" | "RLO" | "PDF" | "LRI" | "RLI" | "FSI" | "PDI";
+
+### build/bidi.d.ts#BidiParagraph
+interface BidiParagraph {
+  readonly start: number;
+  readonly end: number;
+  readonly level: number;
+}
+
+### build/bidi.d.ts#ParagraphDirection
+type ParagraphDirection = 0 | 1 | "auto";
+
+### build/bidi.d.ts#ResolvedBidi
+interface ResolvedBidi {
+  readonly levels: number[];
+  readonly paragraphs: readonly BidiParagraph[];
+}
+
+### build/bidi.d.ts#bidiClass
+export declare function bidiClass(codePoint: number): BidiClass;
+
+### build/bidi.d.ts#bracketOf
+export declare function bracketOf(codePoint: number): number;
+
+### build/bidi.d.ts#removed
+export declare const removed = -1;
+
+### build/bidi.d.ts#resolveLevels
+export declare function resolveLevels(classes: readonly BidiClass[], brackets?: readonly number[], direction?: ParagraphDirection): ResolvedBidi;
+
+### build/bidi.d.ts#resolveText
+export declare function resolveText(text: string, direction?: ParagraphDirection): ResolvedBidi;
+
+### build/bidi.d.ts#unicodeVersion
+export declare const unicodeVersion = "17.0.0";
+
+### build/bidi.d.ts#visualIndexes
+export declare function visualIndexes({ levels, paragraphs }: ResolvedBidi): number[];
+
+### build/bidi.d.ts#visualOrder
+export declare function visualOrder<T>(items: readonly T[], levels: readonly number[]): T[];
 
 ### build/chunks/breaking.d.ts#BalancedOptions
 interface BalancedOptions {
