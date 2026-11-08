@@ -16,6 +16,10 @@ interface Table {
   readonly starts: Uint32Array;
   readonly classes: Uint8Array;
   readonly east: Uint32Array;
+  /** The class name of each ASCII code point, from `starts` and `classes`. */
+  readonly asciiNames: readonly string[];
+  /** This value is `true` for an ASCII code point that is wide in East Asian text, from `east`. */
+  readonly asciiEast: readonly boolean[];
 }
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&()*+-./:;<=>?@[]^_{|}~";
@@ -39,7 +43,10 @@ function tableOf(): Table {
   lengths.forEach((length, index) => {
     east[index + 1] = east[index]! + length;
   });
-  table = { starts, classes, east };
+  const codes = Array.from({ length: 128 }, (_, code) => code);
+  const asciiNames = codes.map((code) => classNames[classes[indexOfRun(starts, code)]!]!);
+  const asciiEast = codes.map((code) => indexOfRun(east, code) % 2 === 1);
+  table = { starts, classes, east, asciiNames, asciiEast };
   return table;
 }
 
@@ -69,17 +76,17 @@ const breakClasses = new Set(["BK", "CR", "LF", "NL", "SP", "ZW"]);
 
 /** This function makes the items of a text. It applies the rules LB9 and LB10. */
 function itemsOf(text: string): Item[] {
-  const { starts, classes, east } = tableOf();
+  const { starts, classes, east, asciiNames, asciiEast } = tableOf();
   const items: Item[] = [];
   let offset = 0;
   for (const character of text) {
     const code = character.codePointAt(0)!;
-    const name = classNames[classes[indexOfRun(starts, code)]!]!;
+    const name = code < 128 ? asciiNames[code]! : classNames[classes[indexOfRun(starts, code)]!]!;
     const combining = name === "CM" || name === "ZWJ";
     const last = items.at(-1);
     if (combining && last !== undefined && !breakClasses.has(last.name)) last.zwj = name === "ZWJ";
     else if (combining) items.push({ name: "AL", code: 0x41, start: offset, east: false, zwj: name === "ZWJ" });
-    else items.push({ name, code, start: offset, east: indexOfRun(east, code) % 2 === 1, zwj: false });
+    else items.push({ name, code, start: offset, east: code < 128 ? asciiEast[code]! : indexOfRun(east, code) % 2 === 1, zwj: false });
     offset += character.length;
   }
   return items;
@@ -190,8 +197,30 @@ function ruleAt(items: readonly Item[], i: number): 0 | 1 | 2 {
 /**
  * This function gives the places where a line of a text can end, by the rules of UAX #14 without tailoring. The last place is
  * the end of the text, and an empty text has no place.
+ *
+ * A text of only ASCII letters, digits and spaces takes a short path, because the rules give it a simple result. A line can
+ * end after each run of spaces (LB18), and at no other place (LB7, LB23, LB25 and LB28).
  */
 export function lineBreaks(text: string): readonly LineBreak[] {
+  return simple.test(text) ? simpleBreaks(text) : ruleBreaks(text);
+}
+
+/** The texts of the short path of `lineBreaks`. */
+const simple = /^[A-Za-z0-9 ]*$/u;
+
+/** This function gives the places of a text of only ASCII letters, digits and spaces: after each run of spaces, and at the end. */
+function simpleBreaks(text: string): LineBreak[] {
+  const breaks: LineBreak[] = [];
+  for (let i = 1; i < text.length; i++) if (text.charCodeAt(i - 1) === 32 && text.charCodeAt(i) !== 32) breaks.push({ offset: i, required: false });
+  if (text.length > 0) breaks.push({ offset: text.length, required: true });
+  return breaks;
+}
+
+/**
+ * This function gives the places of a text by the rules of UAX #14, with no short path. The tests compare `lineBreaks` with
+ * it. The entry `./segmentation` does not export it.
+ */
+export function ruleBreaks(text: string): readonly LineBreak[] {
   const items = itemsOf(text);
   const breaks: LineBreak[] = [];
   for (let i = 1; i < items.length; i++) {
