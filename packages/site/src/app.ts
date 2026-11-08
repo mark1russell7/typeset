@@ -8,8 +8,12 @@ import { formatPx, formatSigned, heatBins, heatLabel, heatLevel } from "./heat.t
 import { labResult, previewFit, sampleText, sweepSummary, sweepTask, type LabResult, type WordView } from "./lab-model.ts";
 import { loadFont, type LoadedFont } from "./load.ts";
 import { allLeftOut, armMatrix, readSnapshot, statOf, type ModelChoice, type Statistic, type Summary } from "./snapshot.ts";
+import { unicodeVersion } from "@mark1russell7/typeset/segmentation";
+import conformanceFile from "../data/conformance.json";
+import { readConformance, segmentView, type SegmentKind } from "./segments.ts";
 
 const snapshot = readSnapshot(snapshotFile);
+const conformance = readConformance(conformanceFile);
 
 function $<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -135,6 +139,7 @@ async function selectFont(id: string): Promise<void> {
 // ---------------------------------------------------------------- the lab
 
 function update(): void {
+  renderSegments();
   if (loaded === undefined || loaded.choice.id !== state.font) return;
   const font = loaded.model(state.engine, state.weight);
   measureContext.font = cssFont(loaded, state.weight, state.size);
@@ -494,6 +499,68 @@ function renderSweep(): void {
   table.tBodies[0]!.append(...body);
 }
 
+// ---------------------------------------------------------------- the segments
+
+let segmentKind: SegmentKind = "lines";
+
+const segmentNames: Readonly<Record<SegmentKind, [one: string, many: string]>> = {
+  graphemes: ["grapheme cluster", "grapheme clusters"],
+  words: ["word segment", "word segments (words, spaces and punctuation)"],
+  lines: ["line break place", "line break places"],
+};
+
+/** This function gives the code points of a segment as `U+XXXX` names. It shows at most 8. */
+function codePoints(text: string): string {
+  const points = [...text].map((char) => `U+${char.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}`);
+  return points.length > 8 ? `${points.slice(0, 8).join(" ")} and ${points.length - 8} more` : points.join(" ");
+}
+
+function renderSegments(): void {
+  const view = segmentView(state.text, segmentKind);
+  const [one, many] = segmentNames[segmentKind];
+  const count = view.segments.length;
+  $("seg-count").textContent =
+    segmentKind === "lines" ? `${count} ${count === 1 ? one : many}, ${view.required} required, in ${state.text.length} UTF-16 code units` : `${count} ${count === 1 ? one : many} in ${state.text.length} UTF-16 code units`;
+  const box = $("seg-text");
+  box.dataset["kind"] = segmentKind;
+  if (loaded !== undefined) box.style.fontFamily = `"${loaded.family}", system-ui, sans-serif`;
+  box.replaceChildren(
+    ...view.segments.map((segment, index) => {
+      const span = make("span", segment.required ? "seg hard" : "seg", segment.text);
+      const lines = [`${one} ${index + 1} of ${count}`, `offsets ${segment.start} to ${segment.start + segment.text.length}`, codePoints(segment.text)];
+      if (segment.required) lines.push("a required line break follows");
+      span.tabIndex = 0;
+      span.addEventListener("pointerenter", () => showTip(span, lines));
+      span.addEventListener("pointerleave", hideTip);
+      span.addEventListener("focus", () => showTip(span, lines));
+      span.addEventListener("blur", hideTip);
+      return span;
+    }),
+  );
+}
+
+function renderConformance(): void {
+  $("seg-version").textContent = unicodeVersion;
+  const rows = conformance.rows.map((row) => {
+    const tr = make("tr", row.note === undefined ? "" : "seg-other");
+    const share = row.total === 0 ? 0 : row.passed / row.total;
+    const passed = make("td", "seg-passed", `${row.passed} of ${row.total}`);
+    const bar = make("td", "seg-bar");
+    const fill = make("span");
+    fill.style.width = `${(share * 100).toFixed(1)}%`;
+    bar.append(fill, make("span", "seg-share", `${(share * 100).toFixed(share === 1 ? 0 : 1)} %`));
+    const name = make("td");
+    name.append(make("code", "", row.function));
+    if (row.note !== undefined) name.append(make("p", "hint", row.note));
+    tr.append(name, make("td", "", row.file), passed, bar);
+    return tr;
+  });
+  $("seg-table").querySelector("tbody")!.replaceChildren(...rows);
+  const link = make("a", "", `run ${conformance.run}`);
+  link.href = `https://github.com/mark1russell7/typeset/actions/runs/${conformance.run}`;
+  $("seg-run").replaceChildren(`The line break tables have Unicode ${conformance.unicodeVersion}. CI examines each line of each file on each push, in ${conformance.runtime}. Record: `, link, ` at ${conformance.head.slice(0, 7)}.`);
+}
+
 // ---------------------------------------------------------------- the events
 
 function bind(): void {
@@ -545,6 +612,12 @@ function bind(): void {
     resizeFrame = requestAnimationFrame(() => lastResult !== undefined && drawPreview(lastResult));
   });
   window.addEventListener("scroll", hideTip, { passive: true });
+  for (const input of document.querySelectorAll<HTMLInputElement>('input[name="seg-kind"]')) {
+    input.addEventListener("change", () => {
+      if (input.checked) segmentKind = input.value as SegmentKind;
+      renderSegments();
+    });
+  }
 }
 
 newSampleText();
@@ -554,6 +627,8 @@ renderRun();
 renderCi();
 renderLegend();
 renderSweep();
+renderSegments();
+renderConformance();
 bind();
 // The address `?sweep` also starts a sweep of the lab font, so a link can show a finished sweep
 const first = selectFont(state.font);

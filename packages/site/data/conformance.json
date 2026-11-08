@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "run": "42435397534",
+  "head": "c5645642e3c56d877eb3d5dd0ac5510266ea8659",
+  "unicodeVersion": "17.0.0",
+  "runtime": "Node, Unicode 17.0, ICU 78.3",
+  "rows": [
+    { "function": "graphemes", "file": "GraphemeBreakTest", "passed": 766, "total": 766 },
+    { "function": "wordBreaks", "file": "WordBreakTest", "passed": 1944, "total": 1944 },
+    { "function": "lineBreaks", "file": "LineBreakTest", "passed": 19338, "total": 19338 },
+    { "function": "canvasWords", "file": "WordBreakTest", "passed": 396, "total": 1944, "note": "The word split of the canvas model (Blink), not UAX #29. Each class of difference has a reason." }
+  ]
+}
