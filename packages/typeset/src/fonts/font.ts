@@ -10,7 +10,7 @@ import { instanceAdvances, normalize, readAxes, readVariationStore, type Axis, t
 import { indicScripts, indicShaper } from "./indic.ts";
 import { joiningFeatures, joiningForms, joiningScripts, joiningStages } from "./joining.ts";
 import { hasDefaultIgnorable, hasMark, isHidden, normalizeCodePoints, zeroedMarks } from "./normalize.ts";
-import { canvasSegments, canvasWords } from "./words.ts";
+import { canvasRuns, canvasSegments, canvasText } from "./words.ts";
 
 /** The options of `readFont`. */
 export interface ReadOptions {
@@ -275,7 +275,7 @@ export interface MeasureOptions {
   readonly indic?: boolean;
   /**
    * The shaping of the browser to model. `dom` (the default) shapes the words of `shapingWords` and then kerns all the
-   * text. `canvas` shapes and kerns each word of `canvasWords` alone, as Blink does for the text of a canvas.
+   * text. `canvas` shapes and kerns each segment of `canvasRuns` alone, as Blink does for the text of a canvas.
    */
   readonly shaping?: "dom" | "canvas";
   /**
@@ -379,8 +379,9 @@ function shaperOf(font: Font, options: MeasureOptions): { substitute: (word: str
 /**
  * This function gives the glyphs of a text and their advances in font units. With the shaping `dom`, it applies the GSUB
  * substitutions to each word of `shapingWords`, and then the pair kerning to all the text. With the shaping `canvas`, it
- * applies the substitutions and the kerning to each word of `canvasWords` alone. A script of `joiningScripts` also gets
- * the joining forms of each word, in the stages of `joiningStages`. A script of `indicScripts` uses `indicShaper`.
+ * applies the substitutions and the kerning to each segment of `canvasRuns` alone, after the changes of `canvasText`. A
+ * script of `joiningScripts` also gets the joining forms of each word, in the stages of `joiningStages`. A script of
+ * `indicScripts` uses `indicShaper`.
  */
 export function glyphAdvances(font: Font, text: string, options: MeasureOptions = {}): { glyphs: number[]; advances: number[] } {
   const { glyphs, advances } = shapedAdvances(font, text, options);
@@ -393,8 +394,8 @@ function shapedAdvances(font: Font, text: string, options: MeasureOptions): { gl
   const canvas = options.shaping === "canvas";
   const glyphs: number[] = [];
   const advances: number[] = [];
-  for (const word of canvas ? canvasWords(text) : shapingWords(text)) {
-    const wordGlyphs = substitute(word);
+  for (const word of canvas ? canvasRuns(text).segments : shapingWords(text)) {
+    const wordGlyphs = substitute(canvas ? canvasText(word) : word);
     const wordAdvances = wordGlyphs.map((glyph) => font.advance(glyph));
     if (canvas) kern(font, kerning, wordGlyphs, wordAdvances);
     glyphs.push(...wordGlyphs);
@@ -471,7 +472,7 @@ function float32Width(font: Font, text: string, size: number, options: MeasureOp
   const pxPerUnit = size / font.unitsPerEm;
   let total = 0;
   for (const segment of canvasSegments(text)) {
-    const glyphs = substitute(segment);
+    const glyphs = substitute(canvasText(segment));
     // Skia gives each advance in single precision, and Blink cuts it to the 16.16 fixed point of HarfBuzz
     const positions = glyphs.map((glyph) => Math.trunc(Math.fround(font.advance(glyph) * pxPerUnit) * 65536));
     kern(font, kerning, glyphs, glyphs.map((glyph) => font.advance(glyph)), positions, scale);

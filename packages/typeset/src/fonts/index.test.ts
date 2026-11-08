@@ -6,6 +6,7 @@ import { removed, resolveText } from "../bidi.ts";
 import { Reader } from "./binary.ts";
 import { readPointCounts, readTransformedPointCounts } from "./gvar.ts";
 import { bidiLevels, canvasSegments, canvasWords, defaultFeatures, engines, glyphAdvances, isCjkIdeographOrSymbol, isEngineName, measureWidth, readFont, readTables, shapingWords, visualOrder, type Font } from "./index.ts";
+import { canvasRuns, canvasText } from "./words.ts";
 
 
 function base128(value: number): number[] {
@@ -368,6 +369,36 @@ describe("the bidi order of a canvas", () => {
     expect(canvasSegments("12 אב.")).toEqual(["12", " ", "אב", "."]);
   });
 
+  it("ends a word at each character that Blink shapes as a zero width space", () => {
+    for (const control of ["­", "‎", "‏", "‪", "‫", "‬", "‭", "‮", "﻿", "￼"]) {
+      expect(canvasWords(`A${control}V`)).toEqual(["A", control, "V"]);
+      expect(canvasText(`A${control}V`)).toBe("A​V");
+    }
+    expect(canvasText("a\tb\nc\fd\re")).toBe("a b c d e");
+    // The isolates and ALM stay in the word
+    for (const control of ["؜", "⁦", "⁧", "⁨", "⁩"]) expect(canvasWords(`A${control}V`)).toEqual([`A${control}V`]);
+  });
+
+  it("divides a canvas text into bidi runs only when ICU gives it the direction mixed", () => {
+    // An LRI makes no odd level, so the pair stays one run and keeps its kerning, as in Chromium
+    expect(canvasSegments("A⁦V")).toEqual(["A⁦V"]);
+    expect(canvasSegments("A⁨V")).toEqual(["A⁨V"]);
+    expect(canvasSegments("A⁧V")).toEqual(["A⁧", "V"]);
+    expect(canvasSegments("A؜V")).toEqual(["A", "؜", "V"]);
+    expect(canvasRuns("ab⁦cd")).toEqual({ segments: ["ab⁦cd"], levels: [0] });
+    expect(canvasRuns("aב")).toEqual({ segments: ["a", "ב"], levels: [0, 1] });
+    expect(canvasSegments("ب؜ن")).toEqual(["ب؜ن"]);
+  });
+
+  it("kerns across an LRI and not across an LRM in a canvas", () => {
+    const pair = { first: -10, second: 0, skipSecond: false };
+    const font = { glyph: (codePoint: number) => codePoint, advance: () => 500, glyphClass: () => 0, kerning: () => [{ flags: 0, pair: () => pair }], substitutions: () => [] } as unknown as Font;
+    const kerned = glyphAdvances(font, "AV", { shaping: "canvas" }).advances[0];
+    expect(kerned).toBe(490);
+    expect(glyphAdvances(font, "A⁦V", { shaping: "canvas" }).advances[0]).toBe(kerned);
+    expect(glyphAdvances(font, "A‎V", { shaping: "canvas" }).advances[0]).toBe(500);
+  });
+
   it("applies the explicit characters and the isolates", () => {
     // RLO makes L of the letters R, and the removed characters take the level of the character before them
     expect(bidiLevels("\u202Eab\u202C")).toEqual([0, 1, 1, 0]);
@@ -375,9 +406,9 @@ describe("the bidi order of a canvas", () => {
     expect(bidiLevels("אב\u2068גד\u2069")).toEqual([1, 1, 0, 1, 1, 0]);
   });
 
-  it("splits the segments at an explicit character, and keeps a removed character with the text before it", () => {
-    expect(canvasSegments("A\u202BV")).toEqual(["A\u202B", "V"]);
-    expect(canvasSegments("א\u202Aב")).toEqual(["ב", "א\u202A"]);
+  it("splits the segments at an explicit character, and makes the character a word alone as Blink does", () => {
+    expect(canvasSegments("A\u202BV")).toEqual(["A", "\u202B", "V"]);
+    expect(canvasSegments("א\u202Aב")).toEqual(["ב", "\u202A", "א"]);
     expect(canvasSegments("A\u200FV")).toEqual(["A", "\u200F", "V"]);
     expect(canvasSegments("A\u034FV")).toEqual(["A\u034FV"]);
   });
