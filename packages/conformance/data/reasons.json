@@ -2,7 +2,7 @@
   "failures": {},
   "canvasWords": {
     "missing": "The function follows the word cache of Blink, not UAX #29. Blink ends a word only at a space, a tab, a zero width space or a CJK word start. So the boundaries of UAX #29 between letters, digits and punctuation are not there.",
-    "extra": "Each space is a word alone, and a CJK or emoji character starts a word. UAX #29 keeps a mark or a joiner with the character before it, so the function has a boundary that the file does not have.",
+    "extra": "Each space is a word alone. Each character that Blink shapes as a zero width space, for example a soft hyphen or LRM, is also a word alone. A CJK or emoji character starts a word. UAX #29 keeps a mark, a joiner or a format character with the character before it, so the function has a boundary that the file does not have.",
     "both": "The test has the 2 differences of the classes missing and extra at different places."
   }
 }

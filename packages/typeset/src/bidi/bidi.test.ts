@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bidiClass, bracketOf, removed, resolveLevels, resolveText, unicodeVersion, visualIndexes, visualOrder, type BidiClass } from "../bidi.ts";
+import { icuDirection } from "./resolve.ts";
 
 const classes = (text: string): BidiClass[] => text.split(" ") as BidiClass[];
 const x = removed;
@@ -248,5 +249,36 @@ describe("resolveText", () => {
   it("uses the exact class of a character outside the common ones", () => {
     expect(resolveText("\u{1e900}", 0).levels).toEqual([1]);
     expect(resolveText("\u{1eef0}", 0).levels).toEqual([0]);
+  });
+});
+
+describe("icuDirection", () => {
+  it("gives the direction of the classes when the text has no control", () => {
+    expect(icuDirection(classes("L EN"), 0)).toBe("ltr");
+    // The paragraph level 0 adds the flag L, so an RTL text in an LTR paragraph is mixed
+    expect(icuDirection(classes("R AL"), 0)).toBe("mixed");
+    expect(icuDirection(classes("R AL"), 1)).toBe("rtl");
+    expect(icuDirection(classes("L R"), 1)).toBe("mixed");
+  });
+
+  it("makes a text with an Arabic digit and a neutral mixed", () => {
+    expect(icuDirection(classes("EN AN"), 0)).toBe("ltr");
+    expect(icuDirection(classes("AN ON"), 0)).toBe("mixed");
+  });
+
+  it("reads the isolates and the embeddings of the text", () => {
+    expect(icuDirection(classes("L LRI L"), 0)).toBe("ltr");
+    expect(icuDirection(classes("L RLI L"), 0)).toBe("mixed");
+    expect(icuDirection(classes("L FSI L"), 0)).toBe("ltr");
+    expect(icuDirection(classes("L FSI R PDI"), 0)).toBe("mixed");
+    expect(icuDirection(classes("L PDI L"), 0)).toBe("ltr");
+    expect(icuDirection(classes("L LRE L"), 0)).toBe("ltr");
+    expect(icuDirection(classes("L RLE L"), 0)).toBe("mixed");
+    expect(icuDirection(classes("L RLO L"), 0)).toBe("mixed");
+  });
+
+  it("ignores an embedding with no character inside it", () => {
+    expect(icuDirection(classes("L RLE PDF L"), 0)).toBe("ltr");
+    expect(icuDirection(classes("L RLE BN PDF L"), 0)).toBe("ltr");
   });
 });

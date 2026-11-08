@@ -7,7 +7,7 @@
  * all the sizes, and a fractional size, for example 15.333 px, gets no rounding of the scale.
  */
 import { Blob, Buffer, BufferFlag, Direction, Face, Font, shape, Variation, versionString } from "harfbuzzjs";
-import { canvasSegments, canvasWords } from "@mark1russell7/typeset/fonts/inspect";
+import { canvasSegments } from "@mark1russell7/typeset/fonts/inspect";
 
 /** The version of HarfBuzz in the package `harfbuzzjs`, for example `12.1.0`. */
 export const harfbuzzVersion: string = versionString();
@@ -28,7 +28,10 @@ export interface ReferenceFont {
   readonly axes: readonly string[];
   /** This function shapes the text as one HarfBuzz buffer at the scale `scale`. The default scale is the units per em. */
   shape(text: string, script: string, scale?: number): Shaped;
-  /** This function shapes each word of `canvasWords` alone, as Blink does for a canvas, and gives the words in order. */
+  /**
+   * This function shapes each segment of `canvasSegments` alone, as Blink does for a canvas, and gives the segments in the
+   * visual order. A segment is a word, or a part of a word in one bidi run when ICU gives the text the direction `mixed` (T13c).
+   */
   shapeWords(text: string, script: string, scale?: number): { readonly word: string; readonly shaped: Shaped }[];
   /** This function shapes each segment of `canvasSegments` alone, as Blink shapes each bidi run of a canvas. */
   shapeSegments(text: string, script: string, scale?: number): Shaped[];
@@ -80,7 +83,7 @@ export function openReferenceFont(bytes: Uint8Array, instance: Readonly<Record<s
     unitsPerEm: upem,
     axes,
     shape: shapeText,
-    shapeWords: (text, script, scale) => canvasWords(text).map((word) => ({ word, shaped: shapeText(word, script, scale) })),
+    shapeWords: (text, script, scale) => canvasSegments(text).map((word) => ({ word, shaped: shapeText(word, script, scale) })),
     shapeSegments: (text, script, scale) => canvasSegments(text).map((segment) => shapeText(segment, script, scale)),
     glyphAdvance(glyph, scale) {
       font.setScale(scale, scale);
