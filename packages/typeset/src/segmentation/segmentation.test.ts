@@ -1,5 +1,6 @@
+import { random as createRandom, type Random } from "@mark1russell7/rigor-generators";
 import { describe, expect, it } from "vitest";
-import { graphemes, lineBreaks, unicodeVersion, wordBreaks } from "../segmentation.ts";
+import { graphemes, lineBreaks, unicodeVersion, wordBreaks, wordBreaksOf } from "../segmentation.ts";
 
 const offsets = (text: string): readonly number[] => lineBreaks(text).map((place) => place.offset);
 const parts = (text: string): readonly string[] => {
@@ -48,6 +49,30 @@ describe("lineBreaks", () => {
 
   it("gives offsets in UTF-16 units for a character over U+FFFF", () => {
     expect(offsets("\u{20000}\u{20001}")).toEqual([2, 4]);
+  });
+});
+
+describe("wordBreaksOf", () => {
+  // The pieces of the words: Latin, digits, punctuation, white space, CR, LF, Thai, Han, emoji with ZWJ and a modifier, and marks.
+  const pieces = ["a", "b", "Z", "9", ".", ",", "'", " ", "\t", "\r", "\n", "ก", "า", "สวัสดี", "日", "本", "\u{1F468}", "‍", "\u{1F3FD}", "́", "é"];
+  const wordOf = (random: Random): string => Array.from({ length: random.below(9) }, () => pieces[random.below(pieces.length)]!).join("");
+
+  it("gives no entry for no word, and an empty entry for an empty word", () => {
+    expect(wordBreaksOf([])).toEqual([]);
+    expect(wordBreaksOf(["", "ab", ""])).toEqual([[], [2], []]);
+  });
+
+  it("keeps the breaks of a word that ends in CR or that holds a line feed", () => {
+    const words = ["ab\r", "\ncd", "e\nf", "g\r\n", "\r"];
+    expect(wordBreaksOf(words)).toEqual(words.map((word) => wordBreaks(word)));
+  });
+
+  it("gives wordBreaks of each word for 2000 generated lists of words", () => {
+    const random = createRandom(14);
+    for (let trial = 0; trial < 2000; trial++) {
+      const words = Array.from({ length: random.below(9) }, () => wordOf(random));
+      expect(wordBreaksOf(words), `seed ${random.seed}, trial ${trial}, words ${JSON.stringify(words)}`).toEqual(words.map((word) => wordBreaks(word)));
+    }
   });
 });
 
