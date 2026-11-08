@@ -66,9 +66,10 @@ describe("the linear syllable search", () => {
     }
   });
 
-  it("gives the syllables of the regular expressions on each Devanagari text of the corpus", () => {
-    const samples = generateCorpus({ seed: 1, perCell: 5, scripts: ["devanagari"] });
-    expect(samples.length).toBe(20);
+  it("gives the syllables of the regular expressions on each Devanagari text of the corpus of the Fonts job", () => {
+    // The Fonts job uses the seed 1 and 40 samples for each cell (`--per-cell` of `fonts.yml`).
+    const samples = generateCorpus({ seed: 1, perCell: 40, scripts: ["devanagari"] });
+    expect(samples.length).toBe(160);
     for (const sample of samples) {
       const text = indicLetters(sample.text);
       expect(letterSyllables(text), sample.id).toEqual(regexSyllables(text));
