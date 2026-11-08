@@ -32,11 +32,33 @@ export interface WeightRow {
   readonly releaseMinified: number | null;
   /** The `gzip` bytes at the release. This value is `null` for an entry that the release does not have. */
   readonly releaseGzip: number | null;
-  /** The growth in `gzip` bytes. This value is `null` for an entry that the release does not have. */
+  /**
+   * The growth in `gzip` bytes, from the release or from the base of the line of a new entry. This value is `null` for a
+   * new entry with no line.
+   */
   readonly growth: number | null;
-  /** This value is `true` when the growth is over the limit. */
+  /** The line of a new entry. A row has no line when the release has the entry. */
+  readonly line?: NewEntryLine;
+  /** This value is `true` when the row fails the gate. The field `cause` tells the rule. */
   readonly over: boolean;
+  /** `no-line`: a new entry has no line. `line-limit`: a new entry is over the limit of its line. `growth`: the growth is over the limit. */
+  readonly cause?: "no-line" | "line-limit" | "growth";
 }
+
+/**
+ * The line of an entry that no release has. The first CI measure is the base, and the limit comes from the prediction of
+ * the item, which was made before the code. After a release with the entry, the gate ignores the line.
+ */
+export interface NewEntryLine {
+  readonly limitGzipBytes: number;
+  readonly baseGzipBytes: number;
+  /** The CI run of the first measure. */
+  readonly run: string;
+  readonly reason: string;
+}
+
+/** The lines of the new entries, by the name of the entry. */
+export type NewEntryLines = Readonly<Record<string, NewEntryLine>>;
 
 /** This function gives the name and the file of each public entry in the `exports` of a package. */
 export function publicEntries(exports: Readonly<Record<string, string>>): [string, string][] {
@@ -73,12 +95,25 @@ export function weighTree(root: string, nodePaths: readonly string[]): Weights {
   return Object.fromEntries(publicEntries(exports).map(([name, file]) => [name, weighEntry(root, file, nodePaths)]));
 }
 
-/** This function compares the head with the release. A growth equal to the limit passes, and a `null` limit only reports. */
-export function compareWeights(head: Weights, release: Weights, limit: number | null): WeightRow[] {
+/**
+ * This function compares the head with the release. A growth equal to the limit passes, and a `null` limit only reports.
+ * A new entry needs a line in `lines`. Its growth is from the base of the line. Its `gzip` bytes are at most the limit
+ * of the line. A new entry with no line fails.
+ */
+export function compareWeights(head: Weights, release: Weights, limit: number | null, lines: NewEntryLines = {}): WeightRow[] {
   return Object.entries(head).map(([entry, weight]) => {
-    const releaseGzip = release[entry]?.gzip ?? null;
-    const growth = releaseGzip === null ? null : weight.gzip - releaseGzip;
-    return { entry, minified: weight.minified, gzip: weight.gzip, releaseMinified: release[entry]?.minified ?? null, releaseGzip, growth, over: limit !== null && growth !== null && growth > limit };
+    const released = release[entry];
+    const line = released === undefined ? lines[entry] : undefined;
+    const base = released?.gzip ?? line?.baseGzipBytes;
+    const growth = base === undefined ? null : weight.gzip - base;
+    const cause =
+      limit === null ? undefined
+      : released === undefined && line === undefined ? "no-line"
+      : line !== undefined && weight.gzip > line.limitGzipBytes ? "line-limit"
+      : growth !== null && growth > limit ? "growth"
+      : undefined;
+    const row = { entry, minified: weight.minified, gzip: weight.gzip, releaseMinified: released?.minified ?? null, releaseGzip: released?.gzip ?? null, growth, over: cause !== undefined };
+    return { ...row, ...(line === undefined ? {} : { line }), ...(cause === undefined ? {} : { cause }) };
   });
 }
 
