@@ -1,6 +1,8 @@
+import { random as createRandom, type Random } from "@mark1russell7/rigor-generators";
 import { generateSample, type LengthClass } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
 import { complexBreaks, graphemes, lineBreaks, unicodeVersion, wordBreaks } from "../segmentation.ts";
+import { ruleBreaks } from "./line.ts";
 
 const offsets = (text: string): readonly number[] => lineBreaks(text).map((place) => place.offset);
 const parts = (text: string): readonly string[] => {
@@ -100,6 +102,36 @@ describe("the hook complex of lineBreaks", () => {
     const text = "ab กิน cd";
     expect(offsets(text)).toEqual([3, 7, 9]);
     expect(lineBreaks(text, { complex: () => [1, 2, 3, 99] }).map((place) => place.offset)).toEqual([3, 5, 7, 9]);
+  });
+});
+
+describe("the short path of lineBreaks", () => {
+  const simple = "abcxyzABCXYZ0189      ";
+  const other = "-.,'()!?\t\n\u00e9\u00a0\u4e00\u0e01";
+  const textOf = (random: Random, alphabet: string): string => Array.from({ length: random.below(24) }, () => alphabet[random.below(alphabet.length)]!).join("");
+
+  it("gives the places of the rules for 10000 texts of ASCII letters, digits and spaces", () => {
+    const random = createRandom(12);
+    for (let trial = 0; trial < 10000; trial++) {
+      const text = textOf(random, simple);
+      expect(lineBreaks(text), `seed ${random.seed}, trial ${trial}, text ${JSON.stringify(text)}`).toEqual(ruleBreaks(text));
+    }
+  });
+
+  it("gives the places of the rules for 2000 texts that also have other characters", () => {
+    const random = createRandom(13);
+    for (let trial = 0; trial < 2000; trial++) {
+      const text = textOf(random, simple + other);
+      expect(lineBreaks(text), `seed ${random.seed}, trial ${trial}, text ${JSON.stringify(text)}`).toEqual(ruleBreaks(text));
+    }
+  });
+
+  it("gives the places of the rules with the hook complex for 2000 texts that also have other characters", () => {
+    const random = createRandom(15);
+    for (let trial = 0; trial < 2000; trial++) {
+      const text = textOf(random, simple + other);
+      expect(lineBreaks(text, { complex: complexBreaks }), `seed ${random.seed}, trial ${trial}, text ${JSON.stringify(text)}`).toEqual(ruleBreaks(text, { complex: complexBreaks }));
+    }
   });
 });
 
