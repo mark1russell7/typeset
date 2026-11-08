@@ -27,8 +27,30 @@ describe("compareWeights", () => {
     expect(compareWeights(weights({ ".": 9000 }), release, null)[0]).toMatchObject({ growth: 8000, over: false });
   });
 
-  it("does not flag an entry that the release does not have", () => {
-    expect(compareWeights(weights({ "./new": 9000 }), release, 0)[0]).toMatchObject({ releaseGzip: null, growth: null, over: false });
+  const line = { limitGzipBytes: 5000, baseGzipBytes: 4000, run: "1", reason: "a test" };
+
+  it("fails an entry that the release does not have and that has no line", () => {
+    expect(compareWeights(weights({ "./new": 10 }), release, 1792)[0]).toMatchObject({ releaseGzip: null, growth: null, over: true, cause: "no-line" });
+    expect(compareWeights(weights({ "./new": 10 }), release, null)[0]).toMatchObject({ over: false });
+  });
+
+  it("passes a new entry at the limit of its line, and fails one byte more", () => {
+    expect(compareWeights(weights({ "./new": 5000 }), release, 1792, { "./new": line })[0]).toMatchObject({ growth: 1000, over: false, line });
+    expect(compareWeights(weights({ "./new": 5001 }), release, 1792, { "./new": line })[0]).toMatchObject({ over: true, cause: "line-limit" });
+    // A first measure over its line fails.
+    expect(compareWeights(weights({ "./new": 6000 }), release, 1792, { "./new": { ...line, baseGzipBytes: 6000 } })[0]).toMatchObject({ growth: 0, over: true, cause: "line-limit" });
+  });
+
+  it("limits the growth above the base of the line to the limit", () => {
+    const wide = { ...line, limitGzipBytes: 100000 };
+    expect(compareWeights(weights({ "./new": 5792 }), release, 1792, { "./new": wide })[0]).toMatchObject({ growth: 1792, over: false });
+    expect(compareWeights(weights({ "./new": 5793 }), release, 1792, { "./new": wide })[0]).toMatchObject({ growth: 1793, over: true, cause: "growth" });
+  });
+
+  it("ignores the line when the release has the entry, and takes the growth from the release", () => {
+    const row = compareWeights(weights({ ".": 1100 }), release, 1792, { ".": { ...line, limitGzipBytes: 10, baseGzipBytes: 10 } })[0];
+    expect(row).toMatchObject({ releaseGzip: 1000, growth: 100, over: false });
+    expect(row).not.toHaveProperty("line");
   });
 });
 

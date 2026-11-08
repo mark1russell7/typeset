@@ -1,25 +1,26 @@
 /**
  * The weight gate of typeset. This command compares the weight of each public entry with the last release. It exits with 1
- * when an entry grows over the limit in `packages/bench/weight.json`. A `null` limit only reports. `docs/BENCH.md` tells
- * the rule.
+ * when an entry grows over the limit in `packages/bench/weight.json`. It also exits with 1 when an entry that no release
+ * has fails its line in `newEntries` of that file. A `null` limit only reports. `docs/BENCH.md` tells the rule.
  */
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { version } from "esbuild";
-import { compareWeights, latestTag, sameWeights, weighRelease, weighTree } from "./weight.ts";
+import { compareWeights, latestTag, sameWeights, weighRelease, weighTree, type NewEntryLines } from "./weight.ts";
 
 const { values } = parseArgs({ options: { out: { type: "string" }, tag: { type: "string" } } });
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const root = join(repo, "packages", "typeset");
 const nodePaths = [join(root, "node_modules")];
-const { limitGzipBytes: limit } = JSON.parse(readFileSync(join(repo, "packages", "bench", "weight.json"), "utf8")) as { limitGzipBytes: number | null };
+const config = JSON.parse(readFileSync(join(repo, "packages", "bench", "weight.json"), "utf8")) as { limitGzipBytes: number | null; newEntries?: NewEntryLines };
+const limit = config.limitGzipBytes;
 
 const tag = values.tag ?? latestTag(repo);
 const head = weighTree(root, nodePaths);
 const repeat = sameWeights(head, weighTree(root, nodePaths));
-const rows = compareWeights(head, weighRelease(repo, tag, nodePaths), limit);
+const rows = compareWeights(head, weighRelease(repo, tag, nodePaths), limit, config.newEntries);
 
 const record = {
   schema: 1,
@@ -40,7 +41,10 @@ const lines = [
   "",
   "| Entry | Minified | Gzip | Gzip at the release | Growth |",
   "|---|---|---|---|---|",
-  ...rows.map((row) => `| \`${row.entry}\` | ${row.minified} | ${row.gzip} | ${row.releaseGzip ?? "new"} | ${row.growth ?? "new"}${row.over ? " **over**" : ""} |`),
+  ...rows.map((row) => {
+    const base = row.releaseGzip ?? (row.line === undefined ? "new, no line" : `new: base ${row.line.baseGzipBytes}, limit ${row.line.limitGzipBytes}`);
+    return `| \`${row.entry}\` | ${row.minified} | ${row.gzip} | ${base} | ${row.growth ?? "new"}${row.over ? ` **over** (${row.cause})` : ""} |`;
+  }),
 ];
 console.log(lines.join("\n"));
 const summary = process.env["GITHUB_STEP_SUMMARY"];
