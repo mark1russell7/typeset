@@ -144,3 +144,5 @@ jobs:
       - uses: mark1russell7/template/.github/actions/gate-summary@e077054e0f2ebb8441e4bc525b56cf2acc2afb6f # main
         with:
           needs: ${{ toJSON(needs) }}
+          # The job weight skips only when its filter finds no weighed file. Then no entry changed, so the skip is no read of a change.
+          allow-skip: weight

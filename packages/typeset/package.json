@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/typeset",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Text measurement and line breaking. The subpath ./fonts reads font tables and gives widths, ./measurer gives the advance function of a layout, ./breaking has the line breakers, ./segmentation has the break positions of Unicode, and ./text has a rope.",
   "keywords": [
     "typeset",
@@ -87,6 +87,7 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
   },
   "dependencies": {
+    "@mark1russell7/collections": "^0.9.3",
     "@mark1russell7/rigor-generators": "^0.1.0"
   },
   "devDependencies": {

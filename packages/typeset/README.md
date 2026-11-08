@@ -36,6 +36,7 @@ console.log(edited.toString(), edited.width);
 
 - Each edit gives a new rope. The old rope does not change, and the two share the parts that the edit does not touch.
 - An edit uses the width function of the order of `log n` times, on the changed leaves and on short windows.
+- The rope keeps the widths of short windows, so an edit measures only the windows that it changes. `Text.from` clears them, so a new rope sees a font that loaded.
 - The width is exact when the width function obeys the separator law: `width(p + s + q) = width(p + s) + width(s + q) - width(s)`.
 - The separator `s` is a space or a tab. The option `separators` changes the set.
 - The font model of `./fonts` obeys the law for its shaping `dom` and `canvas`, with the sum `exact`.
