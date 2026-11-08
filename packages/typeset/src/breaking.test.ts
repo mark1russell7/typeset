@@ -1,6 +1,7 @@
 import { generateSample, type ScriptId } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
 import { balanced, breakers, greedy, knuthPlass, linesOf, paragraphOf, raggedness, spread, totalFit, type Breaker, type Paragraph } from "./breaking.ts";
+import { lineBreaks } from "./segmentation.ts";
 
 /** The width of a text in this test: one unit for each code point. */
 const count = (text: string): number => [...text].length;
@@ -14,6 +15,24 @@ describe("paragraphOf", () => {
       { type: "glue", text: " ", width: 1 },
       { type: "box", text: "cd", width: 2 },
     ]);
+  });
+
+  it("gives the same items with no break hook and with an empty break hook", () => {
+    const options = { widthOf: count, hyphenate: () => [2] };
+    expect(paragraphOf("abcd ef", { ...options, breaks: () => [] }).items).toEqual(paragraphOf("abcd ef", options).items);
+  });
+
+  it("puts a free penalty at each offset of the break hook, and this hook wins over a hyphen", () => {
+    const { items } = paragraphOf("abcd", { widthOf: count, hyphenate: () => [1, 2], breaks: () => [2, 4, 0] });
+    expect(items.map((item) => (item.type === "penalty" ? item.flagged : item.text))).toEqual(["a", true, "b", false, "cd"]);
+    expect(items[3]).toEqual({ type: "penalty", text: "", width: 0, cost: 0, flagged: false });
+  });
+
+  it("breaks a Han text between ideographs through the hook of lineBreaks", () => {
+    const breaks = (word: string): readonly number[] => lineBreaks(word).map((place) => place.offset);
+    const paragraph = paragraphOf("日本語の文章", { widthOf: count, breaks });
+    expect(textsOf(paragraph, greedy, 3)).toEqual(["日本語", "の文章"]);
+    expect(textsOf(paragraphOf("日本語の文章", { widthOf: count }), greedy, 3)).toEqual(["日本語の文章"]);
   });
 
   it("puts a flagged penalty at each offset of the hyphenation hook", () => {
