@@ -60,7 +60,7 @@ A browser uses the CSS weight for the axis `wght`, not the default instance of t
 - HarfBuzz scales each kerning value at the scale of the size times 65536. It scales the value with `em_mult` and the variation delta with `em_scalef`.
 - `canvasSegments` gives the segments of the text: the words of `canvasWords`, split where the bidi level changes, in the visual order.
 - The sum of the positions of one segment is exact. The sum of the segments is in single precision.
-- `bidiLevels` gives the levels of a paragraph with the base level 0, as a canvas with the direction `inherit` has them. It has no explicit embeddings and no brackets.
+- The internal function `bidiLevels` gives the levels of a paragraph with the base level 0, as a canvas with the direction `inherit` has them. It uses the rules of `./bidi` with a guess of the classes. `UNICODE.md` tells the limits.
 - The rounding `pixel` ignores the option `sum`. A sum of whole px is exact in single precision.
 
 The fonts run 41562917143 on the head 65f5225 of typeset#36 measured the model of each arm:
