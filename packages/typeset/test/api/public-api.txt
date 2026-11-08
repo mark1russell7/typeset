@@ -82,6 +82,8 @@ scriptTag: build/chunks/measurer.d.ts#scriptTag
 ## ./segmentation (build/segmentation.d.ts): names
 
 type LineBreak: build/segmentation.d.ts#LineBreak
+type LineBreakOptions: build/segmentation.d.ts#LineBreakOptions
+complexBreaks: build/segmentation.d.ts#complexBreaks
 graphemes: build/segmentation.d.ts#graphemes
 lineBreaks: build/segmentation.d.ts#lineBreaks
 unicodeVersion: build/segmentation.d.ts#unicodeVersion
@@ -426,11 +428,19 @@ interface LineBreak {
   readonly required: boolean;
 }
 
+### build/segmentation.d.ts#LineBreakOptions
+interface LineBreakOptions {
+  readonly complex?: (run: string) => readonly number[];
+}
+
+### build/segmentation.d.ts#complexBreaks
+export declare function complexBreaks(run: string): readonly number[];
+
 ### build/segmentation.d.ts#graphemes
 export declare function graphemes(text: string): readonly string[];
 
 ### build/segmentation.d.ts#lineBreaks
-export declare function lineBreaks(text: string): readonly LineBreak[];
+export declare function lineBreaks(text: string, options?: LineBreakOptions): readonly LineBreak[];
 
 ### build/segmentation.d.ts#unicodeVersion
 export declare const unicodeVersion = "17.0.0";

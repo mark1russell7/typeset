@@ -5,6 +5,7 @@
 import { appendFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { gateLine, jobModels, writeGateLine } from "@mark1russell7/rigor-bench";
 import { aa, arms } from "./cases/index.ts";
 import { runBench } from "./harness.ts";
 
@@ -54,3 +55,14 @@ if (summary !== undefined && summary !== "") {
   if (record.aa !== undefined) lines.push("", `A/A: ${record.aa.ratio.toFixed(4)}, 90 % interval [${record.aa.interval.map((x) => x.toFixed(4)).join(", ")}]`);
   appendFileSync(summary, `${lines.join("\n")}\n`);
 }
+
+// The bench has no limit, so it reads no case. A green check is not a pass: the warning of `writeGateLine` puts the
+// no-read of each arm on the check line and in the step summary.
+const reads = Object.keys(record.arms).map((arm) => ({ case: arm, outcome: "no read" }));
+writeGateLine(
+  gateLine(reads, {
+    title: "Bench",
+    reason: `the bench has no limit, so it gives no verdict (${record.config.rounds} rounds)`,
+    models: jobModels([{ cpu: record.environment.cpu }]),
+  }),
+);

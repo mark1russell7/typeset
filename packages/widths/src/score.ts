@@ -6,6 +6,7 @@
 import { appendFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { gateLine, writeGateLine, type GateLine } from "@mark1russell7/rigor-bench";
 import type { ScriptId } from "@typeset/corpus";
 import type { AdvanceModelRow } from "./advances.ts";
 import type { Cell, Fractions, InstanceProbe } from "./compare.ts";
@@ -82,7 +83,8 @@ export function score(files: ReadonlyMap<string, ArmFile>): Outcome[] {
   outcomes.push({ outcome: "specificBoundCjk", ...onEach(files, ["han", "kana", "hangul"], 0.1) });
   const extra = unroundedArms.map((arm) => {
     const file = files.get(arm);
-    const values = ["400", "700"].map((weight) => [weight, file?.extraSummary[weight]?.line?.worstPx ?? Number.NaN] as const);
+    if (file === undefined) return [arm, false, "no file"] as const;
+    const values = ["400", "700"].map((weight) => [weight, file.extraSummary[weight]?.line?.worstPx ?? Number.NaN] as const);
     return [arm, values.every(([, value]) => value <= 0.5), values.map(([weight, value]) => `${weight} ${value.toFixed(3)}`).join(", ")] as const;
   });
   outcomes.push({ outcome: "specificVariableExtra", holds: extra.every(([, holds]) => holds), detail: extra.map(([arm, , detail]) => `${arm}: ${detail}`).join("; ") });
@@ -296,12 +298,36 @@ function readArms(folder: string): Map<string, ArmFile> {
   return files;
 }
 
+/** This function gives the outcomes of each prediction that the arm files score. */
+export function scoreAll(files: ReadonlyMap<string, ArmFile>): Readonly<Record<string, readonly Outcome[]>> {
+  return { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files), "typeset-t1c-engine-rules": scoreEngines(files), "typeset-t1c-kana-words": scoreKana(files), "typeset-t1d-arabic-joining": scoreArabic(files), "typeset-t1d-float-sum": scoreFloatSum(files) };
+}
+
+/**
+ * A detail has a no-read when an arm has no file or no field. Then the detail, or the part of an arm in it, starts with
+ * "no ". A value that a file does not have shows as `NaN`, and that is also a no-read.
+ */
+const noRead = /(?:^|[:;] )no |\bNaN\b/u;
+
+/**
+ * This function gives one check line for each prediction with a no-read. Each outcome is a case of the line. The reason
+ * names the details of the no-reads. A no-read holds `false`, but the job passes, so the warning puts it on the check line.
+ */
+export function noReadGates(predictions: Readonly<Record<string, readonly Outcome[]>>): GateLine[] {
+  return Object.entries(predictions).flatMap(([id, outcomes]) => {
+    const reads = outcomes.map((o) => ({ case: o.outcome, outcome: noRead.test(o.detail) ? "no read" : "pass" }));
+    const details = outcomes.filter((o) => noRead.test(o.detail)).map((o) => `${o.outcome}: ${o.detail}`);
+    const line = gateLine(reads, { title: `Fonts ${id}`, reason: details.join(" | ") });
+    return line === undefined ? [] : [line];
+  });
+}
+
 function main(): void {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: { out: { type: "string", default: "outcomes.json" } } });
   const folder = positionals[0];
   if (folder === undefined) throw new Error("give the folder of the arm files");
   const files = readArms(folder);
-  const predictions = { "typeset-t1b-instancing-platforms": score(files), "typeset-t1c-width-causes": scoreCauses(files), "typeset-t1c-gsub-ligatures": scoreGsub(files), "typeset-t1c-instance-advances": scoreAdvances(files), "typeset-t1c-engine-rules": scoreEngines(files), "typeset-t1c-kana-words": scoreKana(files), "typeset-t1d-arabic-joining": scoreArabic(files), "typeset-t1d-float-sum": scoreFloatSum(files) };
+  const predictions = scoreAll(files);
   writeFileSync(values.out, JSON.stringify({ schema: "typeset-font-outcomes/2", arms: [...files.keys()].sort(), predictions }, null, 2) + "\n");
   const lines = [`Arms: ${[...files.keys()].sort().join(", ")}.`];
   for (const [id, outcomes] of Object.entries(predictions)) {
@@ -310,6 +336,7 @@ function main(): void {
   console.log(lines.join("\n"));
   const stepSummary = process.env["GITHUB_STEP_SUMMARY"];
   if (stepSummary !== undefined) appendFileSync(stepSummary, `${lines.join("\n")}\n`);
+  for (const line of noReadGates(predictions)) writeGateLine(line);
 }
 
 if (import.meta.main) main();

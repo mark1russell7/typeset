@@ -54,3 +54,12 @@ export function wordBreaksOf(words: readonly string[]): readonly (readonly numbe
   if (last >= 0 && parts[last]!.length > 0) lists[last]!.push(parts[last]!.length);
   return result;
 }
+
+/**
+ * This function is a hook `complex` for `lineBreaks`. It gives the word boundaries inside a run of class SA, from
+ * `Intl.Segmenter` of the runtime. The runtime has the dictionary, so the entry ships no dictionary. In a browser, the places
+ * follow the dictionary of that browser.
+ */
+export function complexBreaks(run: string): readonly number[] {
+  return wordBreaks(run).slice(0, -1);
+}

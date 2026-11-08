@@ -34,7 +34,9 @@ The subpath `@mark1russell7/typeset/segmentation` gives the break positions of U
 - `lineBreaks` uses its own table, so it follows the pinned version on each runtime.
 - The pin is one version older than the latest Unicode version, because the runtime has Unicode 17.0.
 - The test files examine rule pairs. They do not examine real text, and they do not examine the tailoring of a locale.
-- `lineBreaks` uses the default rules with no tailoring. It does not find the word breaks of Thai, because that needs a dictionary. SA characters take the class AL or CM.
+- With no option, `lineBreaks` uses the default rules with no tailoring. The rule LB1 reads a character of class SA as AL or CM. So a Thai run has no break inside it, as `LineBreakTest` expects.
+- The option `complex` adds the breaks inside each run of class SA (Thai, Lao, Khmer and Myanmar). The hook `complexBreaks` takes them from `Intl.Segmenter` (T12b).
+- `complexBreaks` uses the dictionary of the runtime, so the entry ships no dictionary. The places follow the ICU of the runtime, as `wordBreaks` does. The gate examines the default only.
 
 ## The differences of `canvasWords`
 

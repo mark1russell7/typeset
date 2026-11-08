@@ -62,6 +62,15 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 - A change of the ratio under 0.017 is "not a result". It is not a hit and not a miss.
 - Do not compare the times of two jobs. The runners have different CPU models.
 
+## A no-read is not a pass (T10d)
+
+A gate that cannot read a case gives a GitHub warning on its check line. The job log alone is not sufficient, because the check stays green.
+
+- The bench has no limit, so each run gives the warning "no read" with its arms, its rounds and its CPU.
+- The fonts scorer gives a warning for each outcome that has no file or no value of an arm. A missing value shows as `NaN`.
+- The weight gate gives a warning when its limit is `null`.
+- A warning changes no verdict. The exit code of each gate does not change.
+
 ## The change to the rigor homes (T9)
 
 T9 replaced the local copies of the random numbers and the statistics with the rigor packages.
@@ -82,6 +91,8 @@ Source bytes do not show this cost. A file in the import closure of an entry giv
 - The limit applies to all the changes since the last release, not to one pull request.
 - The limit is one value for all the entries. Thus `./breaking`, at 1390 bytes, can more than double under it.
 - Both sides use the dependencies of the head. Thus the growth shows only the source of typeset.
+- The job `weight` starts when the pull request changes the source or `package.json` of typeset, the weight code, `weight.json`, `pnpm-lock.yaml` or `bench.yml`. The lock file changes the bytes that a cap examines.
+- For each other pull request, the job `weight` is skipped. `Bench OK` accepts this skip, because no entry changed.
 - The job measures the head two times, and it fails when the two measures differ.
 - The field `measure` of `packages/bench/weight.json` is the committed record: run 41794942191 against `v0.1.4`, with minified and `gzip` bytes at the head and at the tag.
 - The artifact `weight-record` has the bytes of each input file in each entry.
