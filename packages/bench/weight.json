@@ -14,6 +14,30 @@
       "baseGzipBytes": 4070,
       "run": "42429233677",
       "reason": "T13 adds the entry. The limit is the size of specificNewEntry in the T13 prediction, made before the code, as the strategist ruled. The base is the first CI measure, at head 60947ea (the gate proof head, one line from the final code)."
+    },
+    "./hyphen": {
+      "limitGzipBytes": 539,
+      "baseGzipBytes": 539,
+      "run": "42497492999",
+      "reason": "T14 adds the entry. The T14 prediction gave no byte limit, so the strategist ruled that the limit is the first CI measure, at head e246887. The line is a ratchet: a rise needs a PR that tells its reason."
+    },
+    "./hyphen/en-us": {
+      "limitGzipBytes": 18202,
+      "baseGzipBytes": 18202,
+      "run": "42497492999",
+      "reason": "T14 adds the entry. The T14 prediction gave no byte limit, so the strategist ruled that the limit is the first CI measure, at head e246887. The line is a ratchet: a rise needs a PR that tells its reason."
+    },
+    "./hyphen/de": {
+      "limitGzipBytes": 123851,
+      "baseGzipBytes": 123851,
+      "run": "42497492999",
+      "reason": "T14 adds the entry. The T14 prediction gave no byte limit, so the strategist ruled that the limit is the first CI measure, at head e246887. The line is a ratchet: a rise needs a PR that tells its reason."
+    },
+    "./hyphen/fr": {
+      "limitGzipBytes": 5568,
+      "baseGzipBytes": 5568,
+      "run": "42497492999",
+      "reason": "T14 adds the entry. The T14 prediction gave no byte limit, so the strategist ruled that the limit is the first CI measure, at head e246887. The line is a ratchet: a rise needs a PR that tells its reason."
     }
   },
   "caps": {

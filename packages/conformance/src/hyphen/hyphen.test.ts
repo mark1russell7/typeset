@@ -49,6 +49,15 @@ describe("parsePatterns", () => {
     expect(() => parsePatterns("% hyphenmins:\n% typesetting:\n%   left: 2\n%   right: 2\n")).toThrow("no patterns");
     expect(() => parsePatterns("\\patterns{a1}")).toThrow("hyphenmins");
   });
+
+  it("cuts a comment with many % and a carriage return in one pass", () => {
+    // A regular expression /%.*$/u took 1394 ms on this line: it failed at the CR from each %
+    const line = `${"%".repeat(50000)}\rx`;
+    const start = performance.now();
+    const data = parsePatterns(`${file}\n${line}`);
+    expect(performance.now() - start).toBeLessThan(250);
+    expect(data.patterns).toBe("a1b .c2d 3e");
+  });
 });
 
 describe("setSource", () => {

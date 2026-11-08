@@ -104,6 +104,8 @@ The tag has no bytes for a new entry, so the growth rule cannot hold it. Before 
 - A new entry needs a line in `newEntries` of `packages/bench/weight.json`. A new entry with no line fails `Bench OK`.
 - A line has the limit, the base, the CI run of the base and a reason.
 - The limit is the size that the prediction of the item gave before the code. Thus nobody chooses the number after the measure.
+- A prediction of an item that adds a public entry gives the `gzip` byte limit of each new entry before the code.
+- The T14 prediction gave no byte limit. Thus the limit of each `./hyphen` line is its first CI measure, and a rise needs a PR with its reason.
 - The base is the first CI measure of the entry. The growth above the base has the same limit as the other entries.
 - The `gzip` bytes of the entry fail when they are more than the limit of the line.
 - When a release has the entry, the gate ignores the line and the tag is the base. Remove the line after that release.

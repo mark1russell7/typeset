@@ -25,7 +25,11 @@ export function parsePatterns(text: string): PatternData {
   const left = /left:\s*(\d)/u.exec(lines[end + typesetting + 1]!);
   const right = /right:\s*(\d)/u.exec(lines[end + typesetting + 2]!);
   if (left === null || right === null) throw new Error("the file has no left and right values");
-  const code = lines.map((line) => line.replace(/%.*$/u, ""));
+  // A TeX comment goes from a % to the end of the line. A cut at the first % takes one pass on each line
+  const code = lines.map((line) => {
+    const comment = line.indexOf("%");
+    return comment < 0 ? line : line.slice(0, comment);
+  });
   const words = (group: string): string => group.split(/\s+/u).filter((word) => word !== "").join(" ");
   const patterns = words(groupOf(code, "\\patterns"));
   if (patterns === "") throw new Error("the file has no patterns");
