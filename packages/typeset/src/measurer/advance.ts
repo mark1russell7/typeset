@@ -112,6 +112,8 @@ export function parseFont(font: string): FontSpec {
   let rest = tokens.slice(index + 1).join(" ");
   // A line height after a space: "16px / 1.2" or "16px /1.2"
   if (size[3] === undefined && rest.startsWith("/")) rest = rest.slice(1).trim().replace(/^\S+\s*/, "");
+  // A line height after a slash and a space: "16px/ 1.2"
+  else if (size[3] === "/") rest = rest.replace(/^\S+\s*/, "");
   const families = rest
     .split(",")
     .map((family) => family.trim().replace(/^(["'])(.*)\1$/, "$2").trim())
@@ -288,6 +290,8 @@ export function fontAdvance(options: FontAdvanceOptions): (text: string, font: s
     let font = instances.get(key);
     if (font === undefined) {
       font = Object.keys(instance).length === 0 ? chosen.font : chosen.font.at(instance);
+      // A key holds the size for an axis opsz, so this cache has a bound, as the other caches have
+      if (instances.size >= 256) instances.clear();
       instances.set(key, font);
     }
     return font;
