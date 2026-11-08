@@ -112,7 +112,7 @@ jobs:
 
   bidi-order-ok:
     name: Bidi order OK
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, order, merge]
     runs-on: ubuntu-latest
     permissions: {}
