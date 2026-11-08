@@ -62,6 +62,15 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 - A change of the ratio under 0.017 is "not a result". It is not a hit and not a miss.
 - Do not compare the times of two jobs. The runners have different CPU models.
 
+## A no-read is not a pass (T10d)
+
+A gate that cannot read a case gives a GitHub warning on its check line. The job log alone is not sufficient, because the check stays green.
+
+- The bench has no limit, so each run gives the warning "no read" with its arms, its rounds and its CPU.
+- The fonts scorer gives a warning for each outcome that has no file or no value of an arm. A missing value shows as `NaN`.
+- The weight gate gives a warning when its limit is `null`.
+- A warning changes no verdict. The exit code of each gate does not change.
+
 ## The change to the rigor homes (T9)
 
 T9 replaced the local copies of the random numbers and the statistics with the rigor packages.
