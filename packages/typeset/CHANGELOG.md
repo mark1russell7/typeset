@@ -1,5 +1,30 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.1.8
+
+This version changes no export and no type. Its change is inside `./segmentation`. A change with no effect on the public API increases PATCH.
+
+### A short path of `lineBreaks` (T12c)
+
+- `lineBreaks` gives the places of a text with only ASCII letters, digits and spaces from a short path. The places do not change.
+- The rules of UAX #14 also use a table of the ASCII classes, so they do not read the full table for a code point under 128.
+- `LineBreakTest.txt` of Unicode 17.0.0 passes 19338 of 19338 tests. A property test compares the short path with the full rules on 12000 generated texts.
+- The Bench run 42456960316 times the line places of 1000 short labels of the corpus. They take 74.9 µs, and a split at white space takes 61.2 µs, a ratio of 1.224. Before the change, the ratio was 9.37 (run 42445210578).
+
+### The weight against `0.1.7`
+
+These are the `gzip` bytes of each entry, from the Bench run 42456960316 of the T12c pull request.
+
+| Entry | `gzip` bytes | Growth |
+|---|---|---|
+| `.` | 28087 | 0 |
+| `./breaking` | 1423 | 0 |
+| `./fonts` | 21481 | 0 |
+| `./fonts/inspect` | 10509 | 0 |
+| `./measurer` | 22729 | 0 |
+| `./segmentation` | 4587 | 167 |
+| `./text` | 3146 | 0 |
+
 ## 0.1.7
 
 This version changes no export and no type. Its change is inside `./text`. A change with no effect on the public API increases PATCH.
