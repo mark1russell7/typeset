@@ -1,5 +1,44 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.1.9
+
+This version adds the subpath `./bidi` and three exports of `./segmentation`. Before 1.0.0, a new export increases PATCH.
+
+Runtime dependencies: no change against `0.1.8` (`@mark1russell7/collections` `^0.9.3`, `@mark1russell7/rigor-generators` `^0.1.0`).
+
+### The full bidi algorithm in `./bidi` (T13)
+
+- The new subpath `./bidi` has the rules P1 to L2 of UAX #9 for Unicode 17.0.0: explicit embeddings, isolates and paired brackets (rule N0).
+- Its exports are `resolveText`, `resolveLevels`, `visualIndexes`, `visualOrder`, `bidiClass`, `bracketOf`, `removed`, `unicodeVersion` and the types `BidiClass`, `BidiParagraph`, `ParagraphDirection` and `ResolvedBidi`.
+- `BidiTest.txt` passes 256747 of 256747 tests for the levels and for the order, in each paragraph direction. `BidiCharacterTest.txt` passes all 91707 tests. The record is CI run 42481403118.
+- A change of behavior: the canvas model of `./fonts` uses the same rules. So `canvasSegments` of `./fonts/inspect` and the sum `float32` follow explicit controls, marks of direction and paired brackets. The old model ignored them.
+- The Fonts run 42481402694 compares the model with the base run on the 4 arms. Each of the 224 cells of the engine has the same error.
+
+### The hook `complex` of `lineBreaks` (T12b)
+
+- `lineBreaks(text, options)` takes the optional `LineBreakOptions`. Its hook `complex` gives the word places inside a run of class SA, for Thai, Lao, Khmer and Myanmar.
+- `complexBreaks` is a hook from `Intl.Segmenter` of the runtime. With no hook, the places do not change.
+
+### A batch form of `wordBreaks` (T12d)
+
+- `wordBreaksOf(words)` gives the word boundaries of each word of a list in one pass. Each entry equals `wordBreaks` of its word.
+- The Bench run 42485515480 times the 1465 words of 1000 short Latin labels: the batch takes 491.4 µs, and one call for each word takes 4668.0 µs, a ratio of 0.105.
+
+### The weight against `0.1.8`
+
+These are the `gzip` bytes of each entry, from the Bench run 42485515480 of the T12d pull request. The full rules make `./fonts` larger, and the root `.` exports `./fonts`.
+
+| Entry | `gzip` bytes | Growth |
+|---|---|---|
+| `.` | 29583 | 1496 |
+| `./breaking` | 1423 | 0 |
+| `./fonts` | 22997 | 1516 |
+| `./fonts/inspect` | 12051 | 1542 |
+| `./measurer` | 24244 | 1515 |
+| `./bidi` | 4070 | new |
+| `./segmentation` | 5042 | 455 |
+| `./text` | 3146 | 0 |
+
 ## 0.1.8
 
 This version changes no export and no type. Its change is inside `./segmentation`. A change with no effect on the public API increases PATCH.
