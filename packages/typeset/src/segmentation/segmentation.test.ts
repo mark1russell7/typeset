@@ -1,5 +1,6 @@
+import { generateSample, type LengthClass } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
-import { graphemes, lineBreaks, unicodeVersion, wordBreaks } from "../segmentation.ts";
+import { complexBreaks, graphemes, lineBreaks, unicodeVersion, wordBreaks } from "../segmentation.ts";
 
 const offsets = (text: string): readonly number[] => lineBreaks(text).map((place) => place.offset);
 const parts = (text: string): readonly string[] => {
@@ -48,6 +49,57 @@ describe("lineBreaks", () => {
 
   it("gives offsets in UTF-16 units for a character over U+FFFF", () => {
     expect(offsets("\u{20000}\u{20001}")).toEqual([2, 4]);
+  });
+});
+
+describe("the hook complex of lineBreaks", () => {
+  const words = new Intl.Segmenter("und", { granularity: "word" });
+  /** The characters of class SA in the Thai block of `LineBreak.txt`. */
+  const thaiRun = /[ก-ฺเ-๎]+/gu;
+  const withHook = (text: string): readonly number[] => lineBreaks(text, { complex: complexBreaks }).map((place) => place.offset);
+
+  /** The places that the test expects: the places with no hook, plus the word boundaries inside each Thai run. */
+  function expected(text: string): number[] {
+    const places = new Set(offsets(text));
+    for (const run of text.matchAll(thaiRun)) {
+      for (const part of words.segment(run[0])) if (part.index > 0) places.add(run.index + part.index);
+    }
+    return [...places].sort((a, b) => a - b);
+  }
+
+  it("divides a Thai sentence into its words", () => {
+    const text = "ภาษาไทยเป็นภาษาที่ไม่มีการเว้นวรรค";
+    expect(offsets(text)).toEqual([text.length]);
+    let start = 0;
+    const found = withHook(text).map((end) => text.slice(start, (start = end)));
+    expect(found).toEqual(["ภาษา", "ไทย", "เป็น", "ภาษา", "ที่", "ไม่มี", "การ", "เว้น", "วรรค"]);
+  });
+
+  it("gives the word boundaries inside the Thai runs of each Thai sample of the corpus, and no other change", () => {
+    let inside = 0;
+    for (const lengthClass of ["word", "line", "paragraph"] as const satisfies readonly LengthClass[]) {
+      for (let index = 0; index < 40; index++) {
+        const text = generateSample(1, "thai", lengthClass, index).text;
+        const want = expected(text);
+        expect(withHook(text), `${lengthClass} ${index}`).toEqual(want);
+        inside += want.length - offsets(text).length;
+      }
+    }
+    expect(inside).toBeGreaterThan(0);
+  });
+
+  it("finds places inside a Lao, a Khmer and a Myanmar run only with the hook", () => {
+    for (const text of ["ພາສາລາວເປັນພາສາທີ່ສວຍງາມ", "ភាសាខ្មែរជាភាសាដ៏ស្រស់ស្អាត", "မြန်မာဘာသာစကားသည်လှပသည်"]) {
+      expect(offsets(text), text).toEqual([text.length]);
+      expect(withHook(text).length, text).toBeGreaterThan(1);
+    }
+  });
+
+  it("gives no place before a combining mark, and none from a hook offset outside the run", () => {
+    // The run "กิน" starts at 3. Its offset 1 is before the mark U+0E34, and 99 is outside the run.
+    const text = "ab กิน cd";
+    expect(offsets(text)).toEqual([3, 7, 9]);
+    expect(lineBreaks(text, { complex: () => [1, 2, 3, 99] }).map((place) => place.offset)).toEqual([3, 5, 7, 9]);
   });
 });
 

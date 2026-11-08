@@ -15,11 +15,14 @@ function eachRange(text: string, visit: (first: number, last: number, value: str
   }
 }
 
-/** This function resolves a class of `LineBreak.txt` by the table of the rule LB1 of UAX #14. */
+/**
+ * This function resolves a class of `LineBreak.txt` by the table of the rule LB1 of UAX #14. A mark of class SA becomes CM.
+ * The table keeps the other characters of class SA, so `lineBreaks` knows the runs for its hook `complex`. It reads them as AL.
+ */
 export function resolveClass(name: string, code: number): string {
   if (name === "AI" || name === "SG" || name === "XX") return "AL";
   if (name === "CJ") return "NS";
-  if (name === "SA") return /^[\p{Mn}\p{Mc}]$/u.test(String.fromCodePoint(code)) ? "CM" : "AL";
+  if (name === "SA") return /^[\p{Mn}\p{Mc}]$/u.test(String.fromCodePoint(code)) ? "CM" : "SA";
   return name;
 }
 
