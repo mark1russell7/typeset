@@ -60,10 +60,12 @@ widthBound: build/chunks/fonts.d.ts#widthBound
 
 ## ./fonts/inspect (build/fonts-inspect.d.ts): names
 
+type IndicSyllableType: build/fonts-inspect.d.ts#IndicSyllableType
 canvasSegments: build/fonts-inspect.d.ts#canvasSegments
 canvasWords: build/fonts-inspect.d.ts#canvasWords
 defaultFeatures: build/chunks/font.d.ts#defaultFeatures
 glyphAdvances: build/chunks/font.d.ts#glyphAdvances
+indicSyllables: build/fonts-inspect.d.ts#indicSyllables
 readTables: build/chunks/sfnt.d.ts#readTables
 shapingWords: build/chunks/font.d.ts#shapingWords
 
@@ -402,11 +404,20 @@ declare namespace text_d_exports {
   export { Text, TextOptions };
 }
 
+### build/fonts-inspect.d.ts#IndicSyllableType
+type IndicSyllableType = "consonant" | "vowel" | "standalone" | "symbol" | "broken" | "non-indic";
+
 ### build/fonts-inspect.d.ts#canvasSegments
 export declare function canvasSegments(text: string): string[];
 
 ### build/fonts-inspect.d.ts#canvasWords
 export declare function canvasWords(text: string): string[];
+
+### build/fonts-inspect.d.ts#indicSyllables
+export declare function indicSyllables(text: string): {
+  readonly text: string;
+  readonly type: IndicSyllableType;
+}[];
 
 ### build/segmentation.d.ts#LineBreak
 interface LineBreak {

@@ -85,3 +85,15 @@ Source bytes do not show this cost. A file in the import closure of an entry giv
 - The job measures the head two times, and it fails when the two measures differ.
 - The field `measure` of `packages/bench/weight.json` is the committed record: run 41794942191 against `v0.1.4`, with minified and `gzip` bytes at the head and at the tag.
 - The artifact `weight-record` has the bytes of each input file in each entry.
+
+### A new entry (T10b)
+
+The tag has no bytes for a new entry, so the growth rule cannot hold it. Before T10b, the gate let a new entry of any size pass. `./segmentation` merged in T12 through this gap.
+
+- A new entry needs a line in `newEntries` of `packages/bench/weight.json`. A new entry with no line fails `Bench OK`.
+- A line has the limit, the base, the CI run of the base and a reason.
+- The limit is the size that the prediction of the item gave before the code. Thus nobody chooses the number after the measure.
+- The base is the first CI measure of the entry. The growth above the base has the same limit as the other entries.
+- The `gzip` bytes of the entry fail when they are more than the limit of the line.
+- When a release has the entry, the gate ignores the line and the tag is the base. Remove the line after that release.
+- This gate is a release gate. It goes to the shared gate of `rigor` when that package exists, and it does not grow before then.

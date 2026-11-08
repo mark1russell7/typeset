@@ -2,6 +2,14 @@
   "schema": 1,
   "limitGzipBytes": 1792,
   "limitRun": "41788686638",
+  "newEntries": {
+    "./segmentation": {
+      "limitGzipBytes": 10000,
+      "baseGzipBytes": 4420,
+      "run": "42422258304",
+      "reason": "T12 added the entry. The limit is the size of specificNewEntry in the T12 prediction, made before the code. The base is the first CI measure, at head 9be88fa. T12 merged before this line existed (T10b)."
+    }
+  },
   "measure": {
     "runId": "41794942191",
     "head": "633eaa9d5b3d6519facac78bbe1d2a24ea9ec713",
