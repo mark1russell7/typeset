@@ -96,7 +96,7 @@
   },
   "devDependencies": {
     "@mark1russell7/cue": "^2.0.0",
-    "@mark1russell7/layout-contract": "^0.3.2",
+    "@mark1russell7/layout-contract": "^0.5.3",
     "@types/node": "^26.6.5",
     "@typeset/corpus": "workspace:*",
     "tsdown": "^0.23.1",

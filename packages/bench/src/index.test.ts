@@ -1,8 +1,7 @@
+import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { cases as bidiCases } from "./cases/bidi.ts";
-import { cases as breakingCases } from "./cases/breaking.ts";
-import { cases as corpusCases } from "./cases/corpus.ts";
+import { aa, arms, cases, modules } from "./cases/index.ts";
 import { measure, roundOrder, runBench } from "./index.ts";
 import { rescore } from "./rescore.ts";
 
@@ -20,9 +19,21 @@ describe("roundOrder", () => {
   });
 });
 
-describe("the cases of the corpus and the breakers", () => {
+describe("the cases of the bench", () => {
+  it("has each module of the folder cases in the list of cases/index.ts", () => {
+    const files = readdirSync(fileURLToPath(new URL("./cases/", import.meta.url))).filter((name) => name.endsWith(".ts") && name !== "index.ts");
+    expect(Object.keys(modules).sort()).toEqual(files.sort());
+  });
+
+  it("has no case name in two modules, and one arm for each case", () => {
+    const count = Object.values(modules).reduce((sum, module) => sum + Object.keys(module).length, 0);
+    expect(Object.keys(cases)).toHaveLength(count);
+    for (const name of Object.keys(cases)) expect(arms.some((arm) => arm.arm === name && arm.case === name), name).toBe(true);
+    expect(arms.find((arm) => arm.arm === aa[1])?.case).toBe(aa[0]);
+  });
+
   it("each case runs and gives a result", () => {
-    for (const [name, benchCase] of Object.entries({ ...corpusCases, ...breakingCases, ...bidiCases })) {
+    for (const [name, benchCase] of Object.entries(cases)) {
       const result = measure(name, benchCase, { samples: 2, minSampleMs: 0, warmupMs: 0 });
       expect(result.samples).toHaveLength(2);
       expect(result.samples.every((s) => s > 0)).toBe(true);
