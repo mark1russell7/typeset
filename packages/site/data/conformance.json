@@ -1,13 +1,17 @@
 {
   "schema": 1,
-  "run": "42435397534",
-  "head": "c5645642e3c56d877eb3d5dd0ac5510266ea8659",
+  "run": "42481403118",
+  "head": "27cf34aad448e2d32e142d27c2ca2d1f5205c26f",
   "unicodeVersion": "17.0.0",
   "runtime": "Node, Unicode 17.0, ICU 78.3",
   "rows": [
     { "function": "graphemes", "file": "GraphemeBreakTest", "passed": 766, "total": 766 },
     { "function": "wordBreaks", "file": "WordBreakTest", "passed": 1944, "total": 1944 },
     { "function": "lineBreaks", "file": "LineBreakTest", "passed": 19338, "total": 19338 },
+    { "function": "resolveLevels", "file": "BidiTest", "passed": 770241, "total": 770241, "note": "The levels in the paragraph directions auto, LTR and RTL of the file." },
+    { "function": "visualIndexes", "file": "BidiTest", "passed": 770241, "total": 770241, "note": "The visual order in the paragraph directions auto, LTR and RTL of the file." },
+    { "function": "resolveLevels", "file": "BidiCharacterTest", "passed": 91707, "total": 91707, "note": "The levels in the paragraph directions auto, LTR and RTL of the file." },
+    { "function": "visualIndexes", "file": "BidiCharacterTest", "passed": 91707, "total": 91707, "note": "The visual order in the paragraph directions auto, LTR and RTL of the file." },
     { "function": "canvasWords", "file": "WordBreakTest", "passed": 396, "total": 1944, "note": "The word split of the canvas model (Blink), not UAX #29. Each class of difference has a reason." }
   ]
 }
