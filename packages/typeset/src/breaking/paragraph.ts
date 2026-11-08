@@ -50,6 +50,11 @@ export interface ParagraphOptions {
    * offset. The width of each part of a word comes from `widthOf`, so the kerning across an offset is not in the sum.
    */
   readonly hyphenate?: (word: string) => readonly number[];
+  /**
+   * The hook of the break places inside a word, for example `lineBreaks` of `./segmentation`. It gives offsets in a word where
+   * a line can end with no hyphen and no cost. The default gives no offset. This hook wins at an offset that `hyphenate` also gives.
+   */
+  readonly breaks?: (word: string) => readonly number[];
   /** The text that a line shows at a hyphen break. The default is "-". */
   readonly hyphen?: string;
   /** The cost of a hyphen break. The default is 50, as in TeX. */
@@ -72,12 +77,13 @@ export function paragraphOf(text: string, options: ParagraphOptions): Paragraph 
   for (const word of text.split(whiteSpace)) {
     if (word === "") continue;
     if (items.length > 0) items.push({ type: "glue", text: " ", width: space });
-    const offsets = options.hyphenate === undefined ? [] : [...new Set(options.hyphenate(word))].filter((o) => o > 0 && o < word.length).sort((a, b) => a - b);
+    const free = new Set(options.breaks?.(word) ?? []);
+    const offsets = [...new Set([...(options.hyphenate?.(word) ?? []), ...free])].filter((o) => o > 0 && o < word.length).sort((a, b) => a - b);
     let start = 0;
     for (const offset of offsets) {
       const part = word.slice(start, offset);
       items.push({ type: "box", text: part, width: widthOf(part) });
-      items.push({ type: "penalty", text: hyphen, width: hyphenWidth, cost: hyphenCost, flagged: true });
+      items.push(free.has(offset) ? { type: "penalty", text: "", width: 0, cost: 0, flagged: false } : { type: "penalty", text: hyphen, width: hyphenWidth, cost: hyphenCost, flagged: true });
       start = offset;
     }
     const last = word.slice(start);
