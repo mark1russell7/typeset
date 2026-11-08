@@ -39,10 +39,15 @@ export interface WeightRow {
   readonly growth: number | null;
   /** The line of a new entry. A row has no line when the release has the entry. */
   readonly line?: NewEntryLine;
+  /** The absolute cap of the entry in `gzip` bytes, from its line in `caps`. A row has no cap when the entry has no line there. */
+  readonly cap?: number;
   /** This value is `true` when the row fails the gate. The field `cause` tells the rule. */
   readonly over: boolean;
-  /** `no-line`: a new entry has no line. `line-limit`: a new entry is over the limit of its line. `growth`: the growth is over the limit. */
-  readonly cause?: "no-line" | "line-limit" | "growth";
+  /**
+   * `no-line`: a new entry has no line. `line-limit`: a new entry is over the limit of its line. `cap`: the `gzip` bytes
+   * are over the cap. `growth`: the growth is over the limit.
+   */
+  readonly cause?: "no-line" | "line-limit" | "cap" | "growth";
 }
 
 /**
@@ -59,6 +64,29 @@ export interface NewEntryLine {
 
 /** The lines of the new entries, by the name of the entry. */
 export type NewEntryLines = Readonly<Record<string, NewEntryLine>>;
+
+/**
+ * The absolute cap of an entry. Two releases can each grow under the limit, so the limit alone lets an entry grow with no
+ * end. The cap is `baseGzipBytes + releases * limit`: the size at a tag, plus a budget of whole releases at the limit.
+ */
+export interface CapLine {
+  /** The `gzip` bytes of the entry at the tag `baseTag`, as CI measured them. */
+  readonly baseGzipBytes: number;
+  readonly baseTag: string;
+  /** The CI run of the measure of the base. */
+  readonly run: string;
+  /** The count of releases in the budget. Each release can add the limit at most. */
+  readonly releases: number;
+  readonly reason: string;
+}
+
+/** The cap lines, by the name of the entry. */
+export type CapLines = Readonly<Record<string, CapLine>>;
+
+/** This function gives the cap of a line in `gzip` bytes, for the limit of one release. */
+export function capOf(line: CapLine, limit: number): number {
+  return line.baseGzipBytes + line.releases * limit;
+}
 
 /** This function gives the name and the file of each public entry in the `exports` of a package. */
 export function publicEntries(exports: Readonly<Record<string, string>>): [string, string][] {
@@ -97,23 +125,28 @@ export function weighTree(root: string, nodePaths: readonly string[]): Weights {
 
 /**
  * This function compares the head with the release. A growth equal to the limit passes, and a `null` limit only reports.
+ *
  * A new entry needs a line in `lines`. Its growth is from the base of the line. Its `gzip` bytes are at most the limit
- * of the line. A new entry with no line fails.
+ * of the line. A new entry with no line fails. An entry with a line in `caps` fails over its cap, also with a growth
+ * under the limit. A size equal to the cap passes.
  */
-export function compareWeights(head: Weights, release: Weights, limit: number | null, lines: NewEntryLines = {}): WeightRow[] {
+export function compareWeights(head: Weights, release: Weights, limit: number | null, lines: NewEntryLines = {}, caps: CapLines = {}): WeightRow[] {
   return Object.entries(head).map(([entry, weight]) => {
     const released = release[entry];
     const line = released === undefined ? lines[entry] : undefined;
     const base = released?.gzip ?? line?.baseGzipBytes;
     const growth = base === undefined ? null : weight.gzip - base;
+    const capLine = caps[entry];
+    const cap = capLine === undefined || limit === null ? undefined : capOf(capLine, limit);
     const cause =
       limit === null ? undefined
       : released === undefined && line === undefined ? "no-line"
       : line !== undefined && weight.gzip > line.limitGzipBytes ? "line-limit"
+      : cap !== undefined && weight.gzip > cap ? "cap"
       : growth !== null && growth > limit ? "growth"
       : undefined;
     const row = { entry, minified: weight.minified, gzip: weight.gzip, releaseMinified: released?.minified ?? null, releaseGzip: released?.gzip ?? null, growth, over: cause !== undefined };
-    return { ...row, ...(line === undefined ? {} : { line }), ...(cause === undefined ? {} : { cause }) };
+    return { ...row, ...(line === undefined ? {} : { line }), ...(cap === undefined ? {} : { cap }), ...(cause === undefined ? {} : { cause }) };
   });
 }
 
