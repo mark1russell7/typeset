@@ -31,6 +31,8 @@ describe("parseFont", () => {
     });
     expect(parseFont("  oblique 10deg normal 300 20.5px / 2 A ")).toMatchObject({ style: "oblique", angle: 10, weight: 300, size: 20.5, families: ["A"] });
     expect(parseFont("lighter 1e1px A")).toMatchObject({ weight: 100, size: 10 });
+    // Each place of the space at the slash of a line height
+    for (const font of ["16px/1.2 Arial", "16px / 1.2 Arial", "16px /1.2 Arial", "16px/ 1.2 Arial"]) expect(parseFont(font).families, font).toEqual(["Arial"]);
     expect(parseFont("oblique .5deg .5px A")).toMatchObject({ angle: 0.5, size: 0.5 });
   });
 
@@ -92,6 +94,15 @@ describe("fontAdvance", () => {
     // A weight out of the range of the axis takes the end of the range
     expect(advance("AVoT", "1 13px Var")).toBe(expected(variable, "coretext", "AVoT", 13, { wght: 100 }));
     expect(fontAdvance({ faces: [{ family: "Var", data: variable }], engine: engines.coretext })("AVoT", "13px Var")).toBe(advance("AVoT", "13px Var"));
+  });
+
+  it("keeps correct widths when the cache of instances clears at its bound of 256", () => {
+    const advance = fontAdvance({ faces: [{ family: "Var", data: variable }], engine: "coretext" });
+    const read = readFont(variable, { deltas: engines.coretext.deltas, metrics: engines.coretext.metrics });
+    const width = (weight: number): number => measureWidth(read.at({ wght: weight }), "AVoT", 13, { script: "latn", shaping: "canvas", rounding: engines.coretext.rounding, sum: engines.coretext.sum });
+    // 801 weights make 801 instances, so the cache clears 3 times
+    for (let weight = 100; weight <= 900; weight++) expect(advance("AVoT", `${weight} 13px Var`), `${weight}`).toBe(width(weight));
+    for (const weight of [100, 357, 900]) expect(advance("AVoT", `${weight} 13px Var`), `${weight} again`).toBe(width(weight));
   });
 
   it("matches the weight and the style of a face as CSS does", () => {

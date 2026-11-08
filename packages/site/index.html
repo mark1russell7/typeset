@@ -84,6 +84,24 @@
         </details>
       </section>
 
+      <section id="segments" class="panel" aria-labelledby="segments-title">
+        <div class="panel-head">
+          <h2 id="segments-title">Segments <span class="tag">Unicode <span id="seg-version">–</span></span></h2>
+          <p class="hint">The text of the lab, divided by <code>@mark1russell7/typeset/segmentation</code>. The line break places come from the tables of the package, so each browser gives the same places. The grapheme clusters and the words come from <code>Intl.Segmenter</code> of this browser, with the root locale.</p>
+        </div>
+        <div class="controls seg-controls" role="radiogroup" aria-label="The kind of segment">
+          <label class="seg-kind"><input type="radio" name="seg-kind" value="graphemes" /> Grapheme clusters <span class="hint">UAX #29</span></label>
+          <label class="seg-kind"><input type="radio" name="seg-kind" value="words" /> Words <span class="hint">UAX #29</span></label>
+          <label class="seg-kind"><input type="radio" name="seg-kind" value="lines" checked /> Line break places <span class="hint">UAX #14</span></label>
+        </div>
+        <p class="seg-count" id="seg-count" aria-live="polite"></p>
+        <div class="seg-text" id="seg-text"></div>
+        <p class="hint">A thin bar is a place where a line can break. A thick bar is a place where the line must break. Hover over a segment to see its offset and its code points.</p>
+        <h3>Against the test files of Unicode</h3>
+        <div class="table-scroll"><table class="seg-table" id="seg-table"><thead><tr><th>Function</th><th>Test file</th><th>Passed</th><th></th></tr></thead><tbody></tbody></table></div>
+        <p class="hint" id="seg-run"></p>
+      </section>
+
       <section id="sweep" class="panel" aria-labelledby="sweep-title">
         <div class="panel-head">
           <h2 id="sweep-title">Sweep <span class="tag">in this browser</span></h2>

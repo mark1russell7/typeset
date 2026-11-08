@@ -109,9 +109,17 @@ export const tableMarks = { start: "<!-- bounds-table:start -->", end: "<!-- bou
 
 const format = (value: number): string => (Math.round(value * 10) / 10).toFixed(1);
 
+/** The fields of a cell that `worstOf` shows. */
+export interface CellPlace {
+  readonly font: string;
+  readonly weight: number;
+  readonly size: number;
+  readonly engine: string;
+}
+
 /** This function gives the worst value of the statistics `of` over the cells, with its interval and the place of the cell. */
-function worstOf(cells: readonly RecordCell[], of: (cell: RecordCell) => BoundStatistics): string {
-  let worst: { cell: RecordCell; value: Estimate } | undefined;
+export function worstOf<Cell extends CellPlace>(cells: readonly Cell[], of: (cell: Cell) => BoundStatistics): string {
+  let worst: { cell: Cell; value: Estimate } | undefined;
   for (const cell of cells) {
     const value = of(cell).worst;
     if (value !== null && (worst === undefined || Math.abs(value.estimate) > Math.abs(worst.value.estimate))) worst = { cell, value };
@@ -141,11 +149,11 @@ export function boundsTable(cells: readonly RecordCell[]): string {
 }
 
 /** This function puts the table between the marks of a document. It throws an error when the document has no marks. */
-export function withTable(document: string, table: string): string {
-  const start = document.indexOf(tableMarks.start);
-  const end = document.indexOf(tableMarks.end);
-  if (start < 0 || end < start) throw new Error(`the document has no marks ${tableMarks.start} and ${tableMarks.end}`);
-  return `${document.slice(0, start + tableMarks.start.length)}\n${table}\n${document.slice(end)}`;
+export function withTable(document: string, table: string, marks: { readonly start: string; readonly end: string } = tableMarks): string {
+  const start = document.indexOf(marks.start);
+  const end = document.indexOf(marks.end);
+  if (start < 0 || end < start) throw new Error(`the document has no marks ${marks.start} and ${marks.end}`);
+  return `${document.slice(0, start + marks.start.length)}\n${table}\n${document.slice(end)}`;
 }
 
 /** The glyphs of one word or segment: the advance of each glyph before the kerning, and its kerning, in px. */

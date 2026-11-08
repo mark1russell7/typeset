@@ -60,7 +60,7 @@ A browser uses the CSS weight for the axis `wght`, not the default instance of t
 - HarfBuzz scales each kerning value at the scale of the size times 65536. It scales the value with `em_mult` and the variation delta with `em_scalef`.
 - `canvasSegments` gives the segments of the text: the words of `canvasWords`, split where the bidi level changes, in the visual order.
 - The sum of the positions of one segment is exact. The sum of the segments is in single precision.
-- `bidiLevels` gives the levels of a paragraph with the base level 0, as a canvas with the direction `inherit` has them. It has no explicit embeddings and no brackets.
+- The internal function `bidiLevels` gives the levels of a paragraph with the base level 0, as a canvas with the direction `inherit` has them. It uses the rules of `./bidi` with a guess of the classes. `UNICODE.md` tells the limits.
 - The rounding `pixel` ignores the option `sum`. A sum of whole px is exact in single precision.
 
 The fonts run 41562917143 on the head 65f5225 of typeset#36 measured the model of each arm:
@@ -449,6 +449,55 @@ The Fonts run 41766190315 gave this record, with HarfBuzz 15.0.0:
 - HarfBuzz and the model both use the glyph 0 for a missing glyph. So a zero error in those cells tells less than in other cells.
 - The largest precision error of the reference stays in its bound in all 2277 cells.
 - The read effect has no external reference until T4b.
+
+## Each engine row against its engine (T4b)
+
+T4 compares the model with HarfBuzz. T4b compares each engine row with the real engine: the canvas of Chromium on the runner of the arm.
+
+- Each arm of the Fonts workflow already measures the canvas, so T4b adds no browser code.
+- `engineBoundCells` gives one cell for each arm, script, font, weight and size. Each cell has the worst error and the 0.99 quantile in 1/64 px, with 95 % intervals.
+- The records have the 6 sizes of the corpus. The 5 other sizes of T4 have no canvas width, so T4b does not examine them.
+- The model and Chrome agree on the word of T1f, so T4b keeps that word.
+- The statistics leave out the records with a missing glyph, because the canvas then uses a fallback font. These are 2070 records on each arm, 8280 in all.
+- All 552 cells give a worst error of 0 in 1/64 px. The pixel rounding of `linux-1` and `linux-2` hides small differences, so these 2 arms are a weaker test.
+
+### The read effect
+
+The read effect of T4 is the model width minus the model width with exact deltas. Until T4b, no external reference examined it.
+
+- The effect that the canvas shows differs from the effect of the model by the model error.
+- So a small effect tells nothing. `readCheck` examines only the cells with an effect above 1/64 px.
+- The check holds when the model error of each such cell is at most 10 % of its effect.
+- The effect comes before the rounding of the row, so the arms do not give the same evidence.
+
+| Arm | Evidence |
+|---|---|
+| `windows-1` | Strong. The advances are not rounded, so the canvas shows the whole effect. |
+| `linux-1`, `linux-2` | Weak. The rounding `pixel` hides the effect, so a small error proves little. |
+| `macos-2` | None. CoreText uses exact deltas, so the effect is 0. |
+
+The record gives the check for each arm in the field `readCheckOfArm`.
+
+### The result
+
+<!-- engine-table:start -->
+| Script | `linux-1` | `linux-2` | `macos-2` | `windows-1` | Read effect |
+|---|---|---|---|---|---|
+| arabic | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans-arabic 400, 10 px, freetype) |
+| cyrillic | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) |
+| devanagari | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans-devanagari 400, 10 px, freetype) |
+| emoji | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-emoji 400, 10 px, freetype) |
+| greek | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) |
+| han | 0.0 [0.0, 0.0] (noto-sans-sc 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-sc 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-sc 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-sc 400, 10 px, directwrite) | -231.9 [-231.9, -58.2] (noto-sans-sc 400, 48 px, freetype) |
+| hangul | 0.0 [0.0, 0.0] (noto-sans-kr 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-kr 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-kr 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-kr 400, 10 px, directwrite) | 2030.4 [1936.6, 2030.4] (noto-sans-kr 400, 48 px, freetype) |
+| hebrew | 0.0 [0.0, 0.0] (noto-sans-hebrew 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-hebrew 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-hebrew 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-hebrew 400, 10 px, directwrite) | 1245.7 [1048.3, 1245.7] (noto-sans-hebrew 400, 48 px, freetype) |
+| kana | 0.0 [0.0, 0.0] (noto-sans-jp 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-jp 400, 10 px, directwrite) | -214.2 [-214.2, -192.5] (noto-sans-jp 400, 48 px, freetype) |
+| latin | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, directwrite) | 440.9 [405.0, 440.9] (source-sans-3 400, 48 px, directwrite) |
+| latin-extended | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans 400, 10 px, freetype) |
+| thai | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, freetype) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, coretext) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, directwrite) | 0.0 [0.0, 0.0] (noto-sans-thai 400, 10 px, freetype) |
+
+The source is the record of the CI run 41787004366.
+<!-- engine-table:end -->
 
 ## The dotted circle after an independent vowel (T1f)
 

@@ -13,11 +13,18 @@ export interface Box {
   readonly width: number;
 }
 
-/** Glue: a space between two boxes. A line can end at glue that comes after a box. The line then does not show the glue. */
+/**
+ * Glue: a space between two boxes. A line can end at glue that comes after a box. The line then does not show the glue. A
+ * justified line sets each glue to its width plus a part of its stretch, or less a part of its shrink.
+ */
 export interface Glue {
   readonly type: "glue";
   readonly text: string;
   readonly width: number;
+  /** The width that the glue can add to a justified line. The default is 0. */
+  readonly stretch?: number;
+  /** The width that the glue can take from a justified line, at most its width. The default is 0. */
+  readonly shrink?: number;
 }
 
 /**
@@ -50,10 +57,19 @@ export interface ParagraphOptions {
    * offset. The width of each part of a word comes from `widthOf`, so the kerning across an offset is not in the sum.
    */
   readonly hyphenate?: (word: string) => readonly number[];
+  /**
+   * The hook of the break places inside a word, for example `lineBreaks` of `./segmentation`. It gives offsets in a word where
+   * a line can end with no hyphen and no cost. The default gives no offset. This hook wins at an offset that `hyphenate` also gives.
+   */
+  readonly breaks?: (word: string) => readonly number[];
   /** The text that a line shows at a hyphen break. The default is "-". */
   readonly hyphen?: string;
   /** The cost of a hyphen break. The default is 50, as in TeX. */
   readonly hyphenCost?: number;
+  /** The stretch of each glue, in the unit of `widthOf`. The default is 0. TeX uses a half of a space. */
+  readonly stretch?: number;
+  /** The shrink of each glue, in the unit of `widthOf`. The default is 0. TeX uses a third of a space. */
+  readonly shrink?: number;
 }
 
 const whiteSpace = /\s+/u;
@@ -68,16 +84,19 @@ export function paragraphOf(text: string, options: ParagraphOptions): Paragraph 
   const hyphenCost = options.hyphenCost ?? 50;
   const space = widthOf(" ");
   const hyphenWidth = options.hyphenate === undefined ? 0 : widthOf(hyphen);
+  const { stretch = 0, shrink = 0 } = options;
+  const glue: Glue = stretch > 0 || shrink > 0 ? { type: "glue", text: " ", width: space, stretch, shrink } : { type: "glue", text: " ", width: space };
   const items: Item[] = [];
   for (const word of text.split(whiteSpace)) {
     if (word === "") continue;
-    if (items.length > 0) items.push({ type: "glue", text: " ", width: space });
-    const offsets = options.hyphenate === undefined ? [] : [...new Set(options.hyphenate(word))].filter((o) => o > 0 && o < word.length).sort((a, b) => a - b);
+    if (items.length > 0) items.push(glue);
+    const free = new Set(options.breaks?.(word) ?? []);
+    const offsets = [...new Set([...(options.hyphenate?.(word) ?? []), ...free])].filter((o) => o > 0 && o < word.length).sort((a, b) => a - b);
     let start = 0;
     for (const offset of offsets) {
       const part = word.slice(start, offset);
       items.push({ type: "box", text: part, width: widthOf(part) });
-      items.push({ type: "penalty", text: hyphen, width: hyphenWidth, cost: hyphenCost, flagged: true });
+      items.push(free.has(offset) ? { type: "penalty", text: "", width: 0, cost: 0, flagged: false } : { type: "penalty", text: hyphen, width: hyphenWidth, cost: hyphenCost, flagged: true });
       start = offset;
     }
     const last = word.slice(start);
@@ -120,6 +139,22 @@ export function lineWidth(items: readonly Item[], start: number, end: number): n
   }
   const last = items[end];
   return last?.type === "penalty" ? width + last.width : width;
+}
+
+/**
+ * This function gives the adjustment ratio of Knuth and Plass for the line from the item `start` to a break at `end`. The
+ * ratio is the free width divided by the stretch of the line, or by its shrink when the line is too wide. A ratio below -1
+ * needs more shrink than the line has. The ratio is infinite when the line needs stretch or shrink and has none.
+ */
+export function adjustmentRatio(items: readonly Item[], start: number, end: number, width: number): number {
+  const free = width - lineWidth(items, start, end);
+  if (free === 0) return 0;
+  let room = 0;
+  for (let i = start; i < end; i++) {
+    const item = items[i]!;
+    if (item.type === "glue") room += (free > 0 ? item.stretch : item.shrink) ?? 0;
+  }
+  return room > 0 ? free / room : free * Infinity;
 }
 
 /**
