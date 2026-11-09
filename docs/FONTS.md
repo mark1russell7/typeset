@@ -608,3 +608,72 @@ The option `fallback` of `fontAdvance` is a function with the form of `AdvanceFn
 - That drift is not from T6. A plain `measureWidth` of Latin text drifts to 2.29e-4 px with no fallback.
 - There is no record of a real shaper as the fallback. The tests use a stub.
 - The accuracy of a host shaper against Chrome is not measured. A later part of T6 gives that record.
+
+## Font stacks (T11 and T11b)
+
+A font stack is a list of corpus fonts in the order of a CSS `font-family` list. The file `packages/widths/src/stacks.ts` has the 5 stacks.
+
+### The widths (T11)
+
+- The Fonts job measures each stack text on a canvas with the CSS list of the stack. The model is `fontAdvance` with the same faces.
+- A `covered` text has a glyph for each code point in a font of the list. A `drawn` text keeps the words as the corpus draws them.
+- Chromium draws a code point that no font of the list has with a font of the system. The CSS list does not name that font.
+- So an `uncovered` cell takes the canvas width of each missing run out of the error. The rest is the `residual`.
+- The limit of each cell is 1.28/64 px.
+
+### The line breaks (T11b)
+
+- The Fonts job puts each stack text into a DOM box with the CSS list of the stack. The sizes are 10, 16 and 48 px.
+- The box widths are 8 and 20 times the size. The line height is 1.25 times the size.
+- The lines of Chromium come from the client rectangle of each grapheme cluster.
+- The model is `layoutText` of `@mark1russell7/layout-contract`, with `fontAdvance` under the engine row of the arm.
+- In an `uncovered` text, the model gets the canvas width of each missing run, after its cluster. Without it, the break has no defined answer.
+- A record with different lines has a cause. `opportunity`: Chromium breaks at a position that is not white space.
+- `width`: each line of Chromium ends at white space, so a width moves the break.
+- `layoutText` 0.5.3 breaks only at white space. Chromium also breaks between ideographs, kana, Hangul syllables and Thai words, as UAX #14 and a dictionary tell.
+- So a text of these scripts gives `opportunity` records until `layoutText` uses the break positions of `lineBreaks` (T12).
+- A `width` record also has `widthLine`: the first different line of the model and its model width. Compare it with the box width.
+
+### The first run of the breaks (42410280511)
+
+The 4 arms give the same counts, with a difference of 3 records or less. These are the counts of `linux-1`:
+
+| Stack | Covered: same, `opportunity`, `width` | Uncovered: same, `opportunity`, `width` |
+|---|---|---|
+| `latin-han` | 25 of 144, 119, 0 | 25 of 144, 119, 0 |
+| `han-first` | 54 of 180, 126, 0 | 18 of 144, 126, 0 |
+| `latin-arabic-emoji` | 118 of 180, 62, 0 | 65 of 144, 75, 4 |
+| `latin-indic-thai` | 171 of 180, 9, 0 | 135 of 144, 9, 0 |
+| `all-scripts` | 37 of 180, 143, 0 | 0 of 144, 144, 0 |
+
+- Each `opportunity` record has a break of Chromium inside a word of the model. Each such break is in one of 3 classes.
+- Han, kana and Hangul: Chromium breaks between two ideographs, two kana or two Hangul syllables. UAX #14 gives these breaks (class `ID`).
+- Emoji and pictographs: Chromium breaks between two pictographs with no space. UAX #14 gives these breaks too.
+- Thai: Chromium breaks between two Thai words. The dictionary of ICU finds the words. UAX #14 alone does not (class `SA`).
+- The `width` records are in `latin-arabic-emoji` only: 4 of 144 uncovered on Linux, 3 on macOS and Windows, and 2 of 180 covered on macOS and Windows.
+- In each `width` record, the model puts one more word on a line with Arabic, Latin and emoji words. Chromium puts it on the next line.
+
+### The margins of the `width` records (42415353609)
+
+The field `widthLine` gives the model width of the first different line. The box width minus that width is the margin. The records are in 3 classes.
+
+| Class | Records | Margin | Cause |
+|---|---|---|---|
+| A space before a skin tone modifier | `drawn:19` in each arm, 3 sizes | 21 to 120 px | A break opportunity, not a width |
+| Rounding of each segment | `mixed:15` on macOS and Windows, 2 sizes | -0.012 and -0.019 px | `layoutText` rounds each segment to 1/64 px |
+| A system fallback font | `drawn:5` on Linux | 13 px | The stack does not cover the pictographs of the sample |
+
+- `Intl.Segmenter` gives a space and a modifier after it (" 🏼") as one word segment. `layoutText` breaks only at a segment that is all white space. Thus the model has no break there. UAX #14 gives a break before the modifier, so Chromium breaks.
+- The cause of those records was `width` because the old cause split the text at each white space. The cause uses the split of `layoutText` now, so these records are `opportunity` records. T12 and layout-contract#255 fix them.
+- A negative margin tells that the model line is wider than the box: 200.0116 px in a box of 200 px. The sum of the rounded segments fits, but the line does not. The fix goes to `layoutText` of layout-contract.
+- The `drawn` samples are the uncovered set. No font of the stack has their characters, so Chromium takes a font of the system. The model cannot know that font. These records stay in the uncovered cells.
+
+### The gate of the stacks
+
+- The report job of the Fonts workflow starts `packages/widths/src/stack-gate.ts` on the files of the 4 arms.
+- A width cell fails above 1.28/64 px. An arm with no record of the stacks fails.
+- A break cell passes when at least 97 of each 100 records have the same lines as Chromium.
+- A cell under the bar fails, except a known gap of `breakGaps`. A gap names its items and their due date.
+- A known gap holds only when the bar holds with the `opportunity` records counted as the same. A `width` record is never excused.
+- A listed cell that passes the bar fails as a stale gap. So the list stays true.
+- The Thai cells stay known gaps until T12b ships the Thai word breaks. A known gap is not a pass.

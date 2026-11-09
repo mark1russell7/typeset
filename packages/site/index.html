@@ -157,6 +157,13 @@
           <div class="table-scroll"><table class="heat" id="stack-table"></table></div>
           <div class="detail" id="stack-detail" aria-live="polite"><p class="hint">Select a cell to see the worst error at each size.</p></div>
         </div>
+        <div id="break-block" hidden>
+          <h3 class="sub-head">Line breaks of the font stacks</h3>
+          <p class="hint">Chromium lays out each text in a box at 10, 16 and 48 px. The box is 8 or 20 times the size. Each cell counts the texts with the same lines as the model.</p>
+          <p class="hint">A cell passes when 97 of each 100 texts have the same lines. A known gap fails for a known cause, and it names the item that closes it. A known gap is not a pass.</p>
+          <div class="table-scroll"><table class="heat" id="break-table"></table></div>
+          <div class="detail" id="break-detail" aria-live="polite"><p class="hint">Select a cell to see the causes and the item that closes a gap.</p></div>
+        </div>
       </section>
 
       <div class="legend" id="legend" aria-label="The color scale of the error"></div>

@@ -14,12 +14,15 @@ import { fingerprint, fontSizes, generateCorpus, type FontId } from "@typeset/co
 import { engines, isEngineName, measureWidth, readFont, shapingRisks, type Font } from "@mark1russell7/typeset/fonts";
 import { readTables } from "@mark1russell7/typeset/fonts/inspect";
 import { fontAdvance } from "@mark1russell7/typeset/measurer";
+import { createMeasurer, layoutText } from "@mark1russell7/layout-contract/text";
 import { chromium, type Page } from "playwright";
 import { advanceModelRow, diagnosticWeights, type AdvanceModelName, type AdvanceModelRow } from "./advances.ts";
 import { engineBoundCells } from "./engine-bounds.ts";
 import { checkBounds, engineRecords, fractionsOf, missingGlyphs as missingGlyphCount, probeCharacters, probeInstance, recordsOf, summarize, tasksOf, type FontTask, type InstanceProbe, type WidthRecord } from "./compare.ts";
 import { breakdownOf, exactDeltaErrors, featureSettings, substitutionTrace, summarizeFeatures, type FeatureGroup, type FeatureRecord, type FeatureSetting, type SubstitutionStep } from "./features.ts";
 import { blinkScale } from "./bounds.ts";
+import { withVerdicts } from "./stack-gate.ts";
+import { breakCells, breakRecord, breakSizes, withWidthLine, breakWidths, lineFactor, linesOf, withRunWidths, type BreakRecord, type DomCluster } from "./breaks.ts";
 import { openReferenceFont } from "./harfbuzz.ts";
 import { isProbed, sequenceEntries } from "./sequences.ts";
 import { cssInstance, extraSource, extraWeights, fileName, fontsCommit, fontSources, scriptTags } from "./sources.ts";
@@ -99,6 +102,32 @@ async function stackWidths(page: Page, cssFonts: readonly string[], texts: reado
       return texts.map((text) => context.measureText(text).width);
     });
   }, { cssFonts: [...cssFonts], texts: [...texts] });
+}
+
+/**
+ * This function lays out each text in a DOM box of a CSS font and a width. It gives the grapheme clusters of each text, with
+ * the vertical middle of the first client rectangle of each. `linesOf` makes the lines of them.
+ */
+async function domClusters(page: Page, font: string, width: number, lineHeight: number, texts: readonly string[]): Promise<DomCluster[][]> {
+  return page.evaluate(({ font, width, lineHeight, texts }) => {
+    const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+    const box = document.createElement("div");
+    box.style.cssText = `position: absolute; left: 0; top: 0; font: ${font}; line-height: ${lineHeight}px; width: ${width}px; white-space: normal; overflow-wrap: normal; word-break: normal; line-break: auto;`;
+    document.body.appendChild(box);
+    const out = texts.map((text) => {
+      box.textContent = text;
+      const node = box.firstChild!;
+      const range = document.createRange();
+      return [...graphemes.segment(text)].map(({ segment, index }) => {
+        range.setStart(node, index);
+        range.setEnd(node, index + segment.length);
+        const rect = range.getClientRects()[0];
+        return { text: segment, middle: rect === undefined ? Number.NaN : rect.top + rect.height / 2 };
+      });
+    });
+    box.remove();
+    return out;
+  }, { font, width, lineHeight, texts: [...texts] });
 }
 
 /** This function gives the DOM widths of the texts at each size, as `widths[size][text]`, with the CSS of one feature setting. */
@@ -182,6 +211,8 @@ async function main(): Promise<void> {
   const sequenceProbe: { id: string; canvas: number; model: number; harfbuzz: number; risks: string[] }[] = [];
   // T11: the texts of each font stack, against a canvas with the same family list
   const stackRows: StackRecord[] = [];
+  // T11b: the line breaks of each font stack, against a DOM box with the same family list
+  const breakRows: BreakRecord[] = [];
   let fontKerning = "";
   let devicePixelRatio = 0;
   try {
@@ -278,6 +309,29 @@ async function main(): Promise<void> {
       const runWidths = await stackWidths(page, cssFonts, runs);
       const runCanvas = runWidths.map((widths) => new Map(runs.map((run, i) => [run, widths[i]!])));
       stackRows.push(...stackRecords(stack, list, texts, fontSizes, canvas, stackModel, runCanvas));
+      for (const size of breakSizes) {
+        const font = stackFont(stack, size);
+        const widths = breakWidths.map((factor) => factor * size);
+        // The model takes the canvas width of each missing run. A pass that needs a width that the canvas has not measured measures it, and the next pass uses it.
+        const known = new Map<string, number>();
+        let modelLines: string[][][] = [];
+        for (let pass = 0; ; pass++) {
+          const needed = new Set<string>();
+          const advance = withRunWidths(stackModel, list, known, needed);
+          modelLines = widths.map((width) => texts.map((text) => [...layoutText(text.text, { font, measurer: createMeasurer(advance), lineHeight: size * lineFactor, wrapWidth: width }).lines]));
+          if (needed.size === 0) break;
+          if (pass === 3) throw new Error(`${stack.id} ${size}px: the model still needs ${needed.size} canvas widths of missing runs after 4 passes`);
+          const keys = [...needed];
+          const [measured] = await stackWidths(page, [font], keys.map((key) => key.slice(font.length + 1)));
+          keys.forEach((key, i) => known.set(key, measured![i]!));
+        }
+        // The last pass needed no width, so this model has the canvas width of each missing run.
+        const measure = withRunWidths(stackModel, list, known, new Set());
+        for (const [w, width] of widths.entries()) {
+          const clusters = await domClusters(page, font, width, size * lineFactor, texts.map((text) => text.text));
+          texts.forEach((text, i) => breakRows.push(withWidthLine(breakRecord(stack.id, text, size, width, linesOf(clusters[i]!, size * lineFactor), modelLines[w]![i]!), (line) => measure(line, font))));
+        }
+      }
     }
   } finally {
     await browser.close();
@@ -358,7 +412,7 @@ async function main(): Promise<void> {
     engineExtraSummary,
     engineBounds,
     sequenceProbe,
-    stacks: { list: fontStacks, cells: stackCells(stackRows), records: stackRows },
+    stacks: { list: fontStacks, cells: stackCells(stackRows), records: stackRows, breaks: { cells: withVerdicts(breakCells(breakRows)), records: breakRows } },
     records,
   };
   writeFileSync(values.out, JSON.stringify(output) + "\n");
@@ -387,6 +441,8 @@ async function main(): Promise<void> {
     `The model of the engine ${engine} (sum ${engineSum}), worst paragraph and page error in px: ${Object.entries(engineSummary).map(([script, cells]) => `${script} ${format(cells.paragraph?.worstPx ?? Number.NaN, 4)} and ${format(cells.page?.worstPx ?? Number.NaN, 4)}`).join(", ")}.`,
     ``,
     `Font stacks against a canvas with the same family list, worst error in 1/64 px of the engine ${engine}, as stack size: ${stackCells(stackRows).map((cell) => `${cell.stack} ${cell.set} ${cell.size}: ${format(cell.worst64, 2)} (n ${cell.n}, ${cell.set === "covered" ? `excluded ${cell.excluded}` : `${cell.missingTexts} texts and ${cell.missingWords} of ${cell.words} words with a missing code point`})`).join(", ")}`,
+    ``,
+    `Font stacks in a DOM box, the line breaks of Chromium against layoutText under the engine ${engine}, as stack set: ${breakCells(breakRows).map((cell) => `${cell.stack} ${cell.set} ${cell.same} of ${cell.n} (opportunity ${cell.opportunity}, width ${cell.width})${cell.firstDifferent === undefined ? "" : `, first other ${cell.firstDifferent}`}`).join("; ")}.`,
     ``,
     `| font | weight | model instance | probe found | tied | error at the weight px | matches |`,
     `|---|---|---|---|---|---|---|`,
