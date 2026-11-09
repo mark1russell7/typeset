@@ -3,7 +3,7 @@
  * `scripts/snapshot.ts` writes it from the artifacts of the run, and the explorer reads it.
  */
 import type { LengthClass, ScriptId } from "@typeset/corpus";
-import type { Cell } from "@typeset/widths";
+import type { Cell, StackCell, StackSet } from "@typeset/widths";
 
 /** The cells of one summary, by script and by length class. */
 export type Summary = Partial<Record<ScriptId, Partial<Record<LengthClass, Cell>>>>;
@@ -27,6 +27,8 @@ export interface ArmSnapshot {
   readonly engineSummary: Summary;
   readonly extraSummary: ExtraSummary;
   readonly engineExtraSummary: ExtraSummary;
+  /** The errors of each font stack at each size. A run before T11 has no stacks. */
+  readonly stacks?: readonly StackCell[];
 }
 
 /** The run that gives a snapshot. */
@@ -45,6 +47,8 @@ export interface Snapshot {
   readonly corpus: { readonly seed: number; readonly perCell: number; readonly samples: number; readonly fingerprint: string };
   readonly fontsCommit: string;
   readonly arms: readonly ArmSnapshot[];
+  /** The font list of each stack, by the identifier of the stack. A run before T11 has no stacks. */
+  readonly stackFonts?: Readonly<Record<string, readonly string[]>>;
 }
 
 /** The schema name of the snapshot file. */
@@ -85,6 +89,27 @@ function roundCells<K extends string>(table: unknown): Partial<Record<K, Partial
   return out;
 }
 
+/** This function gives the stack cells of a field `stacks` of a file `font-widths.json`, with fewer digits. */
+function stackCellsOf(value: unknown): StackCell[] | undefined {
+  if (!isObject(value) || !Array.isArray(value["cells"])) return undefined;
+  return value["cells"].filter(isObject).map((c) => {
+    // A file of a run before the two sets has only covered cells.
+    const set = c["set"] === "uncovered" ? "uncovered" : "covered";
+    let cell: StackCell = { stack: String(c["stack"]), set, size: Number(c["size"]), n: Number(c["n"]), excluded: Number(c["excluded"]), worst64: round(Number(c["worst64"])) };
+    if (typeof c["worstSample"] === "string") cell = { ...cell, worstSample: c["worstSample"] };
+    if (set === "uncovered") cell = { ...cell, missingTexts: Number(c["missingTexts"] ?? 0), words: Number(c["words"] ?? 0), missingWords: Number(c["missingWords"] ?? 0) };
+    return cell;
+  });
+}
+
+/** This function gives the font list of each stack of a field `stacks` of a file `font-widths.json`. */
+function stackFontsOf(value: unknown): Record<string, string[]> | undefined {
+  if (!isObject(value) || !Array.isArray(value["list"])) return undefined;
+  const out: Record<string, string[]> = {};
+  for (const stack of value["list"]) if (isObject(stack) && Array.isArray(stack["fonts"])) out[String(stack["id"])] = stack["fonts"].map(String);
+  return out;
+}
+
 /**
  * This function makes a snapshot from the parsed files `font-widths.json` of the arms of one run. It keeps only the
  * summaries. It refuses a file with another schema, and two files of one arm.
@@ -93,11 +118,14 @@ export function snapshotOf(files: readonly unknown[], run: RunInfo): Snapshot {
   const arms: ArmSnapshot[] = [];
   let corpus: Snapshot["corpus"] | undefined;
   let fontsCommit = "";
+  let stackFonts: Record<string, string[]> | undefined;
   for (const file of files) {
     if (!isObject(file) || file["schema"] !== widthsSchema) throw new Error(`a file of the run does not have the schema ${widthsSchema}`);
     const arm = String(file["arm"]);
     if (arms.some((a) => a.arm === arm)) throw new Error(`the run has two files of the arm ${arm}`);
     const models = isObject(file["models"]) ? file["models"] : {};
+    const stacks = stackCellsOf(file["stacks"]);
+    stackFonts ??= stackFontsOf(file["stacks"]);
     arms.push({
       arm,
       scale: Number(file["scale"]),
@@ -109,6 +137,7 @@ export function snapshotOf(files: readonly unknown[], run: RunInfo): Snapshot {
       engineSummary: roundCells<ScriptId>(file["engineSummary"]),
       extraSummary: roundCells<string>(file["extraSummary"]),
       engineExtraSummary: roundCells<string>(file["engineExtraSummary"]),
+      ...(stacks === undefined ? {} : { stacks }),
     });
     if (isObject(file["corpus"])) {
       const c = file["corpus"];
@@ -118,7 +147,7 @@ export function snapshotOf(files: readonly unknown[], run: RunInfo): Snapshot {
   }
   if (corpus === undefined) throw new Error("the run has no file with a corpus");
   arms.sort((a, b) => rank(a.arm) - rank(b.arm));
-  return { schema: snapshotSchema, run, corpus, fontsCommit, arms };
+  return { schema: snapshotSchema, run, corpus, fontsCommit, arms, ...(stackFonts === undefined ? {} : { stackFonts }) };
 }
 
 /** This function gives the place of an arm in `armOrder`. An unknown arm goes last. */
@@ -180,4 +209,29 @@ export function statOf(cell: Cell | undefined, statistic: Statistic): number {
 /** This function gives `true` when no cell of a row has a width and some cell left out texts for a missing glyph. */
 export function allLeftOut(cells: readonly (Cell | undefined)[]): boolean {
   return cells.every((cell) => cell === undefined || cell.n === 0) && cells.some((cell) => cell !== undefined && cell.excluded > 0);
+}
+
+/** The limit of a stack cell, in 1/64 px: the bar of T11. */
+export const stackLimit64 = 1.28;
+
+/** One row of the stack table: a font stack and a set of texts. It has the cells of each arm, in the order of the arms. */
+export interface StackRow {
+  readonly stack: string;
+  readonly set: StackSet;
+  readonly fonts: readonly string[];
+  /** The cells of each size of the stack, for each arm. An arm with no stacks has no cells. */
+  readonly cells: readonly (readonly StackCell[])[];
+}
+
+/** This function gives one row for each font stack and set of a snapshot, in the order of the first arm that has it. */
+export function stackMatrix(snapshot: Snapshot): StackRow[] {
+  const order: { stack: string; set: StackSet }[] = [];
+  for (const arm of snapshot.arms) for (const cell of arm.stacks ?? []) if (!order.some((row) => row.stack === cell.stack && row.set === cell.set)) order.push({ stack: cell.stack, set: cell.set });
+  return order.map(({ stack, set }) => ({ stack, set, fonts: snapshot.stackFonts?.[stack] ?? [], cells: snapshot.arms.map((arm) => (arm.stacks ?? []).filter((cell) => cell.stack === stack && cell.set === set)) }));
+}
+
+/** This function gives the worst error of the cells of a stack over all sizes, in px. It gives NaN when no cell has a text. */
+export function stackWorstPx(cells: readonly StackCell[]): number {
+  const measured = cells.filter((cell) => cell.n > 0);
+  return measured.length === 0 ? Number.NaN : Math.max(...measured.map((cell) => cell.worst64)) / 64;
 }

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { random } from "@mark1russell7/rigor-generators";
 import { generateEdits, generateSample, type Edit, type LengthClass, type ScriptId } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
 import { buildTtf, characters } from "../../test/fonts.ts";
@@ -7,7 +8,7 @@ import { engines, measureWidth, readFont, shapingRisks, type EngineName, type En
 import { canvasWords } from "../fonts/words.ts";
 import { fontAdvance, scriptTag, type AdvanceFn } from "../measurer.ts";
 import { Text } from "../text.ts";
-import { scriptRuns } from "./advance.ts";
+import { fallbackClusters, scriptRuns } from "./advance.ts";
 
 const exact: EngineRules = { ...engines.freetype, rounding: "exact", sum: "exact" };
 const CSS = "16px Test";
@@ -33,6 +34,58 @@ describe("scriptRuns", () => {
 
   it("keeps a mark in the run of its base", () => {
     expect(scriptRuns("éж")).toEqual(["é", "ж"]);
+  });
+});
+
+
+describe("fallbackClusters", () => {
+  it("keeps a base and an Inherited mark in one cluster", () => {
+    expect(fallbackClusters("â a")).toEqual(["â", " ", "a"]);
+  });
+
+  it("splits a mark of another script from its base, as the script runs of Blink do", () => {
+    expect(fallbackClusters("aऺ a")).toEqual(["a", "ऺ", " ", "a"]);
+  });
+
+  it("splits a space from a lone skin tone modifier, as the emoji runs of Blink do", () => {
+    expect(fallbackClusters(" \u{1F3FC}\u{1F44F}")).toEqual([" ", "\u{1F3FC}", "\u{1F44F}"]);
+  });
+
+  it("keeps an emoji with its modifier and a ZWJ sequence in one cluster", () => {
+    expect(fallbackClusters("\u{1F44F}\u{1F3FC}")).toEqual(["\u{1F44F}\u{1F3FC}"]);
+    expect(fallbackClusters("\u{1F468}‍\u{1F469}")).toEqual(["\u{1F468}‍\u{1F469}"]);
+  });
+});
+describe("a list of 2 fonts in the canvas shaping", () => {
+  const noO = buildTtf(false, false, "hvar", characters.filter(([code]) => code !== 0x6f));
+  const advance = fontAdvance({ faces: [{ family: "Base", data: noO }, { family: "Full", data: buildTtf() }], engine: exact });
+  const listed = (text: string): number => advance(text, "16px Base, Full");
+  const parts = ["A", "T", "V", "o", "Á", " ", "o ", " o"];
+
+  /** This function gives the largest difference of the rope and one measure over seeded texts and edits. */
+  const worstGap = (widthOf: (text: string) => number): number => {
+    let worst = 0;
+    for (let index = 0; index < 200; index++) {
+      const source = random(2026 + index);
+      const textOf = (length: number): string => Array.from({ length }, () => source.pick(parts)).join("");
+      let text = Text.from(textOf(source.int(4, 40)), widthOf, { chunk: 8 });
+      for (let edit = 0; edit < 4; edit++) {
+        const flat = text.toString();
+        const start = source.int(0, flat.length);
+        // An edit keeps a mark with its base, so the text stays valid at each offset
+        text = text.insert(flat[start] === "́" ? start + 1 : start, textOf(source.int(1, 4)));
+        worst = Math.max(worst, Math.abs(text.width - widthOf(text.toString())));
+      }
+    }
+    return worst;
+  };
+
+  it("keeps the separator law at each edit", () => {
+    expect(worstGap(listed)).toBeLessThanOrEqual(1e-6);
+  });
+
+  it("finds a break of the law in a measure that looks over a space", () => {
+    expect(worstGap((text) => listed(text) + (text.includes("o A") ? 1 : 0))).toBeGreaterThan(0.5);
   });
 });
 

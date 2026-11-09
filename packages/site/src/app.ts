@@ -1,13 +1,13 @@
 /** The page script of the site: the lab, the sweep and the explorer of the CI data. */
 import type { LengthClass, ScriptId } from "@typeset/corpus";
 import { engines, isEngineName, type EngineName } from "@mark1russell7/typeset/fonts";
-import type { Cell } from "@typeset/widths";
+import type { Cell, StackCell } from "@typeset/widths";
 import snapshotFile from "../data/ci-snapshot.json";
 import { armOfEngine, engineChoices, engineForAgent, fontChoice, fontChoices, scriptLabels, scriptOrder, shapedScripts, type FontChoice } from "./catalog.ts";
 import { formatPx, formatSigned, heatBins, heatLabel, heatLevel } from "./heat.ts";
 import { labResult, previewFit, sampleText, sweepSummary, sweepTask, type LabResult, type WordView } from "./lab-model.ts";
 import { loadFont, type LoadedFont } from "./load.ts";
-import { allLeftOut, armMatrix, readSnapshot, statOf, type ModelChoice, type Statistic, type Summary } from "./snapshot.ts";
+import { allLeftOut, armMatrix, readSnapshot, stackLimit64, stackMatrix, stackWorstPx, statOf, type ModelChoice, type Statistic, type Summary } from "./snapshot.ts";
 import { unicodeVersion } from "@mark1russell7/typeset/segmentation";
 import conformanceFile from "../data/conformance.json";
 import { readConformance, segmentView, type SegmentKind } from "./segments.ts";
@@ -366,6 +366,46 @@ function renderDetail(title: string, cell: Cell | undefined, chromium: string): 
   box.replaceChildren(make("h3", "", lines[0]!), ...lines.slice(1).map((line) => make("p", "", line)), make("p", "hint", `Chromium ${chromium}. The pixel model rounds each advance to whole px. It gives the same width as the canvas for ${cell?.pixelExact ?? 0} of ${cell?.n ?? 0} texts here.`));
 }
 
+/** This function gives the lines of the tip of a stack cell: the worst error of each size, against the limit. */
+function stackLines(title: string, cells: readonly StackCell[]): string[] {
+  if (cells.length === 0) return [title, "This arm has no font stack data."];
+  const lines = [title];
+  for (const cell of cells) {
+    if (cell.n === 0) lines.push(`${cell.size} px: no widths, ${cell.excluded} texts left out for a missing glyph`);
+    else if (cell.set === "uncovered") lines.push(`${cell.size} px: worst ${formatPx(cell.worst64 / 64)} px outside the missing runs (${cell.worst64 <= stackLimit64 ? "in" : "above"} the limit), ${cell.n} widths, ${cell.missingWords ?? 0} of ${cell.words ?? 0} words with a missing glyph`);
+    else lines.push(`${cell.size} px: worst ${formatPx(cell.worst64 / 64)} px (${cell.worst64 <= stackLimit64 ? "in" : "above"} the limit), ${cell.n} widths${cell.excluded > 0 ? `, ${cell.excluded} left out` : ""}`);
+  }
+  return lines;
+}
+
+function renderStacks(): void {
+  const rows = stackMatrix(snapshot);
+  const table = $<HTMLTableElement>("stack-table");
+  $("stack-block").hidden = rows.length === 0;
+  if (rows.length === 0) return;
+  const head = make("tr");
+  head.append(make("th", "row-head", "Font list"));
+  for (const arm of snapshot.arms) head.append(make("th", "arm", armLabels[arm.arm]?.os ?? arm.arm));
+  const body = rows.map((row) => {
+    const tr = make("tr");
+    const th = make("th", "row-head", `${row.stack}, ${row.set}`);
+    if (row.fonts.length > 0) th.append(make("span", "arm-note", row.fonts.join(", ")));
+    tr.append(th);
+    row.cells.forEach((cells, i) => {
+      const arm = snapshot.arms[i]!;
+      const title = `${row.stack}, ${row.set} texts, on ${armLabels[arm.arm]?.os ?? arm.arm} (${arm.arm})`;
+      const lines = stackLines(title, cells);
+      tr.append(heatCell(stackWorstPx(cells), lines, () => {
+        $("stack-detail").replaceChildren(make("h3", "", lines[0]!), ...lines.slice(1).map((line) => make("p", "", line)));
+      }));
+    });
+    return tr;
+  });
+  table.replaceChildren(make("thead"), make("tbody"));
+  table.tHead!.append(head);
+  table.tBodies[0]!.append(...body);
+}
+
 function renderRun(): void {
   const run = snapshot.run;
   const link = make("a", "", `fonts run ${run.id}`);
@@ -625,6 +665,7 @@ fillControls();
 renderTiles();
 renderRun();
 renderCi();
+renderStacks();
 renderLegend();
 renderSweep();
 renderSegments();

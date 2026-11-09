@@ -19,11 +19,12 @@ The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` st
 
 - The file `cases/index.ts` has the list of the case modules. The bench starts each case of each module in its own arm.
 - A test fails when a module of the folder `cases` is not in the list. Thus each case gets a run.
+- The cases of `cases/measurer.ts` read the pinned fonts. The Bench job fetches them with the SHA-256 of each file into the folder `TYPESET_FONTS`.
 
 - Each round starts one fresh process for each arm. The order of the arms turns by one place each round, and it goes backward in each second turn. Thus each arm is at each position the same number of times.
 - A process does a warm-up, doubles its batch until a batch takes 5 ms, and then times 15 batches. Its value is the median time of one call.
 - The statistics come from `@mark1russell7/rigor-statistics` (`median`, `quantile`, `summarize`, `bootstrapMedian`).
-- Two arms with the same case make the A/A pair. Its ratio is the median over the rounds, with a 90 % bootstrap interval. This ratio is the noise floor of the bench.
+- Two arms with the same case make the A/A pair. Its ratio is the median over the rounds, with a 90 % bootstrap interval. The interval must hold 1. An interval without 1 is a bias of the harness, not noise.
 - The record (schema `typeset-bench/1`) has the CPU model, the Node version, the mode (`ci` or `local`), each process and the summary of each arm.
 - The bench fails when a process fails or when the record does not have all its processes.
 
@@ -31,8 +32,9 @@ The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` st
 
 Timing runs go to CI, not to a shared machine. The workflow `bench.yml` runs the bench.
 
-- A pull request that changes the corpus, the package `@mark1russell7/typeset`, the bench or the workflow runs 6 rounds. The check `Bench OK` gives the result.
-- A run of `workflow_dispatch` runs 20 rounds by default. Give the identifier of its prediction in the input `prediction`.
+- A pull request that changes the corpus, the package `@mark1russell7/typeset`, the widths tools, the bench or the workflow runs a balanced count of rounds. The check `Bench OK` gives the result.
+- The balanced count is 2 times the count of arms. Then each arm is at each position 2 times, one time in each direction of the order.
+- A run of `workflow_dispatch` also runs the balanced count by default. Give the identifier of its prediction in the input `prediction`.
 - The input `runs` of `workflow_dispatch` gives the count of bench jobs. Each job has its own runner. At most 3 jobs run at the same time.
 - Each job uploads its record as the artifact `bench-records-<n>`.
 - A limit comes from 5 runs or more: the worst value plus the spread of the runs.
@@ -59,8 +61,28 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 ## The rule for a claim of speed
 
 - Each claim of an item that says "faster" or "slower" compares two arms in one job.
-- A change of the ratio under 0.017 is "not a result". It is not a hit and not a miss.
+- A claim of speed comes from a run of several jobs. Each job has its own A/A pair.
+- The floor of a run is the spread of its jobs. Do not use a fixed floor from an earlier run.
+- A change of speed counts only when its interval over the jobs leaves out 1 and the A/A range of the same run.
+- Else the change is "not a result". It is not a hit and not a miss.
 - Do not compare the times of two jobs. The runners have different CPU models.
+- The values 0.017 and 0.012 are figures for a plan: they tell how many jobs a claim needs. They are not the gate.
+
+## The bias of an order that does not reverse (T11)
+
+- The run 42402596103 had 6 rounds for 10 arms, so the order did not reverse. Its A/A was 1.0253 [1.0036, 1.0419]. That is a bias of the order.
+- The balanced count of rounds removes it. The run 42414121767 has 5 jobs of 20 balanced rounds.
+
+| Job | CPU | A/A ratio | 90 % interval |
+|---|---|---|---|
+| 1 | AMD EPYC 9V74 | 1.0003 | [0.9986, 1.0102] |
+| 2 | Intel Xeon Platinum 8573C | 1.0019 | [0.9940, 1.0126] |
+| 3 | AMD EPYC 9V45 | 0.9902 | [0.9788, 1.0015] |
+| 4 | AMD EPYC 7763 | 0.9984 | [0.9918, 1.0052] |
+| 5 | AMD EPYC 9V45 | 0.9964 | [0.9886, 1.0086] |
+
+- Each of the 5 intervals holds 1. The spread of the ratios is 0.0117, and the largest distance from 1 is 0.0098.
+- The arms of the pair never share a process. Each arm and round has a new process.
 
 ## A no-read is not a pass (T10d)
 

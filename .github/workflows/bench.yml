@@ -11,6 +11,7 @@ on:
     paths:
       - "packages/corpus/src/**"
       - "packages/typeset/src/**"
+      - "packages/widths/src/**"
       - "packages/bench/src/**"
       - "packages/bench/weight.json"
       - "packages/typeset/package.json"
@@ -19,9 +20,9 @@ on:
   workflow_dispatch:
     inputs:
       rounds:
-        description: The count of rounds. Each round starts one fresh process for each arm.
+        description: The count of rounds. Each round starts one fresh process for each arm. Empty gives 2 times the count of arms, a balanced order.
         type: string
-        default: "20"
+        default: ""
       prediction:
         description: The id of the prediction that the run scores. A commit adds the prediction before the run.
         type: string
@@ -59,6 +60,7 @@ jobs:
           paths: |
             packages/corpus/src/**
             packages/typeset/src/**
+            packages/widths/src/**
             packages/bench/src/**
             .github/workflows/bench.yml
       - id: weight
@@ -84,7 +86,7 @@ jobs:
       matrix:
         run: ${{ fromJSON(needs.changes.outputs.runs) }}
     env:
-      ROUNDS: ${{ github.event_name == 'workflow_dispatch' && inputs.rounds || '6' }}
+      ROUNDS: ${{ github.event_name == 'workflow_dispatch' && inputs.rounds || '' }}
       PREDICTION: ${{ inputs.prediction }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,9 +98,14 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # A fixture of the measurer cases, not a part of the harness: the pinned fonts, with the SHA-256 of each file
+      - name: Fetch the pinned fonts
+        run: node packages/widths/src/fetch.ts "$RUNNER_TEMP/fonts"
       - name: Run the bench
         # main.ts also writes the table of the arms to the summary of the job
-        run: pnpm bench --rounds "$ROUNDS" --out "$GITHUB_WORKSPACE/bench-records.json" --label "$PREDICTION"
+        env:
+          TYPESET_FONTS: ${{ runner.temp }}/fonts
+        run: pnpm bench ${ROUNDS:+--rounds "$ROUNDS"} --out "$GITHUB_WORKSPACE/bench-records.json" --label "$PREDICTION"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bench-records-${{ matrix.run }}
