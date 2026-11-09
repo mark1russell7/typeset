@@ -1,0 +1,205 @@
+{
+  "schema": "typeset-hyphen-layer/1",
+  "language": "fr",
+  "list": "Lexique 3.83",
+  "entries": [
+    {
+      "word": "cament",
+      "hyphens": "cament",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "ca-ment",
+      "phonetic": [
+        "kam"
+      ]
+    },
+    {
+      "word": "charmille",
+      "hyphens": "char-mille",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "char-mil-le",
+      "phonetic": [
+        "SaRmij"
+      ]
+    },
+    {
+      "word": "charmilles",
+      "hyphens": "char-milles",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "char-mil-les",
+      "phonetic": [
+        "SaRmil"
+      ]
+    },
+    {
+      "word": "cillent",
+      "hyphens": "cillent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "cil-lent",
+      "phonetic": [
+        "sij"
+      ]
+    },
+    {
+      "word": "copulent",
+      "hyphens": "co-pulent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "co-pu-lent",
+      "phonetic": [
+        "kopyl"
+      ]
+    },
+    {
+      "word": "distillent",
+      "hyphens": "dis-tillent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "dis-til-lent",
+      "phonetic": [
+        "distil"
+      ]
+    },
+    {
+      "word": "désignent",
+      "hyphens": "dé-signent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "dé-si-gnent",
+      "phonetic": [
+        "deziN"
+      ]
+    },
+    {
+      "word": "désirent",
+      "hyphens": "dé-sirent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "dé-si-rent",
+      "phonetic": [
+        "deziR"
+      ]
+    },
+    {
+      "word": "désolent",
+      "hyphens": "dé-solent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "dé-so-lent",
+      "phonetic": [
+        "dezOl"
+      ]
+    },
+    {
+      "word": "illustrent",
+      "hyphens": "illustrent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "il-lus-trent",
+      "phonetic": [
+        "ilystR"
+      ]
+    },
+    {
+      "word": "iodle",
+      "hyphens": "iodle",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "io-dle",
+      "phonetic": [
+        "jodl"
+      ]
+    },
+    {
+      "word": "liment",
+      "hyphens": "liment",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "li-ment",
+      "phonetic": [
+        "lim"
+      ]
+    },
+    {
+      "word": "légitiment",
+      "hyphens": "lé-gi-timent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "lé-gi-ti-ment",
+      "phonetic": [
+        "leZitim"
+      ]
+    },
+    {
+      "word": "oscillent",
+      "hyphens": "os-cillent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "os-cil-lent",
+      "phonetic": [
+        "osij"
+      ]
+    },
+    {
+      "word": "puddle",
+      "hyphens": "puddle",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "pud-dle",
+      "phonetic": [
+        "p9dl"
+      ]
+    },
+    {
+      "word": "périssent",
+      "hyphens": "pé-rissent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "pé-ris-sent",
+      "phonetic": [
+        "peRis"
+      ]
+    },
+    {
+      "word": "restent",
+      "hyphens": "restent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "res-tent",
+      "phonetic": [
+        "REst"
+      ]
+    },
+    {
+      "word": "stagnent",
+      "hyphens": "stagnent",
+      "rules": [
+        "mute-e"
+      ],
+      "syllables": "s-tag-nent",
+      "phonetic": [
+        "stagn"
+      ]
+    }
+  ]
+}

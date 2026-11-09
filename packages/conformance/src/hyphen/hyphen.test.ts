@@ -10,7 +10,7 @@ import { gzipTolerance, hyphenPaths, recordDifferences, sampleHash, weighEntry, 
 import { parsePatterns, setSource } from "./patterns.ts";
 import { hyphenFiles, hyphenUrl, texHyphenCommit } from "./sources.ts";
 import type { PatternSet } from "@mark1russell7/typeset/hyphen";
-import { referenceClasses } from "./classes.ts";
+import { referenceRules } from "./classes.ts";
 import { countMisses, coveredPlaces, missCause, missClass, parseWords, scoreWords, share } from "./words.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -177,10 +177,11 @@ describe("each language set on its word list", () => {
     it(`${hyphen.language}: the record of the missed places holds the count of each class and of each cause`, () => {
       const counts = countMisses(words, set.hyphenate, coveredPlaces(data), left, right);
       for (const name of ["shift", "silent", "other"] as const) expect(Object.values(counts.causes[name]).reduce((sum, count) => sum + count, 0)).toBe(counts[name]);
-      expect(missRecord.schema).toBe("typeset-hyphen-misses/3");
-      const { classes, ...language } = missRecord.languages[hyphen.language]!;
+      expect(missRecord.schema).toBe("typeset-hyphen-misses/4");
+      const { classes, reference, ...language } = missRecord.languages[hyphen.language]!;
       expect(language).toEqual({ misses: score.listed - score.both, ...counts });
-      expect(Object.keys(classes)).toEqual((referenceClasses[hyphen.language] ?? []).map((reference) => reference.name));
+      expect(Object.keys(classes)).toEqual((referenceRules[hyphen.language]?.classes ?? []).map((rule) => rule.name));
+      expect(reference === null).toBe(referenceRules[hyphen.language] === undefined);
     });
 
     it(`${hyphen.language}: the weight in the record is the weight of the entry`, () => {
