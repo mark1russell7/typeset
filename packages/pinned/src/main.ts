@@ -8,7 +8,7 @@
  *   the command with an error. The command makes the release of the store when the release is not there.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { assetName, groupFiles, hasPinned, readManifest, readPinned, sha256Of, type PinnedFile, type PinnedManifest } from "./index.ts";
@@ -59,18 +59,38 @@ async function fromMirror(file: PinnedFile): Promise<{ readonly bytes?: Uint8Arr
   }
 }
 
+/** A file whose mirror does not give the bytes of the manifest. */
+interface MirrorFault {
+  readonly file: PinnedFile;
+  readonly fault: string;
+}
+
+/**
+ * This function makes the faults loud in a GitHub Actions run. Each file gets one error annotation, and the summary of the job
+ * gets a table with the file and its mirror. The caller then fails the run.
+ */
+function report(faults: readonly MirrorFault[]): void {
+  for (const { file, fault } of faults) console.log(`::error title=The mirror of ${file.name} differs from pinned.json::${fault.replaceAll("\n", " ")}`);
+  const summary = process.env["GITHUB_STEP_SUMMARY"];
+  if (summary === undefined) return;
+  const cell = (text: string): string => text.replaceAll("|", "\\|").replaceAll("\n", " ");
+  const rows = faults.map(({ file, fault }) => `| ${cell(file.name)} | ${cell(file.url)} | ${cell(fault)} |`);
+  const lines = ["## The mirrors of pinned files differ from pinned.json", "", "Change pinned.json by a pull request, or give the file a new mirror.", "", "| File | Mirror | Fault |", "|---|---|---|", ...rows, ""];
+  appendFileSync(summary, `${lines.join("\n")}\n`);
+}
+
 /** This function uploads each missing asset to the store. With `all`, it also checks the mirror of each other file. */
 async function refresh(manifest: PinnedManifest, all: boolean, folder: string): Promise<void> {
   const assets = storeAssets(manifest);
   mkdirSync(folder, { recursive: true });
-  const faults: string[] = [];
+  const faults: MirrorFault[] = [];
   let uploaded = 0;
   for (const file of manifest.files) {
     const missing = !assets.has(assetName(file));
     if (!missing && !all) continue;
     const { bytes, fault } = await fromMirror(file);
     if (fault !== undefined || bytes === undefined) {
-      faults.push(fault ?? `${file.name}: no bytes`);
+      faults.push({ file, fault: fault ?? `${file.name}: no bytes` });
       continue;
     }
     if (!missing) continue;
@@ -81,7 +101,10 @@ async function refresh(manifest: PinnedManifest, all: boolean, folder: string): 
     console.log(`pinned: uploaded ${assetName(file)} (${file.bytes} bytes)`);
   }
   console.log(`pinned: ${uploaded} assets uploaded, ${assets.size + uploaded} of ${manifest.files.length} files in the store ${manifest.store}`);
-  if (faults.length > 0) throw new Error(`the mirrors of ${faults.length} files do not give the bytes of the manifest:\n${faults.join("\n")}`);
+  if (faults.length > 0) {
+    report(faults);
+    throw new Error(`the mirrors of ${faults.length} files do not give the bytes of the manifest:\n${faults.map(({ fault }) => fault).join("\n")}`);
+  }
 }
 
 const { positionals, values } = parseArgs({ allowPositionals: true, options: { group: { type: "string" }, folder: { type: "string" }, all: { type: "boolean" } } });

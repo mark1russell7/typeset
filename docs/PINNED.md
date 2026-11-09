@@ -29,7 +29,8 @@ The workflow `pinned-refresh.yml` keeps the store full.
 
 - It starts on a change of `pinned.json` or `packages/pinned`, each week, and by hand.
 - It fetches each file that the store does not have from its mirror. It checks the size and the SHA-256, and uploads the file.
-- Each week, and by hand with the input `all`, it also fetches each other file. A mirror that gives different bytes fails the job.
+- Each week, and by hand with the input `all`, it also fetches each other file.
+- A mirror that gives different bytes fails the job. Each such file gets an error annotation and a row in the summary of the job, with its mirror.
 - The refresh changes no file of the repository, so it opens no pull request.
 
 ## Add or change a file
@@ -37,5 +38,7 @@ The workflow `pinned-refresh.yml` keeps the store full.
 1. Change the source of the file in its package, and its entry in `pinned.json`.
 2. Push the pull request. Its refresh job uploads the new file to the store.
 3. Restore the group into a folder, and start the command of the gate on that folder.
+
+The package `@typeset/pinned` is a general store of test fixtures, with no code of `typeset`. Its home is the planned harness `rigor` (mark1russell7/rigor#187). This repository does not publish it.
 
 To restore a group on your computer, start `node packages/pinned/src/main.ts restore --group <group> --folder <folder>`. The command needs `gh` and a login.

@@ -2,6 +2,9 @@
  * The pinned files of the gates. The manifest `pinned.json` at the root of the repository lists each file with its mirror, its
  * SHA-256, its size and its group. The store is a release of the repository with one asset for each file. A gate reads a file
  * only from a folder. It does not fetch a file from a mirror. A missing or changed file stops the gate with a message.
+ *
+ * The package is a general store of test fixtures, with no code of typeset. Its home is the planned harness rigor
+ * (mark1russell7/rigor#187). This repository does not publish it, and deletes it when rigor has it.
  */
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -21,7 +24,7 @@ export interface PinnedFile {
 
 /** The manifest of the pinned files. */
 export interface PinnedManifest {
-  readonly schema: "typeset-pinned/1";
+  readonly schema: "pinned/1";
   /** The repository of the store, as `owner/name`. */
   readonly repository: string;
   /** The tag of the release that holds the assets. */
@@ -45,7 +48,7 @@ export function assetName(file: PinnedFile): string {
 /** This function reads a manifest and checks its form. */
 export function readManifest(path: string = manifestPath): PinnedManifest {
   const manifest = JSON.parse(readFileSync(path, "utf8")) as PinnedManifest;
-  if (manifest.schema !== "typeset-pinned/1") throw new Error(`${path}: the schema is ${String(manifest.schema)}, not typeset-pinned/1`);
+  if (manifest.schema !== "pinned/1") throw new Error(`${path}: the schema is ${String(manifest.schema)}, not pinned/1`);
   const names = new Set<string>();
   for (const file of manifest.files) {
     if (!/^[\w.-]+$/u.test(file.name)) throw new Error(`${path}: the name ${file.name} is not a plain file name`);
