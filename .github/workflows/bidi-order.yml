@@ -2,8 +2,8 @@ name: Bidi order
 
 # The visual order of mixed-direction texts in Chromium, Firefox and WebKit (T13b). Each browser lays out 600 seeded texts
 # with Latin and Hebrew letters, both kinds of digits, paired brackets, marks of direction and explicit controls. The job
-# reads the place of each character from a DOM range and compares the order with visualIndexes of ./bidi. Each browser
-# uploads its record. The job "Join the records" joins them: a mismatch in Chromium fails it, a mismatch in the others is a warning.
+# reads the place of each character two ways, from a DOM range and from a span around the character (T13d). It compares
+# each order with visualIndexes of ./bidi and with 5 variants of the rules. Each browser uploads its record. The job "Join the records" joins them: a mismatch in Chromium fails it, a mismatch in the others is a warning.
 
 on:
   pull_request:

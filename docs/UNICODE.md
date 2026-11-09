@@ -69,6 +69,28 @@ The gate scores the bidi files for the levels and for the order. It gives one sc
 - This split changes 21 of the 252 entries of the sequence list, all in the group `bidi`, and no sample of the corpus.
 - No gate compares these 21 entries with a browser under the sum `float32`. The sequence test applies the sum `exact`, which uses `canvasWords`.
 
+## The order in the browsers
+
+The workflow `Bidi order` lays out 600 seeded texts in Chromium, Firefox and WebKit with Playwright. It compares the visual order of each text with `visualIndexes` of `./bidi` in an LTR paragraph. The code is `packages/widths/src/bidi-order*.ts`.
+
+- The texts mix Latin and Hebrew letters, both kinds of digits, paired brackets, the marks of direction and the explicit controls.
+- The compare reads only the characters of the classes L, R, AL, EN, AN, ES, ET, CS and ON. It does not read a mark of direction.
+- Each browser reads each text two ways (T13d). The range read takes the box of a DOM range around each character. The span read puts each character in its own `<span>` and takes the box of the span.
+- The span has no direction of its own, so it does not change the levels. The two reads thus differ only when a browser gives a wrong box.
+- For each mismatch, the record tells which variants of the rules give the order of the browser. The variants change the text and keep the indexes:
+
+| Variant | Change |
+|---|---|
+| `noN0` | Each bracket becomes `!`, so the rule N0 does not pair it |
+| `isolatesBN` | Each isolate control becomes U+200C of class BN |
+| `isolatesON` | Each isolate control becomes `!` of class ON |
+| `noN0IsolatesBN`, `noN0IsolatesON` | The change of `noN0` and the change of the isolate variant |
+
+- A mismatch in Chromium fails the job, in each read. The canvas model of `./fonts` follows Blink.
+- A mismatch in Firefox or WebKit gives a warning only.
+- A browser with no record is a no-read. A no-read is not a pass.
+- The record `bidi-order.json` of the job has the counts of each read, the counts of each variant and the first 20 mismatches.
+
 ## The differences of `canvasWords`
 
 `canvasWords` has a different purpose. It copies the word cache of Blink, so that a sum of word widths is equal to the width of canvas `measureText`. It is not a UAX #29 function, and `paragraphOf` does not use its positions as line breaks.
