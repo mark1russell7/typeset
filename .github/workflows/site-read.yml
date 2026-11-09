@@ -76,7 +76,8 @@ jobs:
 
   site-read-ok:
     name: Site read OK
-    if: ${{ !cancelled() }}
+    # A Pages run that did not pass deployed nothing, so the read and this gate do not run.
+    if: ${{ !cancelled() && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
     needs: [changes, read]
     runs-on: ubuntu-latest
     permissions: {}
