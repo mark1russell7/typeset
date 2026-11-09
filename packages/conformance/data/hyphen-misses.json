@@ -1,0 +1,23 @@
+{
+  "schema": "typeset-hyphen-misses/1",
+  "languages": {
+    "en-us": {
+      "misses": 5069,
+      "shift": 1461,
+      "silent": 1094,
+      "other": 2514
+    },
+    "de": {
+      "misses": 1163,
+      "shift": 879,
+      "silent": 27,
+      "other": 257
+    },
+    "fr": {
+      "misses": 3507,
+      "shift": 15,
+      "silent": 666,
+      "other": 2826
+    }
+  }
+}

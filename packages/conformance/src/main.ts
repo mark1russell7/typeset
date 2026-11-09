@@ -103,6 +103,7 @@ const record = {
     scores: Object.fromEntries(Object.entries(bidiScores).map(([name, score]) => [name, { tests: score.tests, passed: score.passed, failures: score.failures.slice(0, keptFailures).map((failure) => ({ ...failure, reason: reasons.failures[`${name}:${failure.line}`] })) }])),
   },
   hyphen: hyphens.record,
+  hyphenMisses: hyphens.misses,
 };
 if (values.out !== undefined) writeFileSync(values.out, `${JSON.stringify(record, null, 2)}\n`);
 
