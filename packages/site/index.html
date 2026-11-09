@@ -16,6 +16,7 @@
         <p class="wordmark"><span class="mark" aria-hidden="true">T</span>typeset</p>
         <nav class="links" aria-label="Links">
           <a href="#lab">Lab</a>
+          <a href="#justify">Justified lines</a>
           <a href="#sweep">Sweep</a>
           <a href="#ci">CI platforms</a>
           <a href="status/">Status</a>
@@ -100,6 +101,50 @@
         <h3>Against the test files of Unicode</h3>
         <div class="table-scroll"><table class="seg-table" id="seg-table"><thead><tr><th>Function</th><th>Test file</th><th>Passed</th><th></th></tr></thead><tbody></tbody></table></div>
         <p class="hint" id="seg-run"></p>
+      </section>
+
+      <section id="justify" class="panel" aria-labelledby="justify-title">
+        <div class="panel-head">
+          <h2 id="justify-title">Justified lines <span class="tag">hyphens</span></h2>
+          <p class="hint">Total fit breaks the text with the hyphen patterns of the language. The spaces of each line stretch or shrink to the edge. Greedy with no hyphens is next to it.</p>
+        </div>
+        <div class="controls">
+          <label class="field">Language<select id="jl-language"></select></label>
+          <div class="field">
+            <span>Line width <output id="jl-width-out" for="jl-width"></output></span>
+            <input type="range" id="jl-width" min="140" max="560" step="4" value="300" aria-label="Line width in px" />
+          </div>
+          <button type="button" id="jl-reset" class="secondary">Sample text</button>
+        </div>
+        <div class="text-row">
+          <label for="jl-text" class="sr">Text to justify</label>
+          <textarea id="jl-text" rows="3" spellcheck="false"></textarea>
+        </div>
+        <p class="status" id="jl-status" role="status"></p>
+        <div class="jl-columns">
+          <figure class="jl-column">
+            <figcaption><strong>Total fit</strong>, hyphens, justified</figcaption>
+            <dl class="jl-facts">
+              <div><dt>Worst ratio</dt><dd id="jl-fit-worst">–</dd></div>
+              <div><dt>Lines</dt><dd id="jl-fit-lines">–</dd></div>
+              <div><dt>Hyphens</dt><dd id="jl-fit-hyphens">–</dd></div>
+            </dl>
+            <div class="jl-scroll"><div class="jl-box" id="jl-fit-box"></div></div>
+          </figure>
+          <figure class="jl-column">
+            <figcaption><strong>Greedy</strong>, no hyphens, justified</figcaption>
+            <dl class="jl-facts">
+              <div><dt>Worst ratio</dt><dd id="jl-greedy-worst">–</dd></div>
+              <div><dt>Lines</dt><dd id="jl-greedy-lines">–</dd></div>
+              <div><dt>Hyphens</dt><dd id="jl-greedy-hyphens">–</dd></div>
+            </dl>
+            <div class="jl-scroll"><div class="jl-box" id="jl-greedy-box"></div></div>
+          </figure>
+        </div>
+        <p class="hint">The number at the end of each line is its adjustment ratio. At 1, the spaces stretch by a half of a space. At -1, they shrink by a third of a space. A ratio out of this range is red. The worst ratio is the measure of the justified edge.</p>
+        <h3>The language sets</h3>
+        <div class="table-scroll"><table class="seg-table" id="jl-sets"><thead><tr><th>Language</th><th>Patterns</th><th>Word list</th><th>Found <span class="hint">target 95 %</span></th><th>Confirmed</th><th><code>gzip</code> bytes</th><th>Missed places</th></tr></thead><tbody></tbody></table></div>
+        <p class="hint">Found is the share of the hyphen places of the word list that the patterns find. Confirmed is the share of the places of the patterns that the list also has. Each language is a separate entry, so a page loads only the patterns that it uses.</p>
       </section>
 
       <section id="sweep" class="panel" aria-labelledby="sweep-title">

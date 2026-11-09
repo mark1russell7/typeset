@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@mark1russell7/typeset": "workspace:*",
+    "@typeset/conformance": "workspace:*",
     "@typeset/corpus": "workspace:*",
     "@typeset/widths": "workspace:*"
   },

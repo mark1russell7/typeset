@@ -216,3 +216,28 @@ table { border-collapse: collapse; font-size: 14px; }
 .seg-bar > span:first-child { display: block; height: 10px; border-radius: 5px; background: var(--bar-canvas); margin-top: 5px; }
 .seg-other .seg-bar > span:first-child { background: var(--faint); }
 .seg-share { font: 12px var(--mono); color: var(--muted); }
+
+/* The justified lines. Each line has the width of the measure, and its spaces have the extra width of its ratio. */
+.jl-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; margin-top: 6px; }
+.jl-column { margin: 0; min-width: 0; }
+.jl-column figcaption { font-size: 15px; margin-bottom: 6px; }
+.jl-facts { display: flex; gap: 8px; margin: 0 0 8px; flex-wrap: wrap; }
+.jl-facts div { background: var(--surface-2); border-radius: 10px; padding: 6px 10px; }
+.jl-facts dt { font-size: 12px; color: var(--muted); }
+.jl-facts dd { margin: 0; font: 600 18px/1.2 var(--mono); }
+.jl-scroll { overflow-x: auto; }
+.jl-box { font: 17px/1.6 var(--sans); padding: 8px 0; }
+.jl-row { display: flex; align-items: baseline; gap: 10px; }
+.jl-line { white-space: pre; flex: none; border-right: 1px dashed var(--faint); }
+.jl-row:nth-child(odd) .jl-line { background: var(--surface-2); }
+.jl-r { font: 12px var(--mono); color: var(--muted); min-width: 6ch; }
+.jl-bad { color: #c62828; }
+.jl-found { min-width: 160px; }
+.jl-bar { position: relative; height: 10px; border-radius: 5px; background: var(--surface-2); margin-top: 5px; }
+.jl-fill { display: block; height: 100%; border-radius: 5px; background: var(--bar-model); }
+.jl-fill.jl-met { background: var(--bar-canvas); }
+.jl-target { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); }
+.jl-share { font: 12px var(--mono); color: var(--muted); }
+.jl-num { font-family: var(--mono); white-space: nowrap; }
+.jl-num .hint { font-family: var(--sans); white-space: normal; font-size: 12px; }
+@media (prefers-color-scheme: dark) { .jl-bad { color: #ff8a80; } }
