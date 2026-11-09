@@ -35,5 +35,15 @@
     "publint": "^0.3.25",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "conventions": {
+    "rules": {
+      "gate-trigger": {
+        "allow": [
+          "pinned-refresh.yml"
+        ],
+        "reason": "pinned-refresh.yml is not a gate: it fills the store of the pinned files when pinned.json changes, and no ruleset check asks for it"
+      }
+    }
   }
 }
