@@ -59,6 +59,8 @@ A browser uses the CSS weight for the axis `wght`, not the default instance of t
 - With `float32`, each advance in single precision is cut to 1/65536 px. Blink gives HarfBuzz the advances in the 16.16 fixed point.
 - HarfBuzz scales each kerning value at the scale of the size times 65536. It scales the value with `em_mult` and the variation delta with `em_scalef`.
 - `canvasSegments` gives the segments of the text: the words of `canvasWords`, split where the bidi level changes, in the visual order.
+- Blink splits the words by level only when ICU gives the text the direction `mixed`. `isMixed` of `./fonts` follows `ubidi_getDirection` of ICU.
+- A text with an LRI, an FSI or a PDI and no RTL character is not mixed. So the kerning goes across the isolate, as in Chromium (T13c).
 - The sum of the positions of one segment is exact. The sum of the segments is in single precision.
 - The internal function `bidiLevels` gives the levels of a paragraph with the base level 0, as a canvas with the direction `inherit` has them. It uses the rules of `./bidi` with a guess of the classes. `UNICODE.md` tells the limits.
 - The rounding `pixel` ignores the option `sum`. A sum of whole px is exact in single precision.
@@ -148,6 +150,8 @@ The comparison has four arms. Each arm is one job of the workflow.
 - Each record has the field `float32`: the width with the sum `float32`. The model of an engine with the sum `float32` uses it.
 - The option `shaping: "canvas"` of `measureWidth` shapes and kerns each word of `canvasWords` alone, as Blink does for the text of a canvas.
 - `canvasWords` follows `NextWordEndIndex` of Blink. Each CJK character starts a word, so no kerning goes from one kana to the next kana.
+- Blink shapes U+00AD, LRM, RLM, LRE to RLO, U+FEFF and U+FFFC of a canvas as a zero width space. Each one is a word alone, so the kerning and the joining stop there.
+- ALM and the isolates stay in their word. The joining type of an isolate is `U`, so an isolate stops the Arabic joining.
 - The records of the canvas use `shaping: "canvas"`. The model of the DOM diagnostic keeps `shaping: "dom"`, the default.
 - Blink shapes all the text as one word when the space glyph is in a lookup of the font. No font of the corpus kerns the space, so the model does not examine this.
 - `woff2GvarMismatches` compares the advances of the WOFF2 and TrueType files with `gvar` and the component metrics.

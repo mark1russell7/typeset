@@ -1,5 +1,27 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.3.0
+
+This version changes the canvas widths of `./fonts` for texts with bidi controls, and adds justified lines and the subpaths `./hyphen`. Before 1.0.0, a change of behavior increases MINOR.
+
+### The change of behavior (T13c)
+
+- The canvas model shapes U+00AD, LRM, RLM, LRE to RLO, U+FEFF and U+FFFC as a zero width space, as Blink does. Each one is a word alone, so the kerning and the joining stop there.
+- `canvasWords` and `canvasSegments` of `./fonts/inspect` give these characters as words alone. In 0.2.0, LRE to RLO stayed in the word before them.
+- `canvasSegments`, the pixel sum and the sum `float32` split a text by bidi level only when ICU gives it the direction `mixed`. A text with an LRI, an FSI or a PDI and no RTL character stays one run, and keeps its kerning.
+- In 0.2.0, the Chromium probe of PR 92 measured errors of up to 65 px on these texts. In 0.3.0, the probe of PR 95 gives each of the 36 texts within 1/64 px on Linux, macOS and Windows.
+- The score of the Fonts job fails when a probe row of the group `bidi` is more than 0.5 px off on an arm.
+
+Runtime dependencies: no change against `0.2.0` (`@mark1russell7/collections` `^0.9.3`, `@mark1russell7/rigor-generators` `^0.1.0`).
+
+### Justified lines and hyphen patterns (T14, PR 94)
+
+- `Glue` has the optional fields `stretch` and `shrink`. With no stretch and no shrink, each breaker gives the same breaks as 0.2.0, on 300 corpus paragraphs.
+- Total fit uses the adjustment ratio of Knuth and Plass. It does not choose a line that needs more shrink than its glue has, while a feasible set of breaks exists.
+- `./breaking` exports `adjustmentRatio`, `adjustmentRatios` and `worstRatio`, the measure of the justified edge. `docs/BREAKING.md` defines it.
+- The new subpath `./hyphen` gives `hyphenator`. The subpaths `./hyphen/en-us`, `./hyphen/de` and `./hyphen/fr` give the TeX patterns of tex-hyphen, pinned by commit and SHA-256.
+- The `gzip` weight of each language: `en-us` 18202 bytes, `de` 123851 bytes, `fr` 5568 bytes. No set is in the root entry or in `./breaking`.
+
 ## 0.2.0
 
 This version adds the subpath `./bidi` and three exports of `./segmentation`. It also changes the output of `canvasSegments` and of the sum `float32` of `./fonts` for some texts. Before 1.0.0, a change of behavior increases MINOR. The version 0.1.9 had the same code, and it was not published.

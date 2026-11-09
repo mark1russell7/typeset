@@ -11,6 +11,7 @@ import type { ScriptId } from "@typeset/corpus";
 import type { AdvanceModelRow } from "./advances.ts";
 import type { Cell, Fractions, InstanceProbe } from "./compare.ts";
 import type { FeatureGroup, FeatureSummary } from "./features.ts";
+import { sequenceEntries } from "./sequences.ts";
 
 /** The part of an arm file that the score uses. */
 export interface ArmFile {
@@ -28,6 +29,8 @@ export interface ArmFile {
   /** The errors of the model of the engine of the arm. An older arm file has no such fields. */
   readonly engineSummary?: Partial<Record<ScriptId, { readonly line?: Cell; readonly paragraph?: Cell; readonly page?: Cell }>>;
   readonly engineExtraSummary?: Record<string, { readonly line?: Cell }>;
+  /** The canvas widths of the sequence list in Chromium, with the model at 96 px. An older arm file has no such field. */
+  readonly sequenceProbe?: readonly { readonly id: string; readonly canvas: number; readonly model: number }[];
 }
 
 /** The arms that the bounds use: the platforms with no rounding to whole px. */
@@ -322,6 +325,31 @@ export function noReadGates(predictions: Readonly<Record<string, readonly Outcom
   });
 }
 
+/** The largest distance in px between the canvas width and the model of a text of the group `bidi` (T13c). */
+export const bidiProbeLimit = 0.5;
+
+/**
+ * This function gives the gate line of the bidi probe (T13c), or undefined when it passes. On each arm, the canvas width of
+ * each text of the sequence group `bidi` is at most 0.5 px from the model. An arm with a missing row is a no-read.
+ */
+export function bidiProbeGate(files: ReadonlyMap<string, ArmFile>): GateLine | undefined {
+  const ids = sequenceEntries.filter((entry) => entry.group === "bidi").map((entry) => entry.id);
+  const details: string[] = [];
+  const reads = allArms.map((arm) => {
+    const rows = new Map((files.get(arm)?.sequenceProbe ?? []).map((row) => [row.id, row] as const));
+    const missing = ids.filter((id) => !rows.has(id));
+    if (missing.length > 0) {
+      details.push(`${arm}: no row for ${missing.length} of ${ids.length} texts`);
+      return { case: arm, outcome: "no read" };
+    }
+    const beyond = ids.map((id) => rows.get(id)!).filter((row) => !(Math.abs(row.canvas - row.model) <= bidiProbeLimit));
+    if (beyond.length === 0) return { case: arm, outcome: "pass" };
+    details.push(`${arm}: ${beyond.length} of ${ids.length} texts beyond ${bidiProbeLimit} px (${beyond.map((row) => `${row.id} ${(row.canvas - row.model).toFixed(3)}`).join(", ")})`);
+    return { case: arm, outcome: "beyond" };
+  });
+  return gateLine(reads, { title: "Fonts bidi probe", enforced: true, reason: details.join("; ") });
+}
+
 function main(): void {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: { out: { type: "string", default: "outcomes.json" } } });
   const folder = positionals[0];
@@ -337,6 +365,11 @@ function main(): void {
   const stepSummary = process.env["GITHUB_STEP_SUMMARY"];
   if (stepSummary !== undefined) appendFileSync(stepSummary, `${lines.join("\n")}\n`);
   for (const line of noReadGates(predictions)) writeGateLine(line);
+  const bidi = bidiProbeGate(files);
+  if (bidi !== undefined) {
+    writeGateLine(bidi);
+    process.exitCode = 1;
+  }
 }
 
 if (import.meta.main) main();
