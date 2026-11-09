@@ -94,6 +94,19 @@ The trained set passes when all these conditions are true:
 
 The field `verdict` of the record gives each condition. A set that passes becomes the shipped set only after a separate change, with its `gzip` bytes at most 2 times the bytes of today.
 
+The first training of 2026-11-09 has 4 levels and 5036 patterns. Its patterns have 15686 `gzip` bytes. It fails condition 3:
+
+| List | Words | Set | Confirmed | Found | F0.5 |
+| --- | --- | --- | --- | --- | --- |
+| Held-out half of Moby | 68000 | trained | 0.9799 | 0.8252 | 0.9445 |
+| Held-out half of Moby | 68000 | shipped | 0.9571 | 0.7626 | 0.9106 |
+| TUGboat list | 1505 | trained | 0.7526 | 0.5635 | 0.7053 |
+| TUGboat list | 1505 | shipped | 0.8503 | 0.6473 | 0.8001 |
+
+On the held-out half, the 95 % interval of the `found` gain is 0.0604 to 0.0649. The interval of the `confirmed` gain is 0.0216 to 0.0241. On the TUGboat list, the interval of the `found` gain is -0.1087 to -0.0584. The interval of the `confirmed` gain is -0.1166 to -0.0786.
+
+The shipped set `ushyphmax.tex` comes from the TUGboat exception log of 1989. Its header tells that it finds all places of the words of that log. So the TUGboat list is not independent of the shipped set. The shipped set does not change until a ruling on this result.
+
 ### The missed places
 
 A missed place is a place of the list, within the limits of the set, that the set does not give. `countMisses` puts each missed place in one class:
