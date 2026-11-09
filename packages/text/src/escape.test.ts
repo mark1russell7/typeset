@@ -1,7 +1,7 @@
 import { random } from "@mark1russell7/rigor-generators";
 import { describe, expect, it } from "vitest";
 import { PARTS, strings } from "../test/strings.ts";
-import { escapeAttribute, escapeHtml, escapeMarkdown, escapeRegExp } from "./index.ts";
+import { escapeAttribute, escapeHtml, escapeMarkdown, escapeRegExp, escapeWorkflowData, escapeWorkflowProperty } from "./index.ts";
 
 const NAMED: Readonly<Record<string, string>> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
 const decode = (html: string): string => html.replace(/&(amp|lt|gt|quot|#39);/g, (_, name: string) => NAMED[name] ?? "");
@@ -77,6 +77,24 @@ describe("escapeMarkdown", () => {
       expect(line).not.toMatch(/[\r\n]/);
       // Remove each escape pair. Then no punctuation stays.
       expect(line.replace(/\\[!-/:-@[-`{-~]/g, "")).not.toMatch(/[!-/:-@[-`{-~]/);
+    }
+  });
+});
+
+describe("escapeWorkflowData and escapeWorkflowProperty", () => {
+  it("escape the characters of a workflow command", () => {
+    expect(escapeWorkflowData("50% done\r\nnext: a, b")).toBe("50%25 done%0D%0Anext: a, b");
+    expect(escapeWorkflowProperty("50% done\r\nnext: a, b")).toBe("50%25 done%0D%0Anext%3A a%2C b");
+  });
+
+  it("give text that decodes to the input, and a property with no : , CR or LF, on 2000 seeded strings", () => {
+    for (const text of strings("text/workflow", 2000)) {
+      const data = escapeWorkflowData(text);
+      const property = escapeWorkflowProperty(text);
+      expect(decodeURIComponent(data), JSON.stringify(text)).toBe(text);
+      expect(decodeURIComponent(property), JSON.stringify(text)).toBe(text);
+      expect(data).not.toMatch(/[\r\n]/);
+      expect(property).not.toMatch(/[:,\r\n]/);
     }
   });
 });

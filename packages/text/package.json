@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/text",
-  "version": "0.0.1",
-  "description": "Plain text helpers. The first group is the escapes: escapeHtml, escapeAttribute, escapeRegExp and escapeMarkdown.",
+  "version": "0.0.2",
+  "description": "Plain text helpers. The first group is the escapes: escapeHtml, escapeAttribute, escapeRegExp, escapeMarkdown, escapeWorkflowData and escapeWorkflowProperty.",
   "keywords": [
     "text",
     "escape",
@@ -60,6 +60,7 @@
     "@mark1russell7/cue": "^2.0.0",
     "@mark1russell7/rigor-generators": "^0.1.8",
     "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "5.1.0",
     "esbuild": "^0.28.2",
     "tsdown": "^0.23.7",
     "typescript": "^7.0.2",

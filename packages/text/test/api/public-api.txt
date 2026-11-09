@@ -10,6 +10,8 @@ escapeAttribute: build/index.d.ts#escapeAttribute
 escapeHtml: build/index.d.ts#escapeHtml
 escapeMarkdown: build/index.d.ts#escapeMarkdown
 escapeRegExp: build/index.d.ts#escapeRegExp
+escapeWorkflowData: build/index.d.ts#escapeWorkflowData
+escapeWorkflowProperty: build/index.d.ts#escapeWorkflowProperty
 
 ## Declarations
 
@@ -24,3 +26,9 @@ export declare function escapeMarkdown(text: string): string;
 
 ### build/index.d.ts#escapeRegExp
 export declare function escapeRegExp(text: string): string;
+
+### build/index.d.ts#escapeWorkflowData
+export declare function escapeWorkflowData(text: string): string;
+
+### build/index.d.ts#escapeWorkflowProperty
+export declare function escapeWorkflowProperty(text: string): string;

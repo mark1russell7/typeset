@@ -1,6 +1,6 @@
 /**
- * This module has the escapes of plain text for four targets. The targets are HTML content, an HTML attribute, a
- * regular expression and one line of Markdown. Each function changes only the characters that have a meaning in its target.
+ * This module has the escapes of plain text for five targets. The targets are HTML content, an HTML attribute, a
+ * regular expression, one line of Markdown and a GitHub Actions workflow command. Each function changes only the characters that have a meaning in its target.
  */
 
 const HTML: Readonly<Record<string, string>> = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
@@ -53,4 +53,26 @@ export function escapeRegExp(text: string): string {
  */
 export function escapeMarkdown(text: string): string {
   return text.replace(/\r\n?|\n/g, " ").replace(/[!-/:-@[-`{-~]/g, "\\$&");
+}
+
+/**
+ * This function escapes a text for the data of a GitHub Actions workflow command, the part after `::`. It changes `%`,
+ * the carriage return and the line feed to `%25`, `%0D` and `%0A`, so the command stays on one line.
+ *
+ * @param text - The plain text.
+ * @returns The data of the command. The runner decodes it to the text.
+ */
+export function escapeWorkflowData(text: string): string {
+  return text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+}
+
+/**
+ * This function escapes a text for a property value of a GitHub Actions workflow command, for example `title=`. It
+ * changes the characters of `escapeWorkflowData`, and also `:` and `,` to `%3A` and `%2C`.
+ *
+ * @param text - The plain text.
+ * @returns The property value. The runner decodes it to the text.
+ */
+export function escapeWorkflowProperty(text: string): string {
+  return escapeWorkflowData(text).replaceAll(":", "%3A").replaceAll(",", "%2C");
 }

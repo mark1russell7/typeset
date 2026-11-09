@@ -1,5 +1,5 @@
 {
-  "source": "The list of the codeatlas run 42507648167: the copies of the four groups html, attribute, regexp and markdown. Each body is the lines line to endLine of path at commit.",
+  "source": "The list of the codeatlas run 42507648167: the copies of the five groups html, attribute, regexp, markdown and workflow-command. Each body is the lines line to endLine of path at commit.",
   "copies": [
     {
       "id": "template/packages/site/src/highlight.ts:6",
@@ -690,6 +690,78 @@
       "url": "https://github.com/mark1russell7/template/blob/187f0be7e0c291af790479ef3efc29057c62d3ac/packages/site-pages/src/check/check.ts#L337-L339",
       "call": "text",
       "body": "export function cell(text: string): string {\n  return text.replace(/\\\\/g, \"\\\\\\\\\").replace(/\\|/g, \"\\\\|\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\").replace(/\\r?\\n/g, \" \");\n}"
+    },
+    {
+      "id": "rigor/packages/bench/src/gate-line.ts:238",
+      "group": "workflow-command",
+      "repo": "rigor",
+      "path": "packages/bench/src/gate-line.ts",
+      "line": 238,
+      "endLine": 240,
+      "commit": "aa3a7e66d7fcc75dab80f7144d1ed297a536612a",
+      "name": "escapeData",
+      "url": "https://github.com/mark1russell7/rigor/blob/aa3a7e66d7fcc75dab80f7144d1ed297a536612a/packages/bench/src/gate-line.ts#L238-L240",
+      "call": "text",
+      "home": "escapeWorkflowData",
+      "body": "function escapeData(text: string): string {\n  return text.replaceAll(\"%\", \"%25\").replaceAll(\"\\r\", \"%0D\").replaceAll(\"\\n\", \"%0A\");\n}"
+    },
+    {
+      "id": "rigor/packages/bench/src/gate-line.ts:243",
+      "group": "workflow-command",
+      "repo": "rigor",
+      "path": "packages/bench/src/gate-line.ts",
+      "line": 243,
+      "endLine": 245,
+      "commit": "aa3a7e66d7fcc75dab80f7144d1ed297a536612a",
+      "name": "escapeProperty",
+      "url": "https://github.com/mark1russell7/rigor/blob/aa3a7e66d7fcc75dab80f7144d1ed297a536612a/packages/bench/src/gate-line.ts#L243-L245",
+      "call": "text",
+      "home": "escapeWorkflowProperty",
+      "body": "function escapeProperty(text: string): string {\n  return escapeData(text).replaceAll(\":\", \"%3A\").replaceAll(\",\", \"%2C\");\n}",
+      "context": "function escapeData(text: string): string {\n  return text.replaceAll(\"%\", \"%25\").replaceAll(\"\\r\", \"%0D\").replaceAll(\"\\n\", \"%0A\");\n}"
+    },
+    {
+      "id": "rigor/packages/mutation/src/run.ts:344",
+      "group": "workflow-command",
+      "repo": "rigor",
+      "path": "packages/mutation/src/run.ts",
+      "line": 344,
+      "endLine": 347,
+      "commit": "aa3a7e66d7fcc75dab80f7144d1ed297a536612a",
+      "name": "escapeCommand",
+      "url": "https://github.com/mark1russell7/rigor/blob/aa3a7e66d7fcc75dab80f7144d1ed297a536612a/packages/mutation/src/run.ts#L344-L347",
+      "call": "data and property",
+      "home": "escapeWorkflowData and escapeWorkflowProperty",
+      "body": "const escapeCommand = (text: string, property = false): string => {\n  const data = text.replaceAll(\"%\", \"%25\").replaceAll(\"\\r\", \"%0D\").replaceAll(\"\\n\", \"%0A\");\n  return property ? data.replaceAll(\":\", \"%3A\").replaceAll(\",\", \"%2C\") : data;\n};"
+    },
+    {
+      "id": "template/packages/conventions/src/run.ts:249",
+      "group": "workflow-command",
+      "repo": "template",
+      "path": "packages/conventions/src/run.ts",
+      "line": 249,
+      "endLine": 249,
+      "commit": "187f0be7e0c291af790479ef3efc29057c62d3ac",
+      "name": "escapeData",
+      "url": "https://github.com/mark1russell7/template/blob/187f0be7e0c291af790479ef3efc29057c62d3ac/packages/conventions/src/run.ts#L249-L249",
+      "call": "text",
+      "home": "escapeWorkflowData",
+      "body": "const escapeData = (text: string): string => text.replace(/%/g, \"%25\").replace(/\\r/g, \"%0D\").replace(/\\n/g, \"%0A\");"
+    },
+    {
+      "id": "template/packages/conventions/src/run.ts:250",
+      "group": "workflow-command",
+      "repo": "template",
+      "path": "packages/conventions/src/run.ts",
+      "line": 250,
+      "endLine": 250,
+      "commit": "187f0be7e0c291af790479ef3efc29057c62d3ac",
+      "name": "escapeProperty",
+      "url": "https://github.com/mark1russell7/template/blob/187f0be7e0c291af790479ef3efc29057c62d3ac/packages/conventions/src/run.ts#L250-L250",
+      "call": "text",
+      "home": "escapeWorkflowProperty",
+      "body": "const escapeProperty = (text: string): string => escapeData(text).replace(/:/g, \"%3A\").replace(/,/g, \"%2C\");",
+      "context": "const escapeData = (text: string): string => text.replace(/%/g, \"%25\").replace(/\\r/g, \"%0D\").replace(/\\n/g, \"%0A\");"
     }
   ]
 }
