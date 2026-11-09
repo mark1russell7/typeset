@@ -1,3 +1,5 @@
+import { hyphenator, type PatternSet } from "@mark1russell7/typeset/hyphen";
+
 /** A word of a list, with the offsets of its hyphen places. */
 export interface ListedWord {
   readonly word: string;
@@ -50,9 +52,6 @@ export const missClasses = ["shift", "silent", "other"] as const;
 /** The class of a missed place. */
 export type MissClass = (typeof missClasses)[number];
 
-/** The count of the missed places of a list in each class. */
-export type MissCounts = Readonly<Record<MissClass, number>>;
-
 /**
  * This function gives the class of a missed place. The class is `shift` when the set gives a place one letter before or
  * after it. The class is `silent` when the set gives no place in the word. Else the class is `other`.
@@ -62,14 +61,51 @@ export function missClass(place: number, given: readonly number[]): MissClass {
   return given.length === 0 ? "silent" : "other";
 }
 
-/** This function counts the missed places of a list in each class. The sum is `listed` minus `both` of `scoreWords`. */
-export function countMisses(words: readonly ListedWord[], hyphenate: (word: string) => readonly number[], left: number, right: number): MissCounts {
+/** The causes of a missed place, from the digits of the patterns at the place. */
+export const missCauses = ["uncovered", "inhibited", "exception"] as const;
+
+/** The cause of a missed place. */
+export type MissCause = (typeof missCauses)[number];
+
+/** The count of the missed places of a list in each class, and in each cause of each class. */
+export type MissCounts = Readonly<Record<MissClass, number>> & { readonly causes: Readonly<Record<MissClass, Readonly<Record<MissCause, number>>>> };
+
+/**
+ * This function gives the function that gives the covered places of a word: the places where a pattern gives a digit. The set
+ * changes each even digit `d` to `d - 1`. This change keeps the order of the digits, so the largest digit at a place is odd
+ * when a pattern gives a digit there. The result is `undefined` for a word of the exceptions, because the patterns do not apply to it.
+ */
+export function coveredPlaces(set: PatternSet): (word: string) => readonly number[] | undefined {
+  const exceptions = new Set(set.exceptions.split(" ").map((entry) => entry.replaceAll("-", "")));
+  const cover = hyphenator({ ...set, patterns: set.patterns.replace(/[2468]/gu, (digit) => String(Number(digit) - 1)), exceptions: "" });
+  return (word) => (exceptions.has(word.toLowerCase()) ? undefined : cover(word));
+}
+
+/**
+ * This function gives the cause of a missed place from the covered places of its word. The cause is `exception` when the word is
+ * an exception of the set. The cause is `inhibited` when a pattern gives an even digit at the place. Else the cause is `uncovered`.
+ */
+export function missCause(place: number, covered: readonly number[] | undefined): MissCause {
+  if (covered === undefined) return "exception";
+  return covered.includes(place) ? "inhibited" : "uncovered";
+}
+
+/**
+ * This function counts the missed places of a list in each class and in each cause. The sum is `listed` minus `both` of
+ * `scoreWords`. The function `covered` is the function of `coveredPlaces`.
+ */
+export function countMisses(words: readonly ListedWord[], hyphenate: (word: string) => readonly number[], covered: (word: string) => readonly number[] | undefined, left: number, right: number): MissCounts {
   const counts: Record<MissClass, number> = { shift: 0, silent: 0, other: 0 };
+  const causes = Object.fromEntries(missClasses.map((name) => [name, { uncovered: 0, inhibited: 0, exception: 0 }])) as Record<MissClass, Record<MissCause, number>>;
   for (const { word, places } of words) {
     const offsets = hyphenate(word);
+    const known = covered(word);
     for (const place of new Set(places.filter((place) => place >= left && place <= word.length - right))) {
-      if (!offsets.includes(place)) counts[missClass(place, offsets)] += 1;
+      if (offsets.includes(place)) continue;
+      const name = missClass(place, offsets);
+      counts[name] += 1;
+      causes[name][missCause(place, known)] += 1;
     }
   }
-  return counts;
+  return { ...counts, causes };
 }

@@ -9,7 +9,8 @@ import { describe, expect, it } from "vitest";
 import { gzipTolerance, hyphenPaths, recordDifferences, sampleHash, weighEntry, type HyphenRecord, type MissRecord } from "./gate.ts";
 import { parsePatterns, setSource } from "./patterns.ts";
 import { hyphenFiles, hyphenUrl, texHyphenCommit } from "./sources.ts";
-import { countMisses, missClass, parseWords, scoreWords, share } from "./words.ts";
+import type { PatternSet } from "@mark1russell7/typeset/hyphen";
+import { countMisses, coveredPlaces, missCause, missClass, parseWords, scoreWords, share } from "./words.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const paths = hyphenPaths(root);
@@ -95,7 +96,7 @@ describe("scoreWords", () => {
   });
 });
 
-describe("missClass and countMisses", () => {
+describe("missClass, missCause and countMisses", () => {
   it("puts a missed place in shift, silent or other", () => {
     expect(missClass(3, [2])).toBe("shift");
     expect(missClass(3, [4, 7])).toBe("shift");
@@ -103,12 +104,34 @@ describe("missClass and countMisses", () => {
     expect(missClass(3, [5])).toBe("other");
   });
 
+  it("puts a missed place in uncovered, inhibited or exception", () => {
+    expect(missCause(1, [2])).toBe("uncovered");
+    expect(missCause(2, [2])).toBe("inhibited");
+    expect(missCause(2, undefined)).toBe("exception");
+  });
+
+  it("covers each place where a pattern gives a digit, odd or even", () => {
+    const set: PatternSet = { patterns: "1b a2b c4d d3 e8f", exceptions: "ta-ble", left: 1, right: 1 };
+    const covered = coveredPlaces(set);
+    // abcdef: 1b and a2b give 2 at offset 1, c4d gives 4 at 3, d3 gives 3 at 4, e8f gives 8 at 5.
+    expect(covered("abcdef")).toEqual([1, 3, 4, 5]);
+    expect(covered("xyz")).toEqual([]);
+    expect(covered("Table")).toBeUndefined();
+  });
+
   it("counts each missed place within the limits one time, and the sum is listed minus both", () => {
     const words = parseWords("hy-phen-ation ta-ble con-cat-e-nate");
     const hyphenate = (word: string): readonly number[] => (word === "hyphenation" ? [2, 5] : word === "concatenate" ? [9] : []);
-    const counts = countMisses(words, hyphenate, 2, 2);
+    // A pattern covers each offset of hyphenation and none of concatenate. The word table is an exception.
+    const covered = (word: string): readonly number[] | undefined => (word === "table" ? undefined : word === "hyphenation" ? [2, 3, 4, 5, 6, 7, 8, 9] : []);
+    const counts = countMisses(words, hyphenate, covered, 2, 2);
     // hyphenation: 6 shift (5 is given). table: 2 silent. concatenate: 3, 6 and 7 other (9 is not a place of the list)
-    expect(counts).toEqual({ shift: 1, silent: 1, other: 3 });
+    expect(counts).toMatchObject({ shift: 1, silent: 1, other: 3 });
+    expect(counts.causes).toEqual({
+      shift: { uncovered: 0, inhibited: 1, exception: 0 },
+      silent: { uncovered: 0, inhibited: 0, exception: 1 },
+      other: { uncovered: 3, inhibited: 0, exception: 0 },
+    });
     const score = scoreWords(words, hyphenate, 2, 2);
     expect(counts.shift + counts.silent + counts.other).toBe(score.listed - score.both);
   });
@@ -127,6 +150,7 @@ describe("each language set on its word list", () => {
     const left = Number(limits[1]);
     const right = Number(limits[2]);
     const score = scoreWords(words, set.hyphenate, left, right);
+    const data = JSON.parse(/hyphenator\((\{.*\})\)/u.exec(readFileSync(paths.source(hyphen.language), "utf8"))![1]!) as PatternSet;
 
     it(`${hyphen.language}: the list confirms at least 95 % of the places that the set gives`, () => {
       expect(words.length).toBe(10000);
@@ -149,9 +173,10 @@ describe("each language set on its word list", () => {
       expect(set.source).toMatchObject({ commit: texHyphenCommit, sha256: hyphen.sha256, license: hyphen.license, file: hyphen.name });
     });
 
-    it(`${hyphen.language}: the record of the missed places holds the count of each class`, () => {
-      const counts = countMisses(words, set.hyphenate, left, right);
-      expect(missRecord.schema).toBe("typeset-hyphen-misses/1");
+    it(`${hyphen.language}: the record of the missed places holds the count of each class and of each cause`, () => {
+      const counts = countMisses(words, set.hyphenate, coveredPlaces(data), left, right);
+      for (const name of ["shift", "silent", "other"] as const) expect(Object.values(counts.causes[name]).reduce((sum, count) => sum + count, 0)).toBe(counts[name]);
+      expect(missRecord.schema).toBe("typeset-hyphen-misses/2");
       expect(missRecord.languages[hyphen.language]).toEqual({ misses: score.listed - score.both, ...counts });
     });
 
