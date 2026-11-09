@@ -11,6 +11,7 @@ import { allLeftOut, armMatrix, breakMatrix, probeLines, probeMatrix, readSnapsh
 import { unicodeVersion } from "@mark1russell7/typeset/segmentation";
 import conformanceFile from "../data/conformance.json";
 import { readConformance, segmentView, type SegmentKind } from "./segments.ts";
+import { startJustify } from "./justify-page.ts";
 
 const snapshot = readSnapshot(snapshotFile);
 const conformance = readConformance(conformanceFile);
@@ -761,6 +762,7 @@ renderLegend();
 renderSweep();
 renderSegments();
 renderConformance();
+startJustify();
 bind();
 // The address `?sweep` also starts a sweep of the lab font, so a link can show a finished sweep
 const first = selectFont(state.font);

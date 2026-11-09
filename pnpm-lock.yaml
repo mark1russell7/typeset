@@ -295,6 +295,9 @@ importers:
       '@mark1russell7/typeset':
         specifier: workspace:*
         version: link:../typeset
+      '@typeset/conformance':
+        specifier: workspace:*
+        version: link:../conformance
       '@typeset/corpus':
         specifier: workspace:*
         version: link:../corpus
