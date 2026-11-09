@@ -157,6 +157,13 @@
           <div class="table-scroll"><table class="heat" id="stack-table"></table></div>
           <div class="detail" id="stack-detail" aria-live="polite"><p class="hint">Select a cell to see the worst error at each size.</p></div>
         </div>
+        <div id="probe-block" hidden>
+          <h3 class="sub-head">Sequences: canvas against the model</h3>
+          <p class="hint">Each row is a group of hard texts: bidi controls, emoji sequences and kerning across hidden characters. The canvas and the model measure each text at 96 px. Each cell shows the worst distance in px.</p>
+          <p class="hint">The model does not shape emoji sequences, and it names that risk for each such text. The group of mixed directions has a gate: each text is at most 0.5 px from the model.</p>
+          <div class="table-scroll"><table class="heat" id="probe-table"></table></div>
+          <div class="detail" id="probe-detail" aria-live="polite"><p class="hint">Select a cell to see its worst text and the texts more than 1/64 px off.</p></div>
+        </div>
       </section>
 
       <div class="legend" id="legend" aria-label="The color scale of the error"></div>

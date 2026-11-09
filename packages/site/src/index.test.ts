@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 import { measureWidth, type Font } from "@mark1russell7/typeset/fonts";
 import type { Cell } from "@typeset/widths";
-import { fontsCommit, scriptTags } from "@typeset/widths";
+import { bidiProbeLimit as widthsBidiLimit, fontsCommit, scriptTags } from "@typeset/widths";
 import { describe, expect, it } from "vitest";
 import {
   allLeftOut,
   armMatrix,
   armOrder,
+  bidiProbeLimit,
   engineForAgent,
   fontChoices,
   formatPx,
@@ -14,6 +15,8 @@ import {
   heatLevel,
   labResult,
   previewFit,
+  probeLines,
+  probeMatrix,
   readSnapshot,
   scriptOrder,
   snapshotOf,
@@ -256,5 +259,73 @@ describe("stackMatrix", () => {
 
   it("gives no rows for a run before T11", () => {
     expect(stackMatrix(snapshotOf([armFile("linux-1", "freetype", 1)], run))).toEqual([]);
+  });
+});
+
+describe("probeMatrix", () => {
+  const row = (id: string, canvas: number | null, model: number, risks: string[] = []) => ({ id, canvas, model, harfbuzz: model, risks });
+  const sequenceProbe = [
+    row("bidi/noto-sans/0", 119, 119),
+    row("bidi/noto-sans/1", 120, 119.75),
+    row("zwj/noto-emoji/0", 120, 244, ["emoji-zwj"]),
+    row("zwj/noto-emoji/1", 100, 100.5),
+    row("zwj/noto-emoji/2", null, 100),
+  ];
+  const snapshot = snapshotOf([{ ...armFile("linux-1", "freetype", 1), sequenceProbe }, armFile("windows-1", "directwrite", 1)], run);
+
+  it("keeps one summary for each group: the worst text, the texts more than 1/64 px off, their risks and the texts with no width", () => {
+    expect(snapshot.arms[0]!.probe).toEqual([
+      { group: "bidi", n: 2, noRead: 0, worstPx: 0.25, worstId: "bidi/noto-sans/1", over64: 1, risks: {}, risky: 0 },
+      { group: "zwj", n: 3, noRead: 1, worstPx: 124, worstId: "zwj/noto-emoji/0", over64: 2, risks: { "emoji-zwj": 1 }, risky: 1 },
+    ]);
+    expect(snapshot.arms[1]!.probe).toBeUndefined();
+  });
+
+  it("gives one row for each group, with the cell of each arm and the gate of the group bidi", () => {
+    const rows = probeMatrix(snapshot);
+    expect(rows.map((r) => [r.group, r.limitPx, r.cells.length])).toEqual([["bidi", 0.5, 2], ["zwj", undefined, 2]]);
+    expect(rows[0]!.cells[1]).toBeUndefined();
+  });
+
+  it("gives the lines of a cell, with the risks and the gate", () => {
+    const [bidi, zwj] = probeMatrix(snapshot);
+    expect(probeLines("Bidi", bidi!.cells[0], bidi!.limitPx)).toEqual([
+      "Bidi",
+      "2 texts at 96 px. The worst text is bidi/noto-sans/1, 0.250 px from the model.",
+      "1 of 2 texts are more than 1/64 px from the model.",
+      "The gate of T13c: each text is at most 0.5 px from the model. The gate holds on this arm.",
+    ]);
+    expect(probeLines("ZWJ", zwj!.cells[0])).toContain("The model names a shaping risk for 1 of them: emoji-zwj (1).");
+    expect(probeLines("ZWJ", zwj!.cells[0])).toContain("1 texts have no width.");
+    expect(probeLines("Bidi", { ...bidi!.cells[0]!, worstPx: 0.6 }, 0.5).at(-1)).toMatch(/fails on this arm/);
+    expect(probeLines("None", undefined)).toEqual(["None", "This arm has no probe data."]);
+  });
+
+  it("uses the limit of the gate of the fonts job", () => {
+    expect(bidiProbeLimit).toBe(widthsBidiLimit);
+  });
+
+  it("gives no rows for a run before T13b", () => {
+    expect(probeMatrix(snapshotOf([armFile("linux-1", "freetype", 1)], run))).toEqual([]);
+  });
+});
+
+describe("the committed snapshot", () => {
+  const snapshot = readSnapshot(JSON.parse(readFileSync(new URL("../data/ci-snapshot.json", import.meta.url), "utf8")));
+
+  it("gives the probe table: each group with a cell on each arm, and the 36 bidi texts within the gate of T13c", () => {
+    const rows = probeMatrix(snapshot);
+    expect(rows.map((r) => r.group)).toEqual(["zwj", "variation", "keycap", "bidi", "hidden-kerning"]);
+    for (const r of rows) expect(r.cells.every((cell) => cell !== undefined)).toBe(true);
+    const bidi = rows.find((r) => r.group === "bidi")!;
+    for (const [i, cell] of bidi.cells.entries()) {
+      expect(cell!.n).toBe(36);
+      expect(probeLines(snapshot.arms[i]!.arm, cell, bidi.limitPx).at(-1)).toBe("The gate of T13c: each text is at most 0.5 px from the model. The gate holds on this arm.");
+    }
+  });
+
+  it("gives the stack table: 60 cells on each arm", () => {
+    const rows = stackMatrix(snapshot);
+    expect(snapshot.arms.map((_, i) => rows.reduce((sum, r) => sum + r.cells[i]!.length, 0))).toEqual([60, 60, 60, 60]);
   });
 });

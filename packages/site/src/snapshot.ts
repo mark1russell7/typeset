@@ -4,6 +4,7 @@
  */
 import type { LengthClass, ScriptId } from "@typeset/corpus";
 import type { Cell, StackCell, StackSet } from "@typeset/widths";
+import { formatPx } from "./heat.ts";
 
 /** The cells of one summary, by script and by length class. */
 export type Summary = Partial<Record<ScriptId, Partial<Record<LengthClass, Cell>>>>;
@@ -29,6 +30,27 @@ export interface ArmSnapshot {
   readonly engineExtraSummary: ExtraSummary;
   /** The errors of each font stack at each size. A run before T11 has no stacks. */
   readonly stacks?: readonly StackCell[];
+  /** The groups of the sequence probe: canvas widths against the model at 96 px. A run before T13b has no probe. */
+  readonly probe?: readonly ProbeGroup[];
+}
+
+/** The summary of one group of the sequence probe on one arm. The probe measures each text at 96 px with the canvas and with the model. */
+export interface ProbeGroup {
+  readonly group: string;
+  /** The count of texts of the group. */
+  readonly n: number;
+  /** The count of texts with no canvas width or no model width. */
+  readonly noRead: number;
+  /** The largest distance in px between the canvas width and the model width. */
+  readonly worstPx: number;
+  /** The identifier of the text with the largest distance. */
+  readonly worstId: string;
+  /** The count of texts more than 1/64 px from the model. */
+  readonly over64: number;
+  /** The shaping risks that the model names for the texts more than 1/64 px off, with the count of texts of each risk. */
+  readonly risks: Readonly<Record<string, number>>;
+  /** The count of texts more than 1/64 px off with one or more named risks. */
+  readonly risky: number;
 }
 
 /** The run that gives a snapshot. */
@@ -110,6 +132,39 @@ function stackFontsOf(value: unknown): Record<string, string[]> | undefined {
   return out;
 }
 
+/** This function gives the groups of a field `sequenceProbe` of a file `font-widths.json`, in the order of their first text. */
+function probeGroupsOf(value: unknown): ProbeGroup[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const groups = new Map<string, { n: number; noRead: number; worstPx: number; worstId: string; over64: number; risky: number; risks: Record<string, number> }>();
+  for (const row of value.filter(isObject)) {
+    const id = String(row["id"]);
+    const name = id.split("/")[0]!;
+    let group = groups.get(name);
+    if (group === undefined) {
+      group = { n: 0, noRead: 0, worstPx: 0, worstId: "", over64: 0, risky: 0, risks: {} };
+      groups.set(name, group);
+    }
+    group.n++;
+    const canvas = row["canvas"];
+    const model = row["model"];
+    if (typeof canvas !== "number" || typeof model !== "number" || !Number.isFinite(canvas) || !Number.isFinite(model)) {
+      group.noRead++;
+      continue;
+    }
+    const distance = Math.abs(canvas - model);
+    if (group.worstId === "" || distance > group.worstPx) {
+      group.worstPx = distance;
+      group.worstId = id;
+    }
+    if (distance <= 1 / 64) continue;
+    group.over64++;
+    const risks = Array.isArray(row["risks"]) ? row["risks"].map(String) : [];
+    if (risks.length > 0) group.risky++;
+    for (const risk of risks) group.risks[risk] = (group.risks[risk] ?? 0) + 1;
+  }
+  return [...groups].map(([group, g]) => ({ group, n: g.n, noRead: g.noRead, worstPx: round(g.worstPx), worstId: g.worstId, over64: g.over64, risks: g.risks, risky: g.risky }));
+}
+
 /**
  * This function makes a snapshot from the parsed files `font-widths.json` of the arms of one run. It keeps only the
  * summaries. It refuses a file with another schema, and two files of one arm.
@@ -125,6 +180,7 @@ export function snapshotOf(files: readonly unknown[], run: RunInfo): Snapshot {
     if (arms.some((a) => a.arm === arm)) throw new Error(`the run has two files of the arm ${arm}`);
     const models = isObject(file["models"]) ? file["models"] : {};
     const stacks = stackCellsOf(file["stacks"]);
+    const probe = probeGroupsOf(file["sequenceProbe"]);
     stackFonts ??= stackFontsOf(file["stacks"]);
     arms.push({
       arm,
@@ -138,6 +194,7 @@ export function snapshotOf(files: readonly unknown[], run: RunInfo): Snapshot {
       extraSummary: roundCells<string>(file["extraSummary"]),
       engineExtraSummary: roundCells<string>(file["engineExtraSummary"]),
       ...(stacks === undefined ? {} : { stacks }),
+      ...(probe === undefined ? {} : { probe }),
     });
     if (isObject(file["corpus"])) {
       const c = file["corpus"];
@@ -234,4 +291,44 @@ export function stackMatrix(snapshot: Snapshot): StackRow[] {
 export function stackWorstPx(cells: readonly StackCell[]): number {
   const measured = cells.filter((cell) => cell.n > 0);
   return measured.length === 0 ? Number.NaN : Math.max(...measured.map((cell) => cell.worst64)) / 64;
+}
+
+/** The largest distance in px of a text of the probe group `bidi` (T13c). It is the same value as `bidiProbeLimit` of `@typeset/widths`. */
+export const bidiProbeLimit = 0.5;
+
+/** The limit of each probe group that has a gate, in px. */
+export const probeLimits: Readonly<Record<string, number>> = { bidi: bidiProbeLimit };
+
+/** One row of the probe table: a group of the sequence probe, with the summary of each arm in the order of the arms. */
+export interface ProbeRow {
+  readonly group: string;
+  /** The limit of the gate of the group in px, when the group has a gate. */
+  readonly limitPx?: number;
+  readonly cells: readonly (ProbeGroup | undefined)[];
+}
+
+/** This function gives one row for each group of the sequence probe of a snapshot, in the order of the first arm that has it. */
+export function probeMatrix(snapshot: Snapshot): ProbeRow[] {
+  const order: string[] = [];
+  for (const arm of snapshot.arms) for (const group of arm.probe ?? []) if (!order.includes(group.group)) order.push(group.group);
+  return order.map((group) => {
+    const cells = snapshot.arms.map((arm) => arm.probe?.find((value) => value.group === group));
+    const limitPx = probeLimits[group];
+    return limitPx === undefined ? { group, cells } : { group, limitPx, cells };
+  });
+}
+
+/** This function gives the lines of the tip of a probe cell: the worst text, the texts more than 1/64 px off and the gate. */
+export function probeLines(title: string, group: ProbeGroup | undefined, limitPx?: number): string[] {
+  if (group === undefined) return [title, "This arm has no probe data."];
+  const lines = [title, `${group.n} texts at 96 px. The worst text is ${group.worstId}, ${formatPx(group.worstPx)} px from the model.`];
+  if (group.noRead > 0) lines.push(`${group.noRead} texts have no width.`);
+  lines.push(`${group.over64} of ${group.n} texts are more than 1/64 px from the model.`);
+  const risks = Object.entries(group.risks).map(([risk, count]) => `${risk} (${count})`);
+  if (group.risky > 0) lines.push(`The model names a shaping risk for ${group.risky} of them: ${risks.join(", ")}.`);
+  if (limitPx !== undefined) {
+    const holds = group.noRead === 0 && group.worstPx <= limitPx;
+    lines.push(`The gate of T13c: each text is at most ${limitPx} px from the model. ${holds ? "The gate holds on this arm." : "The gate fails on this arm."}`);
+  }
+  return lines;
 }

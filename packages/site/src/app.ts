@@ -7,7 +7,7 @@ import { armOfEngine, engineChoices, engineForAgent, fontChoice, fontChoices, sc
 import { formatPx, formatSigned, heatBins, heatLabel, heatLevel } from "./heat.ts";
 import { labResult, previewFit, sampleText, sweepSummary, sweepTask, type LabResult, type WordView } from "./lab-model.ts";
 import { loadFont, type LoadedFont } from "./load.ts";
-import { allLeftOut, armMatrix, readSnapshot, stackLimit64, stackMatrix, stackWorstPx, statOf, type ModelChoice, type Statistic, type Summary } from "./snapshot.ts";
+import { allLeftOut, armMatrix, probeLines, probeMatrix, readSnapshot, stackLimit64, stackMatrix, stackWorstPx, statOf, type ModelChoice, type Statistic, type Summary } from "./snapshot.ts";
 import { unicodeVersion } from "@mark1russell7/typeset/segmentation";
 import conformanceFile from "../data/conformance.json";
 import { readConformance, segmentView, type SegmentKind } from "./segments.ts";
@@ -406,6 +406,45 @@ function renderStacks(): void {
   table.tBodies[0]!.append(...body);
 }
 
+/** The names of the groups of the sequence probe. */
+const probeLabels: Readonly<Record<string, string>> = {
+  bidi: "Mixed directions",
+  zwj: "Emoji ZWJ sequences",
+  variation: "Variation selectors",
+  keycap: "Keycaps",
+  flag: "Flags",
+  tag: "Tag sequences",
+  "hidden-kerning": "Hidden kerning",
+};
+
+function renderProbe(): void {
+  const rows = probeMatrix(snapshot);
+  const table = $<HTMLTableElement>("probe-table");
+  $("probe-block").hidden = rows.length === 0;
+  if (rows.length === 0) return;
+  const head = make("tr");
+  head.append(make("th", "row-head", "Group"));
+  for (const arm of snapshot.arms) head.append(make("th", "arm", armLabels[arm.arm]?.os ?? arm.arm));
+  const body = rows.map((row) => {
+    const tr = make("tr");
+    const th = make("th", "row-head", probeLabels[row.group] ?? row.group);
+    th.append(make("span", "arm-note", row.limitPx === undefined ? row.group : `${row.group}, gate ${row.limitPx} px`));
+    tr.append(th);
+    row.cells.forEach((group, i) => {
+      const arm = snapshot.arms[i]!;
+      const title = `${probeLabels[row.group] ?? row.group} on ${armLabels[arm.arm]?.os ?? arm.arm} (${arm.arm})`;
+      const lines = probeLines(title, group, row.limitPx);
+      tr.append(heatCell(group === undefined ? Number.NaN : group.worstPx, lines, () => {
+        $("probe-detail").replaceChildren(make("h3", "", lines[0]!), ...lines.slice(1).map((line) => make("p", "", line)));
+      }));
+    });
+    return tr;
+  });
+  table.replaceChildren(make("thead"), make("tbody"));
+  table.tHead!.append(head);
+  table.tBodies[0]!.append(...body);
+}
+
 function renderRun(): void {
   const run = snapshot.run;
   const link = make("a", "", `fonts run ${run.id}`);
@@ -666,6 +705,7 @@ renderTiles();
 renderRun();
 renderCi();
 renderStacks();
+renderProbe();
 renderLegend();
 renderSweep();
 renderSegments();
