@@ -115,3 +115,24 @@ The gate `termination.test.ts` holds the class of this defect. It is a property 
 - `wide-boxes`: a box for each word, on a line of 1 to 4 characters.
 
 The gate counts the item reads of the breaker. The bound is 8 times the item count times the square of the line length, so it is linear in the item count. With the search before 0.5.1, total fit reads more than the bound on its first input.
+
+## The response record
+
+The site shows the results of the breakers as a record of the format `response-records/1` of `@mark1russell7/rigor-statistics`. The record is `packages/site/data/breakers-response.json`. `pnpm --filter @typeset/site breakers` writes it, and a test fails when it is not current.
+
+- The dimensions are the breaker, the script (the 12 scripts of the corpus), the text length in code points and the line width.
+- The texts are seed 1, 3 texts of each script for the classes `line`, `paragraph` and `page`. The widths are 120, 240, 480 and 960 units.
+- A character is 8 units wide, as in the bench. The glue has the stretch 4 and the shrink 8/3. `lineBreaks` with `complexBreaks` gives the break places inside a word.
+- The measures are `lines`, `raggedness` and `worstRatio`. `worstRatio` has no value when a line has no glue and needs stretch or shrink.
+- Each fit is a ridge model on a log scale. A fold holds out whole texts.
+
+| Measure | Points | Error of the fit (log10) | Error of the mean (log10) |
+| --- | --- | --- | --- |
+| `lines` | 1296 | 0.048 | 0.697 |
+| `raggedness` | 1296 | 0.427 | 1.079 |
+| `worstRatio` | 897 | 0.694 | 1.809 |
+
+Two results of the record:
+
+- With justified glue, total fit lowers the mean `raggedness` of greedy in 10 of 12 scripts. In Latin and Cyrillic it is a little higher, because the cost of total fit reads the adjustment ratio, not the free space.
+- Balanced keeps the line count of greedy at each of the 432 texts and widths. It gives other lines at 158 of them.
