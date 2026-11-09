@@ -11,13 +11,13 @@
     "markdown",
     "typescript"
   ],
-  "homepage": "https://github.com/mark1russell7/text#readme",
+  "homepage": "https://github.com/mark1russell7/typeset/tree/main/packages/text#readme",
   "bugs": {
-    "url": "https://github.com/mark1russell7/text/issues"
+    "url": "https://github.com/mark1russell7/typeset/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mark1russell7/text.git",
+    "url": "git+https://github.com/mark1russell7/typeset.git",
     "directory": "packages/text"
   },
   "license": "MIT",
@@ -60,7 +60,7 @@
     "@mark1russell7/cue": "^2.0.0",
     "@mark1russell7/rigor-generators": "^0.1.8",
     "@types/node": "^26.6.5",
-    "@vitest/coverage-v8": "5.1.0",
+    "@vitest/coverage-v8": "^5.0.5",
     "esbuild": "^0.28.2",
     "tsdown": "^0.23.7",
     "typescript": "^7.0.2",

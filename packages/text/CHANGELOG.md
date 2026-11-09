@@ -1,5 +1,14 @@
 # Changelog of @mark1russell7/text
 
+## Unreleased
+
+The package moves from the repository `mark1russell7/text` to `mark1russell7/typeset`, as `packages/text`, with its git history. The npm name, the API and the files of the build do not change.
+
+- The fields `repository`, `homepage` and `bugs` of `package.json` name the typeset repository.
+- A rule of the import boundaries holds the source to its own files. A change that imports a font, a width or another package fails CI.
+
+Runtime dependencies: no change (none).
+
 ## 0.0.2
 
 PATCH: new exports before 1.0. The escapes of a GitHub Actions workflow command: `escapeWorkflowData` and `escapeWorkflowProperty`.
