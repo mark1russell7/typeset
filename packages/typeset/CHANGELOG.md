@@ -1,5 +1,18 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.5.0
+
+This version changes the widths of `fontAdvance` for a list of fonts (T11, PR 66). Before 1.0.0, a change of behavior increases MINOR. The public API does not change.
+
+### The change of behavior (T11)
+
+- Each cluster takes the first font of the list that holds it, as Blink falls back. In 0.4.0, a mark that the first font lacks got the `.notdef` advance of that font.
+- Script runs and emoji runs come before the fallback clusters. A mark of a script keeps its own run, and an emoji run starts at a lone skin tone modifier.
+- A font holds a cluster also by its composed form (NFC), as the normalizer of HarfBuzz composes it.
+- The measurer before this change gave 96 of 120 stack cells more than 1.28/64 px from a Chromium canvas with the same family list. The final head of PR 66 gives 0 of 120.
+
+Runtime dependencies: no change against `0.4.0` (`@mark1russell7/collections` `^0.10.0`, `@mark1russell7/rigor-generators` `^0.1.0`).
+
 ## 0.4.0
 
 The release train changes the range of `@mark1russell7/collections` to a version outside the old range. The public types name @mark1russell7/collections, so its new version outside the old range can change them.
@@ -7,6 +20,8 @@ The release train changes the range of `@mark1russell7/collections` to a version
 ### Breaking
 
 - The range `^0.9.3` of `@mark1russell7/collections` in `dependencies` does not hold `0.10.0`, so it changes.
+
+Runtime dependencies: `@mark1russell7/collections` from `^0.9.3` to `^0.10.0`. `@mark1russell7/rigor-generators` `^0.1.0` does not change.
 
 ## 0.3.0
 

@@ -8,6 +8,7 @@ import {
   armMatrix,
   armOrder,
   bidiProbeLimit,
+  breakMatrix,
   engineForAgent,
   fontChoices,
   formatPx,
@@ -259,6 +260,27 @@ describe("stackMatrix", () => {
 
   it("gives no rows for a run before T11", () => {
     expect(stackMatrix(snapshotOf([armFile("linux-1", "freetype", 1)], run))).toEqual([]);
+  });
+});
+
+describe("breakMatrix", () => {
+  const gap = { stack: "latin-han", set: "covered", n: 144, same: 25, opportunity: 119, width: 0, firstDifferent: "latin-han:mixed:0 10px 80px", verdict: "known-gap", reason: "layout-contract#255" };
+  const pass = { stack: "latin-han", set: "uncovered", n: 144, same: 144, opportunity: 0, width: 0, verdict: "pass", reason: "144 of 144 the same" };
+  const old = { stack: "han-first", set: "covered", n: 1, same: 1, opportunity: 0, width: 0 };
+  const file = (cells: unknown[]) => ({ list: [], cells: [], breaks: { cells, records: [{ big: "left out" }] } });
+  const snapshot = snapshotOf([{ ...armFile("linux-1", "freetype", 1), stacks: file([gap, pass, old]) }, { ...armFile("windows-1", "directwrite", 1), stacks: file([pass]) }], run);
+
+  it("keeps each cell with a verdict and leaves out the records and a cell with no verdict", () => {
+    expect(snapshot.arms[0]!.breaks).toEqual([gap, pass]);
+    expect(JSON.stringify(snapshot)).not.toContain("left out");
+  });
+
+  it("gives one row for each stack and set, with no cell for an arm that does not have it", () => {
+    const rows = breakMatrix(snapshot);
+    expect(rows.map((row) => `${row.stack} ${row.set}`)).toEqual(["latin-han covered", "latin-han uncovered"]);
+    expect(rows[0]!.cells.map((cell) => cell?.verdict)).toEqual(["known-gap", undefined]);
+    expect(rows[1]!.cells.map((cell) => cell?.verdict)).toEqual(["pass", "pass"]);
+    expect(breakMatrix(snapshotOf([armFile("linux-1", "freetype", 1)], run))).toEqual([]);
   });
 });
 

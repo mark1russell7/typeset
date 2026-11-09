@@ -18,7 +18,7 @@ import {
 } from "./index.ts";
 
 /** The fingerprint of the corpus at seed 1 with one sample per cell. A change of it is a change of every bench input. */
-const SEED_1_FINGERPRINT = "687b7e4b";
+const SEED_1_FINGERPRINT = "f96c8f57";
 
 function codePoints(text: string): number[] {
   return Array.from(text, (c) => c.codePointAt(0)!);
@@ -120,5 +120,56 @@ describe("generateEdits", () => {
 
   it("refuses an edit that does not fit", () => {
     expect(() => applyEdits("abc", [{ kind: "delete", at: 2, length: 5 }])).toThrow(RangeError);
+  });
+});
+
+describe("the emoji letters", () => {
+  // The 3 blocks of the emoji script: faces, symbols and pictographs, and transport
+  const blocks: readonly (readonly [number, number])[] = [
+    [0x1f300, 0x1f64f],
+    [0x1f680, 0x1f6c5],
+  ];
+
+  it("are the code points of the blocks with the property Emoji_Presentation", () => {
+    const presentation = /\p{Emoji_Presentation}/u;
+    let letters = 0;
+    for (const [first, last] of blocks) {
+      for (let codePoint = first; codePoint <= last; codePoint++) {
+        const want = presentation.test(String.fromCodePoint(codePoint));
+        expect(inRanges(codePoint, scripts.emoji.letters), `U+${codePoint.toString(16)}`).toBe(want);
+        if (want) letters++;
+      }
+    }
+    expect(letters).toBe(709);
+  });
+
+  it("are the only code points of the emoji samples, with the spaces and the digits", () => {
+    const samples = generateCorpus({ seed: 1, perCell: 40, scripts: ["emoji"] });
+    for (const sample of samples) {
+      for (const p of codePoints(sample.text)) {
+        if (p === 0x20 || (p >= 0x30 && p <= 0x39)) continue;
+        expect(inRanges(p, scripts.emoji.letters), `U+${p.toString(16)} in ${sample.id}`).toBe(true);
+      }
+    }
+  });
+
+  it("do not change the samples of the other scripts", () => {
+    // The fingerprints of each script at seed 1 with 40 samples per cell, before the change of the emoji letters
+    const before: Readonly<Record<string, string>> = {
+      latin: "f2be2536",
+      "latin-extended": "0b6ba62c",
+      greek: "40f9eb09",
+      cyrillic: "e0660b75",
+      arabic: "fe383131",
+      hebrew: "00d56d88",
+      devanagari: "a3e1d34d",
+      thai: "be4d8fa1",
+      han: "c089da99",
+      kana: "61de38e7",
+      hangul: "84990971",
+    };
+    const corpus = generateCorpus({ seed: 1, perCell: 40 });
+    const now = Object.fromEntries(scriptIds.filter((script) => script !== "emoji").map((script) => [script, fingerprint(corpus.filter((sample) => sample.script === script))]));
+    expect(now).toEqual(before);
   });
 });

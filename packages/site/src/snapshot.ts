@@ -3,7 +3,7 @@
  * `scripts/snapshot.ts` writes it from the artifacts of the run, and the explorer reads it.
  */
 import type { LengthClass, ScriptId } from "@typeset/corpus";
-import type { Cell, StackCell, StackSet } from "@typeset/widths";
+import type { BreakCellVerdict, Cell, StackCell, StackSet } from "@typeset/widths";
 import { formatPx } from "./heat.ts";
 
 /** The cells of one summary, by script and by length class. */
@@ -30,6 +30,8 @@ export interface ArmSnapshot {
   readonly engineExtraSummary: ExtraSummary;
   /** The errors of each font stack at each size. A run before T11 has no stacks. */
   readonly stacks?: readonly StackCell[];
+  /** The line breaks of each font stack and set, with the verdict of the gate. A run before T11b has no breaks. */
+  readonly breaks?: readonly BreakCellVerdict[];
   /** The groups of the sequence probe: canvas widths against the model at 96 px. A run before T13b has no probe. */
   readonly probe?: readonly ProbeGroup[];
 }
@@ -124,6 +126,18 @@ function stackCellsOf(value: unknown): StackCell[] | undefined {
   });
 }
 
+/** This function gives the break cells of a field `stacks` of a file `font-widths.json`. A cell with no verdict is left out. */
+function breakCellsOf(value: unknown): BreakCellVerdict[] | undefined {
+  if (!isObject(value) || !isObject(value["breaks"]) || !Array.isArray(value["breaks"]["cells"])) return undefined;
+  return value["breaks"]["cells"].filter(isObject).flatMap((c): BreakCellVerdict[] => {
+    const verdict = c["verdict"];
+    if (verdict !== "pass" && verdict !== "known-gap" && verdict !== "fail") return [];
+    const set: StackSet = c["set"] === "uncovered" ? "uncovered" : "covered";
+    const cell: BreakCellVerdict = { stack: String(c["stack"]), set, n: Number(c["n"]), same: Number(c["same"]), opportunity: Number(c["opportunity"]), width: Number(c["width"]), verdict, reason: String(c["reason"]) };
+    return [typeof c["firstDifferent"] === "string" ? { ...cell, firstDifferent: c["firstDifferent"] } : cell];
+  });
+}
+
 /** This function gives the font list of each stack of a field `stacks` of a file `font-widths.json`. */
 function stackFontsOf(value: unknown): Record<string, string[]> | undefined {
   if (!isObject(value) || !Array.isArray(value["list"])) return undefined;
@@ -181,6 +195,7 @@ export function snapshotOf(files: readonly unknown[], run: RunInfo): Snapshot {
     const models = isObject(file["models"]) ? file["models"] : {};
     const stacks = stackCellsOf(file["stacks"]);
     const probe = probeGroupsOf(file["sequenceProbe"]);
+    const breaks = breakCellsOf(file["stacks"]);
     stackFonts ??= stackFontsOf(file["stacks"]);
     arms.push({
       arm,
@@ -195,6 +210,7 @@ export function snapshotOf(files: readonly unknown[], run: RunInfo): Snapshot {
       engineExtraSummary: roundCells<string>(file["engineExtraSummary"]),
       ...(stacks === undefined ? {} : { stacks }),
       ...(probe === undefined ? {} : { probe }),
+      ...(breaks === undefined ? {} : { breaks }),
     });
     if (isObject(file["corpus"])) {
       const c = file["corpus"];
@@ -285,6 +301,20 @@ export function stackMatrix(snapshot: Snapshot): StackRow[] {
   const order: { stack: string; set: StackSet }[] = [];
   for (const arm of snapshot.arms) for (const cell of arm.stacks ?? []) if (!order.some((row) => row.stack === cell.stack && row.set === cell.set)) order.push({ stack: cell.stack, set: cell.set });
   return order.map(({ stack, set }) => ({ stack, set, fonts: snapshot.stackFonts?.[stack] ?? [], cells: snapshot.arms.map((arm) => (arm.stacks ?? []).filter((cell) => cell.stack === stack && cell.set === set)) }));
+}
+
+/** One row of the break table: a font stack and a set of texts, with the cell of each arm. An arm with no breaks has `undefined`. */
+export interface BreakRow {
+  readonly stack: string;
+  readonly set: StackSet;
+  readonly cells: readonly (BreakCellVerdict | undefined)[];
+}
+
+/** This function gives one row for each font stack and set with break cells, in the order of the first arm that has it. */
+export function breakMatrix(snapshot: Snapshot): BreakRow[] {
+  const order: { stack: string; set: StackSet }[] = [];
+  for (const arm of snapshot.arms) for (const cell of arm.breaks ?? []) if (!order.some((row) => row.stack === cell.stack && row.set === cell.set)) order.push({ stack: cell.stack, set: cell.set });
+  return order.map(({ stack, set }) => ({ stack, set, cells: snapshot.arms.map((arm) => arm.breaks?.find((cell) => cell.stack === stack && cell.set === set)) }));
 }
 
 /** This function gives the worst error of the cells of a stack over all sizes, in px. It gives NaN when no cell has a text. */
