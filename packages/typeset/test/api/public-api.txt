@@ -93,6 +93,11 @@ source: build/hyphen/de.d.ts#source
 hyphenate: build/hyphen/fr.d.ts#hyphenate
 source: build/hyphen/fr.d.ts#source
 
+## ./hyphen/es (build/hyphen/es.d.ts): names
+
+hyphenate: build/hyphen/es.d.ts#hyphenate
+source: build/hyphen/es.d.ts#source
+
 ## ./measurer (build/measurer.d.ts): names
 
 type AdvanceFn: build/chunks/measurer.d.ts#AdvanceFn
@@ -554,6 +559,12 @@ export declare const source: HyphenSource;
 export declare const hyphenate: (word: string) => readonly number[];
 
 ### build/hyphen/en-us.d.ts#source
+export declare const source: HyphenSource;
+
+### build/hyphen/es.d.ts#hyphenate
+export declare const hyphenate: (word: string) => readonly number[];
+
+### build/hyphen/es.d.ts#source
 export declare const source: HyphenSource;
 
 ### build/hyphen/fr.d.ts#hyphenate

@@ -6,7 +6,7 @@
 import { adjustmentRatios, breakers, linesOf, paragraphOf, type WidthOf } from "@mark1russell7/typeset/breaking";
 
 /** The languages of the section, in the order of the page. */
-export const languageIds = ["en-us", "de", "fr"] as const;
+export const languageIds = ["en-us", "de", "fr", "es"] as const;
 
 /** The id of a language of the section. */
 export type LanguageId = (typeof languageIds)[number];
@@ -27,10 +27,11 @@ export const hyphenLoaders: Readonly<Record<LanguageId, () => Promise<Hyphenate>
   "en-us": async () => (await import("@mark1russell7/typeset/hyphen/en-us")).hyphenate,
   de: async () => (await import("@mark1russell7/typeset/hyphen/de")).hyphenate,
   fr: async () => (await import("@mark1russell7/typeset/hyphen/fr")).hyphenate,
+  es: async () => (await import("@mark1russell7/typeset/hyphen/es")).hyphenate,
 };
 
 /** The names of the languages on the page. */
-export const languageNames: Readonly<Record<LanguageId, string>> = { "en-us": "English (US)", de: "German", fr: "French" };
+export const languageNames: Readonly<Record<LanguageId, string>> = { "en-us": "English (US)", de: "German", fr: "French", es: "Spanish" };
 
 /** The first text of each language. Each text has long words, so a narrow line needs hyphens. */
 export const sampleTexts: Readonly<Record<LanguageId, string>> = {
@@ -38,6 +39,7 @@ export const sampleTexts: Readonly<Record<LanguageId, string>> = {
     "Justified text puts each line flush with both margins. The space between the words stretches or shrinks to fill the measure, and a hyphen inside a long word gives the breaker more places to choose from. Total fit examines the whole paragraph before it chooses any break, so one unfortunate line does not force extraordinary gaps on its neighbors.",
   de: "Die Silbentrennung macht den Blocksatz ruhiger. Ohne Trennung bleiben in schmalen Spalten große Lücken zwischen den Wörtern, besonders bei langen Zusammensetzungen wie Donaudampfschifffahrtsgesellschaft oder Rechtsschutzversicherungsbedingungen. Der Umbruch über den ganzen Absatz wählt jede Zeile so, dass die Abstände gleichmäßig bleiben.",
   fr: "La césure rend la composition justifiée plus régulière. Sans elle, une colonne étroite laisse de grands blancs entre les mots, surtout avec des termes longs comme anticonstitutionnellement ou incompréhensibilité. L'algorithme du paragraphe entier choisit chaque coupure en tenant compte de toutes les lignes, et non de la seule ligne courante.",
+  es: "La división silábica hace más regular la composición justificada. Sin ella, una columna estrecha deja grandes espacios entre las palabras, sobre todo con términos largos como electroencefalografista o desoxirribonucleico. El algoritmo del párrafo completo elige cada corte con todas las líneas en cuenta, y no solamente la línea actual.",
 };
 
 /** One line of a justified paragraph. */

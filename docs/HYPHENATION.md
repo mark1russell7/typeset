@@ -18,6 +18,7 @@ const breaks = knuthPlass.breaks(paragraph, 480);
 | `./hyphen/en-us` | American English. |
 | `./hyphen/de` | German, with the spelling of 1996. |
 | `./hyphen/fr` | French. |
+| `./hyphen/es` | Spanish. |
 
 - Each language subpath exports `hyphenate` for the hook, and `source` with the origin and the result of the set.
 - The root entry, `./breaking` and each other entry have no language set. A test of `packages/conformance` bundles each entry and examines its input files.
@@ -34,6 +35,7 @@ The patterns come from the project `hyphenation/tex-hyphen`, at the commit `5684
 | `en-us` | `hyph-en-us.tex` | The all-permissive notice of Gerard D.C. Kuiken | 33537 | 18202 |
 | `de` | `hyph-de-1996.tex` | MIT | 281320 | 123851 |
 | `fr` | `hyph-fr.tex` | MIT | 12943 | 5655 |
+| `es` | `hyph-es.tex` | MIT | 46015 | 15349 |
 
 - These weights include the matcher. The matcher alone is 884 minified bytes and 539 gzip bytes.
 - The weights use the measure of the weight gate: a bundle for the browser by esbuild, minified, then gzip at level 9.
@@ -49,6 +51,7 @@ Each set has a test on a sample of 10000 words of a word list from another proje
 | `en-us` | Moby Hyphenator II | Public domain | 0.9537 | 0.7575 | 0.6559 | 0.9068 |
 | `de` | German Wiktionary, `kaikki.org` extract of 2026-10-30 | CC BY-SA 4.0 | 0.9904 | 0.9607 | 0.9607 | 0.9843 |
 | `fr` | Lexique 3.83, column `orthosyll` | CC BY-SA 4.0 | 0.9993 | 0.8278 | 0.7889 | 0.9595 |
+| `es` | Spanish Wiktionary, `kaikki.org` extract of 2026-10-30 | CC BY-SA 4.0 | 0.9984 | 0.9483 | 0.8972 | 0.9880 |
 
 The values are different measures:
 
@@ -62,6 +65,46 @@ A wrong hyphen is an error on the page, but a missed place is only a looser line
 The test gates `confirmed` at 0.95 or more. Each language also has a floor for `confirmed` and for `found`, in the field `floor` of `hyphenFiles`. The floors are a ratchet: a new set must hold or raise both rates. So a gain in one rate does not hide a loss in the other. The gate and a test fail when a rate is below its floor.
 
 A dictionary and a pattern set can use different rules for a word. The lists also have errors, so these values are not exact measures of correctness.
+
+### The Spanish list and its hints
+
+The header of `hyph-es.tex` names its authors, Javier Bezos and Francesc Carmona, and names no word list. Bezos wrote the patterns by hand from the rules of Spanish. So the Spanish Wiktionary is independent of the data of the set.
+
+The hyphen fields of the Spanish list come from a module of rules. On each Spanish page, the template `pron-graf` uses the module `Módulo:generar-pron/es`, and the module makes the syllables from the title. An editor changes the result only with the hint `ayuda`. So most of the list is the output of rules, and a match on it shows that two sets of rules agree.
+
+The gate splits the list in two parts with the pages dump of 2026-10-01, pinned by its SHA-256:
+
+1. Part (a) has the entries with a hint, the judgement of an editor: 53640 entries of 6109 lemmas.
+2. Part (b) has the entries that the module makes from the title alone.
+
+The lemma of an inflected form is its word in `form_of` of the extract. The hints cluster under few lemmas: 60 % of the entries of (a) have the first part `des`. So each sample is by lemma. It has one seeded form of each lemma that it draws, and the bootstrap of (a) is over lemmas. The main sample has 10000 lemmas, and the sample of (a) has all 6109 lemmas of (a).
+
+| Part | Words | Confirmed | Found | 95 % interval of confirmed | 95 % interval of found |
+| --- | --- | --- | --- | --- | --- |
+| (a), with a hint | 6109 | 0.9802 | 0.8593 | 0.9781 to 0.9822 | 0.8550 to 0.8636 |
+| (b), from the module alone | 9527 | 0.9993 | 0.9542 | | |
+
+The file `data/hyphen/es-hints.json` gives the counts of each group of hints, and the record gives the rates of each group on the sample of (a). A hint that marks a boundary goes to the group of its first part. A hint with other letters than the title is a respelling.
+
+| Group | Entries of (a) | Words of the sample | Confirmed | Found | Confirmed, both RAE places | Found, both RAE places |
+| --- | --- | --- | --- | --- | --- | --- |
+| `des` | 32223 | 2459 | 0.9915 | 0.8646 | 1.0000 | 0.8720 |
+| `a` | 4856 | 670 | 1.0000 | 0.9720 | 1.0000 | 0.9720 |
+| `en` | 3279 | 251 | 1.0000 | 0.7874 | 1.0000 | 0.7874 |
+| `de` | 2129 | 208 | 0.9829 | 0.8340 | 0.9829 | 0.8340 |
+| `re` | 1446 | 144 | 1.0000 | 0.8131 | 1.0000 | 0.8131 |
+| `in` | 989 | 258 | 1.0000 | 0.7532 | 1.0000 | 0.7532 |
+| `sub` | 620 | 86 | 0.8498 | 0.7682 | 1.0000 | 0.9040 |
+| other boundaries | 7560 | 1525 | 0.9834 | 0.8778 | | |
+| respellings | 538 | 508 | 0.7258 | 0.7329 | | |
+
+The *Ortografía de la lengua española* (RAE and ASALE, 2010) accepts two divisions of a prefixed word at the end of a line. Its part on the hyphen at the end of a line gives the division by syllables and the division by parts of the word. An example is `de-sam-pa-ro` and `des-am-pa-ro`. The hints of (a) mark the parts.
+
+The columns "both RAE places" also count the place one letter before the prefix boundary. That place counts when the prefix ends with a consonant before a vowel, or before `l` or `r` of an onset. With that place, `des` and `sub` go to a confirmed of 1.0000. So their misses are a difference of convention, not defects of the set.
+
+The 538 respellings have 509 lemmas. Examples are the loanword `mouse` with the hint `maus`, and `México` with the hint `Méjico`. Their rates show the real wrong hyphens that a reader sees. An exception list made from the hints is item T14g. It builds the list from one half of the lemmas and scores the other half.
+
+The floors of `es` are the first measure. The field `hinted.floor` of `hyphenFiles` holds the floors of (a).
 
 ### Other free sets for `en-us`
 

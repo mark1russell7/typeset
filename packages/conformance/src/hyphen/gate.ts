@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { hyphenator, type HyphenSource } from "@mark1russell7/typeset/hyphen";
 import { buildSync, version } from "esbuild";
+import { hintedReport, type HintedReport, type HintFile } from "./hinted.ts";
 import { parsePatterns, setSource } from "./patterns.ts";
 import { floorFaults, hyphenFiles, texHyphenCommit, type HyphenFile } from "./sources.ts";
 import { classReport, countDefects, parseForms, referenceRules, rulesOf, type ClassReport, type ReferenceFile, type RuleCount } from "./classes.ts";
@@ -41,6 +42,8 @@ export interface LanguageRecord {
   readonly confirmed: number;
   /** The F-score with beta 0.5 of `found` and `confirmed`. */
   readonly fHalf: number;
+  /** The report of the hint part of the list and of the part that a module of rules makes alone. Only a list with a hint part has it. */
+  readonly parts?: HintedReport;
   readonly weight: EntryWeight;
 }
 
@@ -73,6 +76,9 @@ export interface MissRecord {
   readonly languages: Readonly<Record<string, LanguageMisses>>;
 }
 
+/** The runs of the bootstrap of a hint part. */
+export const hintedRuns = 2000;
+
 /** The share of the `gzip` bytes that a record can differ from a measure. Another build of zlib gives other bytes. */
 export const gzipTolerance = 0.01;
 
@@ -87,7 +93,7 @@ export function weighEntry(file: string): EntryWeight {
 }
 
 /** This function gives the paths of the gate from the root of the repository. */
-export function hyphenPaths(root: string): { readonly source: (language: string) => string; readonly words: (language: string) => string; readonly matcher: string; readonly record: string; readonly misses: string; readonly forms: (file: string) => string; readonly layer: (language: string) => string } {
+export function hyphenPaths(root: string): { readonly source: (language: string) => string; readonly words: (language: string) => string; readonly matcher: string; readonly record: string; readonly misses: string; readonly forms: (file: string) => string; readonly layer: (language: string) => string; readonly hints: (language: string) => string } {
   return {
     source: (language) => join(root, "packages", "typeset", "src", "hyphen", `${language}.ts`),
     words: (language) => join(root, "packages", "conformance", "data", "hyphen", `${language}.txt`),
@@ -96,6 +102,7 @@ export function hyphenPaths(root: string): { readonly source: (language: string)
     misses: join(root, "packages", "conformance", "data", "hyphen-misses.json"),
     forms: (file) => join(root, "packages", "conformance", "data", "hyphen", file),
     layer: (language) => join(root, "packages", "conformance", "data", "hyphen", `${language}-layer.json`),
+    hints: (language) => join(root, "packages", "conformance", "data", "hyphen", `${language}-hints.json`),
   };
 }
 
@@ -108,7 +115,7 @@ export function sampleHash(text: string): string {
  * This function makes the module of a language from the text of its file and the text of its word list. The function `formsOf`
  * gives the text of a file of forms. The `reference` gives the layer and the full reference list of a language with reference rules.
  */
-export function makeSet(file: HyphenFile, text: string, list: string, formsOf: (name: string) => string, reference?: { readonly layer: Layer; readonly full: ReferenceList }): { readonly source: string; readonly score: WordScore; readonly misses: LanguageMisses; readonly patterns: number; readonly exceptions: number } {
+export function makeSet(file: HyphenFile, text: string, list: string, formsOf: (name: string) => string, reference?: { readonly layer: Layer; readonly full: ReferenceList }): { readonly source: string; readonly score: WordScore; readonly misses: LanguageMisses; readonly patterns: number; readonly exceptions: number; readonly hyphenate: (word: string) => readonly number[]; readonly left: number; readonly right: number } {
   const pinned = parsePatterns(text);
   const data = { ...pinned, ...withLayer(pinned, reference?.layer) };
   const words = parseWords(list);
@@ -136,7 +143,7 @@ export function makeSet(file: HyphenFile, text: string, list: string, formsOf: (
   };
   const entries = reference?.layer.entries.length ?? 0;
   const notes = entries === 0 ? [] : [`The exceptions also hold the ${entries} words of the layer data/hyphen/${file.language}-layer.json of @typeset/conformance.`];
-  return { source: setSource(data, origin, notes), score, misses, patterns: data.patterns.split(" ").length, exceptions: data.exceptions === "" ? 0 : data.exceptions.split(" ").length };
+  return { source: setSource(data, origin, notes), score, misses, patterns: data.patterns.split(" ").length, exceptions: data.exceptions === "" ? 0 : data.exceptions.split(" ").length, hyphenate, left: data.left, right: data.right };
 }
 
 /** This function tells what differs between a committed record and a new record. Only the `gzip` bytes can differ, within the tolerance. */
@@ -184,7 +191,14 @@ export async function hyphenGate(root: string, textOf: (file: HyphenFile) => Pro
     if (!existsSync(paths.source(file.language)) || readFileSync(paths.source(file.language), "utf8") !== set.source) problems.push(`the committed set ${file.language} differs from the set of its pinned file`);
     missed.push([file.language, set.misses]);
     problems.push(...floorFaults(file.language, { found: share(set.score.both, set.score.listed), confirmed: share(set.score.both, set.score.given) }, file.floor));
-    made.push({ file: file.name, commit: texHyphenCommit, sha256: file.sha256, license: file.license, patterns: set.patterns, exceptions: set.exceptions, list: file.list, sample: sampleHash(list), score: set.score, found: share(set.score.both, set.score.listed), foundAll: share(set.score.both, set.score.places), confirmed: share(set.score.both, set.score.given), fHalf: fHalf(set.score) });
+    let parts: HintedReport | undefined;
+    if (file.hinted !== undefined) {
+      const hints = JSON.parse(readFileSync(paths.hints(file.language), "utf8")) as HintFile;
+      if (hints.dump.sha256 !== file.hinted.dump.sha256) problems.push(`the hints of ${file.language} come from another dump than the pinned dump`);
+      parts = hintedReport(hints, parseWords(list), set.hyphenate, set.left, set.right, { runs: hintedRuns, seed: hints.seed });
+      problems.push(...floorFaults(`${file.language} hinted`, parts.hinted, file.hinted.floor));
+    }
+    made.push({ file: file.name, commit: texHyphenCommit, sha256: file.sha256, license: file.license, patterns: set.patterns, exceptions: set.exceptions, list: file.list, sample: sampleHash(list), score: set.score, found: share(set.score.both, set.score.listed), foundAll: share(set.score.both, set.score.places), confirmed: share(set.score.both, set.score.given), fHalf: fHalf(set.score), ...(parts === undefined ? {} : { parts }) });
   }
   const languages = Object.fromEntries(made.map((language, index) => [hyphenFiles[index]!.language, { ...language, weight: weighEntry(paths.source(hyphenFiles[index]!.language)) }]));
   const record: HyphenRecord = { schema: "typeset-hyphen/1", esbuild: version, gzipLevel: 9, matcher: weighEntry(paths.matcher), languages };

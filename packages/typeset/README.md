@@ -45,6 +45,7 @@ Each set is on its own subpath, so an application pays only for the sets that it
 | `./hyphen/en-us` | 18202 | `hyph-en-us.tex` | The all-permissive notice of Gerard D.C. Kuiken |
 | `./hyphen/de` | 123851 | `hyph-de-1996.tex` | MIT |
 | `./hyphen/fr` | 5655 | `hyph-fr.tex` | MIT |
+| `./hyphen/es` | 15349 | `hyph-es.tex` | MIT |
 
 The set of `fr` also has 18 exceptions. They correct the defects of the TeX patterns against the reference list Lexique 3.83.
 
