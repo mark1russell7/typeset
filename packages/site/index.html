@@ -18,6 +18,7 @@
           <a href="#lab">Lab</a>
           <a href="#justify">Justified lines</a>
           <a href="#sweep">Sweep</a>
+          <a href="#breakers">Breakers</a>
           <a href="#ci">CI platforms</a>
           <a href="status/">Status</a>
           <a href="https://github.com/mark1russell7/typeset">GitHub</a>
@@ -171,6 +172,17 @@
         <p class="hint" id="sweep-empty">No sweep yet. A sweep of Noto Sans takes a few seconds.</p>
       </section>
 
+      <section id="breakers" class="panel" aria-labelledby="breakers-title">
+        <div class="panel-head">
+          <h2 id="breakers-title">Line breakers <span class="tag">response record</span></h2>
+          <p class="hint">How do the lines change with the breaker, the script, the text length and the line width? Each point breaks one corpus text with justified glue. A character is 8 units wide, so the record needs no font.</p>
+        </div>
+        <div class="tiles" id="breakers-tiles"></div>
+        <div class="table-scroll" id="breakers-fits"></div>
+        <p class="hint">Each fit is a ridge model on a log scale. A fold holds out whole texts, so the error of the fit is the error on texts that the fit did not see. The record is <code>packages/site/data/breakers-response.json</code>.</p>
+        <div id="breakers-explorer"></div>
+      </section>
+
       <section id="ci" class="panel" aria-labelledby="ci-title">
         <div class="panel-head">
           <h2 id="ci-title">CI platforms <span class="tag">recorded</span></h2>
@@ -239,5 +251,6 @@
     </footer>
     <div class="tip" id="tip" role="tooltip" hidden></div>
     <script type="module" src="/src/app.ts"></script>
+    <script type="module" src="/src/breakers.ts"></script>
   </body>
 </html>

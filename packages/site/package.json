@@ -11,11 +11,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "snapshot": "node scripts/snapshot.ts",
+    "breakers": "node scripts/breakers-response.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
   },
   "dependencies": {
+    "@mark1russell7/rigor-statistics": "^0.1.27",
+    "@mark1russell7/site-pages": "^0.4.4",
     "@mark1russell7/typeset": "workspace:*",
     "@typeset/conformance": "workspace:*",
     "@typeset/corpus": "workspace:*",
