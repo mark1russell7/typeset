@@ -75,6 +75,25 @@ The `en-us` set is `hyph-en-us.tex`, the TeX file `ushyphmax.tex` with the patte
 
 The LibreOffice set has a higher `confirmed` but a lower `found`, so it does not hold the ratchet. The British set uses other rules.
 
+### The training of `en-us`
+
+No free set meets the floors of `en-us`. So a workflow in CI trains a set with `patgen` on half of Moby Hyphenator II. The workflow is `.github/workflows/hyphen-train.yml`, and the command is `src/hyphen/train-main.ts`.
+
+- The training reads the single lowercase words of all of Moby. It removes each word that Moby gives in two or more different forms.
+- A seeded hash of each word puts the word in the training half or in the held-out half. The seed is in `data/hyphen/en-us-train-params.json`. The order of the file does not change the halves.
+- `patgen` trains on the training half only. The parameters of each level are in the same file.
+- The command scores the trained set and the shipped set on the held-out half, and on the TUGboat list `ushyphex.tex`. The TUGboat list does not come from Moby.
+- For each rate, a paired bootstrap over the words gives a 95 % interval of the difference. The bootstrap comes from `@mark1russell7/rigor-statistics`.
+- The patterns go to `data/hyphen/en-us-moby.pat`, and the rates go to `data/hyphen/en-us-train.json`. The workflow fails when a new training gives other bytes.
+
+The trained set passes when all these conditions are true:
+
+1. On the held-out half, the low end of the interval of the `found` gain is above 0. A rise inside the noise is not a gain.
+2. On the held-out half, `confirmed` of the trained set is at least `confirmed` of the shipped set.
+3. On the TUGboat list, both rates of the trained set are at least the rates of the shipped set. A gain on Moby with a loss on this list is a fail.
+
+The field `verdict` of the record gives each condition. A set that passes becomes the shipped set only after a separate change, with its `gzip` bytes at most 2 times the bytes of today.
+
 ### The missed places
 
 A missed place is a place of the list, within the limits of the set, that the set does not give. `countMisses` puts each missed place in one class:

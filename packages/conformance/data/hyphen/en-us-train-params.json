@@ -1,0 +1,13 @@
+{
+  "schema": "typeset-hyphen-train-params/1",
+  "language": "en-us",
+  "seed": "t14c/en-us",
+  "left": 2,
+  "right": 3,
+  "levels": [
+    { "lengths": [2, 5], "good": 1, "bad": 2, "threshold": 20 },
+    { "lengths": [2, 5], "good": 2, "bad": 1, "threshold": 8 },
+    { "lengths": [3, 6], "good": 1, "bad": 4, "threshold": 7 },
+    { "lengths": [3, 6], "good": 2, "bad": 1, "threshold": 1 }
+  ]
+}

@@ -1,0 +1,91 @@
+name: Hyphen train
+
+# The training of the en-us patterns with patgen on the training half of Moby Hyphenator II (T14c). The job scores the trained
+# set and the shipped set on the held-out half and on the TUGboat exceptions, with bootstrap intervals. The patterns and the
+# record are an artifact. The job fails when a new training differs from the files in data/hyphen.
+# The job starts on a pull request that changes the training, and by hand.
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: The count of bootstrap runs.
+        type: string
+        default: "10000"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hyphen-train-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # A pull request runs the training when the training or the lock changes. A start by hand is a match.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@e40f24f720842bed9720c849da482f04dc8978ad # main
+        with:
+          paths: |
+            packages/conformance/src/hyphen/train.ts
+            packages/conformance/src/hyphen/train-main.ts
+            packages/conformance/src/hyphen/sources.ts
+            packages/conformance/src/pinned.ts
+            packages/conformance/data/hyphen/en-us-train-params.json
+            packages/conformance/data/hyphen/en-us-moby.pat
+            packages/conformance/data/hyphen/en-us-train.json
+            packages/typeset/src/hyphen/**
+            packages/conformance/package.json
+            pnpm-lock.yaml
+            .github/workflows/hyphen-train.yml
+
+  train:
+    name: Train en-us
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      RUNS: ${{ inputs.runs || '10000' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @typeset/conformance...
+      - name: Install patgen
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends texlive-binaries
+      - name: Train and score
+        run: node packages/conformance/src/hyphen/train-main.ts --folder "$RUNNER_TEMP/hyphen" --patgen "$(command -v patgen)" --runs "$RUNS" --out "$GITHUB_WORKSPACE/hyphen-train"
+      - if: ${{ !cancelled() }}
+        name: Keep the logs of patgen
+        run: mkdir -p "$GITHUB_WORKSPACE/hyphen-train" && cp "$RUNNER_TEMP"/hyphen/train/level*.log "$GITHUB_WORKSPACE/hyphen-train/" || true
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hyphen-train
+          path: hyphen-train
+          if-no-files-found: error
+
+  hyphen-train-ok:
+    name: Hyphen train OK
+    if: ${{ !cancelled() }}
+    needs: [changes, train]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@e40f24f720842bed9720c849da482f04dc8978ad # main
+        with:
+          needs: ${{ toJSON(needs) }}

@@ -4,8 +4,7 @@
  * `docs/UNICODE.md` tells the rule. The command also holds the gate of the language sets of `./hyphen`. `docs/HYPHENATION.md`
  * tells that rule.
  */
-import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -17,6 +16,7 @@ import { classOf, offsetsOf, unlistedFailures, type Reasons } from "./check.ts";
 import { hyphenGate } from "./hyphen/gate.ts";
 import { hyphenUrl } from "./hyphen/sources.ts";
 import { parseTests, scoreTests, type Score } from "./parse.ts";
+import { pinnedBytes } from "./pinned.ts";
 import { fileUrl, propertyFiles, testFiles, unicodeVersion, type UnicodeFile } from "./sources.ts";
 import { bidiTableSource, makeBidiTable, makeTable, tableSource } from "./tables.ts";
 
@@ -28,17 +28,7 @@ const tablePath = join(here, "..", "..", "typeset", "src", "segmentation", "line
 const bidiTablePath = join(here, "..", "..", "typeset", "src", "bidi", "table.ts");
 
 /** This function gives the text of a pinned file. It downloads the file when the folder does not have the correct bytes. */
-async function pinnedText(name: string, url: string, sha: string): Promise<string> {
-  const path = join(folder, name);
-  const sha256 = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("hex");
-  if (existsSync(path) && sha256(readFileSync(path)) === sha) return readFileSync(path, "utf8");
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (sha256(bytes) !== sha) throw new Error(`${name}: the SHA-256 is ${sha256(bytes)}, not ${sha}`);
-  writeFileSync(path, bytes);
-  return readFileSync(path, "utf8");
-}
+const pinnedText = async (name: string, url: string, sha: string): Promise<string> => (await pinnedBytes(folder, name, url, sha)).toString("utf8");
 
 /** This function gives the text of a file of the Unicode Character Database. */
 const textOf = (file: UnicodeFile): Promise<string> => pinnedText(file.path.replace(/^.*\//u, ""), fileUrl(file), file.sha256);

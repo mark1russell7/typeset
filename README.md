@@ -28,4 +28,4 @@ T7, T9, T1 and T1b are done. They are the corpus generator (`packages/corpus`), 
 
 ## License
 
-MIT
+MIT. The patterns of `en-us` that `patgen` trains come from Moby Hyphenator II, which is in the public domain. So these patterns are also the work of `typeset`, under MIT. [packages/conformance/data/hyphen/NOTICE.md](packages/conformance/data/hyphen/NOTICE.md) tells the sources of the data.
