@@ -109,7 +109,37 @@ The shipped set `ushyphmax.tex` comes from the TUGboat exception log of 1989. It
 
 The rule for each check list: a check list must be independent of the training data of each set that it compares. Read the source of each set before you choose a check list.
 
-The next step measures the cause before a new training. It compares Moby with the TUGboat list on their shared words. It also scores each set on a third list, the syllables of Webster's Unabridged Dictionary of 1913.
+### The cause of the TUGboat loss
+
+The command `src/hyphen/cause-main.ts` measures the cause of the loss. The job `cause` of the same workflow starts it. It writes `data/hyphen/en-us-cause.json`.
+
+- First, Moby as a set gives the places of its forms inside the limits. The TUGboat list scores it on the 740 words in both lists.
+- Then the syllables of Webster's Unabridged Dictionary of 1913 score each set. Project Gutenberg 29765 gives the text, with a pinned URL and SHA-256.
+- Webster gives 87448 forms after the removal of 181 conflicts. The score uses the 50095 forms that are also in Moby.
+
+The run of 2026-11-09 gives these rates:
+
+| List | Words | Set | Confirmed | Found | F0.5 |
+| --- | --- | --- | --- | --- | --- |
+| TUGboat list | 740 | Moby | 0.8661 | 0.9633 | 0.8839 |
+| TUGboat list | 740 | trained | 0.8280 | 0.5957 | 0.7681 |
+| TUGboat list | 740 | shipped | 0.9060 | 0.6518 | 0.8404 |
+| Webster 1913 | 50095 | Moby | 0.9666 | 0.9661 | 0.9665 |
+| Webster 1913 | 50095 | trained | 0.9646 | 0.7939 | 0.9248 |
+| Webster 1913 | 50095 | shipped | 0.9398 | 0.7593 | 0.8971 |
+
+On the TUGboat list, Moby itself has `confirmed` 0.8661, below the 0.9060 of the shipped set. So a part of the loss comes from the convention of Moby, not from the training. On Webster, the interval of the `confirmed` gain of the trained set is 0.0231 to 0.0264. The interval of its `found` gain is 0.0318 to 0.0375.
+
+Moby and Webster agree on 0.966 of the places in both directions. The documents of Moby do not name its source. This near agreement tells that Moby can come from Webster. Then Webster is not independent of the training data of the trained set, and the rule above removes it as a check list.
+
+The ruling on the cause keeps `en-us` closed at the current floors, and the shipped set does not change:
+
+1. Webster is not independent, so its score does not count.
+2. On the TUGboat list, the only independent list, the trained set loses on `confirmed`: 0.8280 against 0.9060.
+3. A wrong hyphen is an error that the reader sees. A missed hyphen gives only a looser line. So `confirmed` counts more than `found`.
+4. The convention of Merriam-Webster is not the target. Liang's patterns come from it, so it does not separate the two sets.
+
+A third list, independent of Merriam-Webster and of Moby, can open `en-us` again. Item T14e scores the sets on the hyphen fields of the English Wiktionary. The trained set must lead on `confirmed`, with an interval above 0.
 
 ### The missed places
 

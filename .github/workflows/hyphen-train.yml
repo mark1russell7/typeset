@@ -37,6 +37,8 @@ jobs:
           paths: |
             packages/conformance/src/hyphen/train.ts
             packages/conformance/src/hyphen/train-main.ts
+            packages/conformance/src/hyphen/cause-main.ts
+            packages/conformance/data/hyphen/en-us-cause.json
             packages/conformance/src/hyphen/sources.ts
             packages/conformance/src/pinned.ts
             packages/conformance/data/hyphen/en-us-train-params.json
@@ -79,10 +81,38 @@ jobs:
           path: hyphen-train
           if-no-files-found: error
 
+  # The cause of the loss on the TUGboat list: Moby against that list, and each set against the syllables of Webster 1913.
+  cause:
+    name: Cause en-us
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RUNS: ${{ inputs.runs || '10000' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @typeset/conformance...
+      - name: Score the lists
+        run: mkdir -p "$GITHUB_WORKSPACE/hyphen-cause" && node packages/conformance/src/hyphen/cause-main.ts --folder "$RUNNER_TEMP/hyphen" --runs "$RUNS" --out "$GITHUB_WORKSPACE/hyphen-cause"
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hyphen-cause
+          path: hyphen-cause
+          if-no-files-found: error
+
   hyphen-train-ok:
     name: Hyphen train OK
     if: ${{ !cancelled() }}
-    needs: [changes, train]
+    needs: [changes, train, cause]
     runs-on: ubuntu-latest
     permissions: {}
     steps:

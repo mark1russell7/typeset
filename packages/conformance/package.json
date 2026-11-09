@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
     "draw": "node src/hyphen/draw.ts",
-    "train": "node src/hyphen/train-main.ts"
+    "train": "node src/hyphen/train-main.ts",
+    "cause": "node src/hyphen/cause-main.ts"
   },
   "dependencies": {
     "@mark1russell7/rigor-statistics": "^0.1.27",

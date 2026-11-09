@@ -1,0 +1,165 @@
+{
+  "schema": "typeset-hyphen-cause/1",
+  "language": "en-us",
+  "limits": {
+    "left": 2,
+    "right": 3
+  },
+  "caveats": [
+    "The syllables of Webster are not exactly hyphens: a dictionary can divide a syllable that a printer does not divide.",
+    "Webster gives the spellings of 1913. Only the words that are also in Moby count.",
+    "The patterns of Liang, the base of the shipped set, come from another dictionary of Merriam-Webster. So Webster and the shipped set share a convention, but not their data.",
+    "The documents of Moby Hyphenator II do not name its source. The comparison webster.moby tells how near Moby is to Webster. A near agreement tells that Webster is not independent of the data of the trained set.",
+    "In each comparison, the baseline is the shipped set. The candidate is the trained set or Moby as a set."
+  ],
+  "lists": {
+    "moby": {
+      "name": "Moby Hyphenator II",
+      "sha256": "eeb30474c86b8af3469035ec1a0913e35905325ca885290db9dfed9881e230ac",
+      "forms": 135861
+    },
+    "tugboat": {
+      "name": "TUGboat hyphenation exceptions for US English (ushyphex.tex, 2021)",
+      "sha256": "9392bd6e14b2f34ebc31d2ba4eddb7d1266bf563bfd89c6161f63cfd7f00ef5c",
+      "forms": 1505,
+      "shared": 740
+    },
+    "webster": {
+      "name": "Webster's Unabridged Dictionary of 1913 (Project Gutenberg 29765)",
+      "url": "https://www.gutenberg.org/files/29765/29765-0.txt",
+      "sha256": "4d9c7a6f3b27add378aea8db3afc4d9190c2f4a6bd4341755b514155ab91873a",
+      "entries": 101961,
+      "forms": 87448,
+      "conflicts": 181,
+      "shared": 50095
+    }
+  },
+  "tugboat": {
+    "moby": {
+      "words": 740,
+      "candidate": {
+        "found": 0.9633,
+        "confirmed": 0.8661,
+        "fHalf": 0.8839
+      },
+      "baseline": {
+        "found": 0.6518,
+        "confirmed": 0.906,
+        "fHalf": 0.8404
+      },
+      "foundGain": {
+        "estimate": 0.3115107913669065,
+        "low": 0.28353851874324787,
+        "high": 0.33979990244845043,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 2222057278
+      },
+      "confirmedGain": {
+        "estimate": -0.039893919793014265,
+        "low": -0.060394035503194915,
+        "high": -0.018172089179443886,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 2529357931
+      }
+    },
+    "trained": {
+      "words": 740,
+      "candidate": {
+        "found": 0.5957,
+        "confirmed": 0.828,
+        "fHalf": 0.7681
+      },
+      "baseline": {
+        "found": 0.6518,
+        "confirmed": 0.906,
+        "fHalf": 0.8404
+      },
+      "foundGain": {
+        "estimate": -0.05611510791366903,
+        "low": -0.09116424639728397,
+        "high": -0.020863309352518008,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 131278452
+      },
+      "confirmedGain": {
+        "estimate": -0.07800000000000007,
+        "low": -0.10265746989235565,
+        "high": -0.053643897465537826,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 2493962625
+      }
+    }
+  },
+  "webster": {
+    "trained": {
+      "words": 50095,
+      "candidate": {
+        "found": 0.7939,
+        "confirmed": 0.9646,
+        "fHalf": 0.9248
+      },
+      "baseline": {
+        "found": 0.7593,
+        "confirmed": 0.9398,
+        "fHalf": 0.8971
+      },
+      "foundGain": {
+        "estimate": 0.03463114257315325,
+        "low": 0.031820381400498796,
+        "high": 0.03752908386379592,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 2738316700
+      },
+      "confirmedGain": {
+        "estimate": 0.02476072687366937,
+        "low": 0.023126966519993103,
+        "high": 0.026413595114774254,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 1743031913
+      }
+    },
+    "moby": {
+      "words": 50095,
+      "candidate": {
+        "found": 0.9661,
+        "confirmed": 0.9666,
+        "fHalf": 0.9665
+      },
+      "baseline": {
+        "found": 0.7593,
+        "confirmed": 0.9398,
+        "fHalf": 0.8971
+      },
+      "foundGain": {
+        "estimate": 0.20680501345487157,
+        "low": 0.20377967397611255,
+        "high": 0.20986041728587002,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 3455248838
+      },
+      "confirmedGain": {
+        "estimate": 0.026793704165954058,
+        "low": 0.02511610528617934,
+        "high": 0.028422675458862418,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 1697831731
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareSets, isHeldOut, levelAnswers, listedForms, patgenPatterns, ratesOf, splitForms, texExceptionForms, translateFile, wordCounts } from "./train.ts";
+import { compareSets, formHook, isHeldOut, levelAnswers, listedForms, patgenPatterns, ratesOf, sharedForms, splitForms, texExceptionForms, translateFile, websterEntries, wordCounts } from "./train.ts";
 
 describe("the forms of a list", () => {
   it("removes each word with two different forms and sorts the rest", () => {
@@ -82,5 +82,25 @@ describe("the exceptions of a TeX file", () => {
   it("keeps the lowercase forms of the list and counts the others", () => {
     const text = "% a comment {x}\n\\hyphenation{\nab-sinth % note\nta-ble Eng-lish\nre-cord's\n}\nmore-text";
     expect(texExceptionForms(text)).toEqual({ forms: ["ab-sinth", "ta-ble"], skipped: 2 });
+  });
+});
+
+describe("the entries of Webster 1913", () => {
+  it("reads the marks of the syllables after each headword", () => {
+    const text = 'ABACUS\r\nAb"a*cus, n. E. pl.\r\n\r\nABBREVIATION\r\nAb*bre`vi*a"tion, n. Etym\r\nPRESENT\r\npre*sent", v. t.\r\nO\'CLOCK\r\nO\'clock", adv.\r\nCAFE\r\nCa*fé", n.\r\nTABLE\r\nThe word is a table.\r\n';
+    expect(websterEntries(text)).toEqual(["ab-a-cus", "ab-bre-vi-a-tion", "pre-sent"]);
+  });
+});
+
+describe("the hook of a list", () => {
+  it("gives the places of each form within the limits, and none for a word out of the list", () => {
+    const hook = formHook(["ab-bre-vi-a-tion", "ta-ble"], 2, 3);
+    expect(hook("abbreviation")).toEqual([2, 5, 7, 8]);
+    expect(hook("table")).toEqual([2]);
+    expect(hook("chair")).toEqual([]);
+  });
+
+  it("keeps the forms whose word is in the other list", () => {
+    expect(sharedForms(["ta-ble", "chair", "ab-sinth"], ["tab-le", "absinth"])).toEqual(["ta-ble", "ab-sinth"]);
   });
 });
