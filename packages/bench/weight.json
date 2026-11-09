@@ -42,8 +42,8 @@
     "./hyphen/es": {
       "limitGzipBytes": 15349,
       "baseGzipBytes": 15349,
-      "run": "local",
-      "reason": "T14f adds the entry. The T14f prediction gave a limit of 15000 bytes before the code, and the set of hyph-es.tex is larger, so that outcome is a miss. As for T14, the limit is the first CI measure. The line is a ratchet: a rise needs a PR that tells its reason."
+      "run": "42689294965",
+      "reason": "T14f adds the entry at 15349 bytes, the first CI measure at head 00d1fa9. The T14f prediction gave a limit of 15000 bytes before the code. The set of hyph-es.tex is 349 bytes (2.3%) larger, so that outcome is a miss. As for T14, the limit is the first CI measure. The line is a ratchet: a rise needs a PR that tells its reason."
     }
   },
   "caps": {

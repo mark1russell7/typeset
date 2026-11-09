@@ -53,10 +53,25 @@ export function spanishSection(text: string): string {
   return kept.join("\n");
 }
 
+/**
+ * This function removes each HTML comment of a text in one pass from the start. A comment with no end stays in the text. The text
+ * is wikitext for a reader, not HTML for a browser.
+ */
+function withoutComments(text: string): string {
+  let kept = "";
+  let at = 0;
+  for (;;) {
+    const open = text.indexOf("<!--", at);
+    const close = open < 0 ? -1 : text.indexOf("-->", open + 4);
+    if (close < 0) return kept + text.slice(at);
+    kept += text.slice(at, open);
+    at = close + 3;
+  }
+}
+
 /** This function changes the XML entities of a dump to their characters, and removes the HTML comments. */
 export function unescapeXml(text: string): string {
-  const plain = text.replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", '"').replaceAll("&#039;", "'").replaceAll("&amp;", "&");
-  return plain.replace(/<!--[\s\S]*?-->/gu, "");
+  return withoutComments(text.replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", '"').replaceAll("&#039;", "'").replaceAll("&amp;", "&"));
 }
 
 /** This function gives the first hint of the Spanish section of the text of a page, or `undefined`. */

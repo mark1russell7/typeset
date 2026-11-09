@@ -30,6 +30,7 @@ describe("the reader of the pages dump", () => {
 
   it("changes the XML entities and removes the comments", () => {
     expect(unescapeXml("&lt;a&gt; &amp;amp; &quot;b&quot; <!-- c --> d")).toBe('<a> &amp; "b"  d');
+    expect(unescapeXml("a <!-- b --> c <!-- d -->e<!-- f")).toBe("a  c e<!-- f");
   });
 
   it("gives each Spanish entry of the main namespace with a hint, one time", async () => {
