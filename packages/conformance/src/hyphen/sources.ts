@@ -18,7 +18,18 @@ export interface WordList {
   readonly independent: boolean;
 }
 
-/** A language set: a pattern file, the name of its license, and a word list. */
+/**
+ * The least rates of a language set on its word list: a ratchet. A new set must hold or raise both rates. So a gain in `found` does not
+ * hide a loss in `confirmed`, the share of correct hyphens.
+ */
+export interface RateFloor {
+  /** The least share of the places of the list that the set gives. */
+  readonly found: number;
+  /** The least share of the places of the set that the list holds. */
+  readonly confirmed: number;
+}
+
+/** A language set: a pattern file, the name of its license, a word list and the floors of its rates. */
 export interface HyphenFile {
   readonly language: string;
   /** The file name in the folder of the pattern files. */
@@ -26,6 +37,12 @@ export interface HyphenFile {
   readonly sha256: string;
   readonly license: string;
   readonly list: WordList;
+  readonly floor: RateFloor;
+}
+
+/** This function gives a fault for each rate of a language that is below its floor. */
+export function floorFaults(language: string, rates: RateFloor, floor: RateFloor): string[] {
+  return (["found", "confirmed"] as const).filter((name) => rates[name] < floor[name]).map((name) => `${language}: ${name} ${rates[name]} is below the floor ${floor[name]}`);
 }
 
 /** The language sets. */
@@ -42,6 +59,7 @@ export const hyphenFiles: readonly HyphenFile[] = [
       license: "public domain",
       independent: true,
     },
+    floor: { found: 0.7575, confirmed: 0.9537 },
   },
   {
     language: "de",
@@ -55,6 +73,7 @@ export const hyphenFiles: readonly HyphenFile[] = [
       license: "CC BY-SA 4.0",
       independent: true,
     },
+    floor: { found: 0.9607, confirmed: 0.9904 },
   },
   {
     language: "fr",
@@ -68,6 +87,7 @@ export const hyphenFiles: readonly HyphenFile[] = [
       license: "CC BY-SA 4.0",
       independent: true,
     },
+    floor: { found: 0.8278, confirmed: 0.9993 },
   },
 ];
 

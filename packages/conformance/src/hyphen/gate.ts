@@ -9,11 +9,11 @@ import { gzipSync } from "node:zlib";
 import { hyphenator, type HyphenSource } from "@mark1russell7/typeset/hyphen";
 import { buildSync, version } from "esbuild";
 import { parsePatterns, setSource } from "./patterns.ts";
-import { hyphenFiles, texHyphenCommit, type HyphenFile } from "./sources.ts";
+import { floorFaults, hyphenFiles, texHyphenCommit, type HyphenFile } from "./sources.ts";
 import { classReport, countDefects, parseForms, referenceRules, rulesOf, type ClassReport, type ReferenceFile, type RuleCount } from "./classes.ts";
 import { makeLayer, withLayer, type Layer } from "./layer.ts";
 import { parseLexique, type ReferenceList } from "./lexique.ts";
-import { countMisses, coveredPlaces, parseWords, scoreWords, share, type MissCounts, type WordScore } from "./words.ts";
+import { countMisses, coveredPlaces, fHalf, parseWords, scoreWords, share, type MissCounts, type WordScore } from "./words.ts";
 
 /** The bytes of one entry. */
 export interface EntryWeight {
@@ -33,8 +33,14 @@ export interface LanguageRecord {
   /** The SHA-256 of the committed sample, so a change of a word shows also when the score stays the same. */
   readonly sample: string;
   readonly score: WordScore;
+  /** The share of the places of the list within the limits that the set gives (recall). */
   readonly found: number;
+  /** The share of all places of the list that the set gives, also the places outside the limits. */
+  readonly foundAll: number;
+  /** The share of the places of the set that the list holds (precision). */
   readonly confirmed: number;
+  /** The F-score with beta 0.5 of `found` and `confirmed`. */
+  readonly fHalf: number;
   readonly weight: EntryWeight;
 }
 
@@ -177,7 +183,8 @@ export async function hyphenGate(root: string, textOf: (file: HyphenFile) => Pro
     if (write) writeFileSync(paths.source(file.language), set.source);
     if (!existsSync(paths.source(file.language)) || readFileSync(paths.source(file.language), "utf8") !== set.source) problems.push(`the committed set ${file.language} differs from the set of its pinned file`);
     missed.push([file.language, set.misses]);
-    made.push({ file: file.name, commit: texHyphenCommit, sha256: file.sha256, license: file.license, patterns: set.patterns, exceptions: set.exceptions, list: file.list, sample: sampleHash(list), score: set.score, found: share(set.score.both, set.score.listed), confirmed: share(set.score.both, set.score.given) });
+    problems.push(...floorFaults(file.language, { found: share(set.score.both, set.score.listed), confirmed: share(set.score.both, set.score.given) }, file.floor));
+    made.push({ file: file.name, commit: texHyphenCommit, sha256: file.sha256, license: file.license, patterns: set.patterns, exceptions: set.exceptions, list: file.list, sample: sampleHash(list), score: set.score, found: share(set.score.both, set.score.listed), foundAll: share(set.score.both, set.score.places), confirmed: share(set.score.both, set.score.given), fHalf: fHalf(set.score) });
   }
   const languages = Object.fromEntries(made.map((language, index) => [hyphenFiles[index]!.language, { ...language, weight: weighEntry(paths.source(hyphenFiles[index]!.language)) }]));
   const record: HyphenRecord = { schema: "typeset-hyphen/1", esbuild: version, gzipLevel: 9, matcher: weighEntry(paths.matcher), languages };

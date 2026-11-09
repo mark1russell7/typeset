@@ -9,6 +9,8 @@ export interface ListedWord {
 /** The result of a language set on a word list. */
 export interface WordScore {
   readonly words: number;
+  /** The hyphen places of the list, also the places outside the left and right limits of the set. */
+  readonly places: number;
   /** The hyphen places of the list within the left and right limits of the set. */
   readonly listed: number;
   /** The hyphen places that the set gives. */
@@ -28,22 +30,32 @@ export function parseWords(text: string): ListedWord[] {
 
 /** This function scores a `hyphenate` hook on a list. The limits `left` and `right` are the limits of the set. */
 export function scoreWords(words: readonly ListedWord[], hyphenate: (word: string) => readonly number[], left: number, right: number): WordScore {
+  let all = 0;
   let listed = 0;
   let given = 0;
   let both = 0;
   for (const { word, places } of words) {
     const allowed = new Set(places.filter((place) => place >= left && place <= word.length - right));
     const offsets = hyphenate(word);
+    all += places.length;
     listed += allowed.size;
     given += offsets.length;
     both += offsets.filter((offset) => allowed.has(offset)).length;
   }
-  return { words: words.length, listed, given, both };
+  return { words: words.length, places: all, listed, given, both };
 }
 
 /** This function gives a share with 4 decimals. */
 export function share(part: number, whole: number): number {
   return whole === 0 ? 0 : Math.round((part / whole) * 10000) / 10000;
+}
+
+/**
+ * This function gives the F-score of a score with beta 0.5, with 4 decimals. A wrong hyphen is an error on the page, but a missed place
+ * is only a looser line. So this score gives precision (`confirmed`) more weight than recall (`found`).
+ */
+export function fHalf(score: WordScore): number {
+  return share(1.25 * score.both, 0.25 * score.listed + score.given);
 }
 
 /** The classes of a missed place. A missed place is a place of the list within the limits that the set does not give. */

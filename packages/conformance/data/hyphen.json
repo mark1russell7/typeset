@@ -24,12 +24,15 @@
       "sample": "b3dd92c175ad160daaae86466d63798c7c5369d0fac0aae95e80fcaaa2ea4edb",
       "score": {
         "words": 10000,
+        "places": 24145,
         "listed": 20905,
         "given": 16604,
         "both": 15836
       },
       "found": 0.7575,
+      "foundAll": 0.6559,
       "confirmed": 0.9537,
+      "fHalf": 0.9068,
       "weight": {
         "minified": 33537,
         "gzip": 18202
@@ -52,12 +55,15 @@
       "sample": "b6d0e50c542bdc6eb667de72d4bf0a929fdf5e45b0dd915e424612ba95320f13",
       "score": {
         "words": 10000,
+        "places": 29593,
         "listed": 29593,
         "given": 28707,
         "both": 28430
       },
       "found": 0.9607,
+      "foundAll": 0.9607,
       "confirmed": 0.9904,
+      "fHalf": 0.9843,
       "weight": {
         "minified": 281320,
         "gzip": 123851
@@ -80,12 +86,15 @@
       "sample": "16e0b7ddc30a4b55564aaea36ff6e5f4c4d3c278d6c6658d59cb5d26189751ae",
       "score": {
         "words": 10000,
+        "places": 21379,
         "listed": 20373,
         "given": 16877,
         "both": 16865
       },
       "found": 0.8278,
+      "foundAll": 0.7889,
       "confirmed": 0.9993,
+      "fHalf": 0.9595,
       "weight": {
         "minified": 12943,
         "gzip": 5655
