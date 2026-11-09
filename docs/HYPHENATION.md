@@ -130,7 +130,16 @@ The run of 2026-11-09 gives these rates:
 
 On the TUGboat list, Moby itself has `confirmed` 0.8661, below the 0.9060 of the shipped set. So a part of the loss comes from the convention of Moby, not from the training. On Webster, the interval of the `confirmed` gain of the trained set is 0.0231 to 0.0264. The interval of its `found` gain is 0.0318 to 0.0375.
 
-Moby and Webster agree on 0.966 of the places in both directions. The documents of Moby do not name its source. This near agreement tells that Moby can come from Webster. Then Webster is not independent of the training data of the trained set, and the rule above removes it as a check list. The strategist decides the target convention from these numbers.
+Moby and Webster agree on 0.966 of the places in both directions. The documents of Moby do not name its source. This near agreement tells that Moby can come from Webster. Then Webster is not independent of the training data of the trained set, and the rule above removes it as a check list.
+
+The ruling on the cause keeps `en-us` closed at the current floors, and the shipped set does not change:
+
+1. Webster is not independent, so its score does not count.
+2. On the TUGboat list, the only independent list, the trained set loses on `confirmed`: 0.8280 against 0.9060.
+3. A wrong hyphen is an error that the reader sees. A missed hyphen gives only a looser line. So `confirmed` counts more than `found`.
+4. The convention of Merriam-Webster is not the target. Liang's patterns come from it, so it does not separate the two sets.
+
+A third list, independent of Merriam-Webster and of Moby, can open `en-us` again. Item T14e scores the sets on the hyphen fields of the English Wiktionary. The trained set must lead on `confirmed`, with an interval above 0.
 
 ### The missed places
 
