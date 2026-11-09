@@ -1,5 +1,5 @@
 {
-  "schema": "typeset-hyphen-misses/2",
+  "schema": "typeset-hyphen-misses/3",
   "languages": {
     "en-us": {
       "misses": 5069,
@@ -22,7 +22,8 @@
           "inhibited": 1322,
           "exception": 1
         }
-      }
+      },
+      "classes": {}
     },
     "de": {
       "misses": 1163,
@@ -45,7 +46,8 @@
           "inhibited": 202,
           "exception": 0
         }
-      }
+      },
+      "classes": {}
     },
     "fr": {
       "misses": 3507,
@@ -67,6 +69,39 @@
           "uncovered": 0,
           "inhibited": 2826,
           "exception": 0
+        }
+      },
+      "classes": {
+        "mute-e": {
+          "found": 0.8279,
+          "leftOut": 2946,
+          "foundRest": 0.9678,
+          "target": 0.95,
+          "defects": 1,
+          "explained": 2945,
+          "rest": {
+            "misses": 562,
+            "shift": 14,
+            "silent": 114,
+            "other": 434,
+            "causes": {
+              "shift": {
+                "uncovered": 0,
+                "inhibited": 14,
+                "exception": 0
+              },
+              "silent": {
+                "uncovered": 0,
+                "inhibited": 114,
+                "exception": 0
+              },
+              "other": {
+                "uncovered": 0,
+                "inhibited": 434,
+                "exception": 0
+              }
+            }
+          }
         }
       }
     }

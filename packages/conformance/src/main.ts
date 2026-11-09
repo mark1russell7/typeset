@@ -124,6 +124,12 @@ const lines = [
   "| Language | Confirmed | Found | Gzip bytes |",
   "|---|---|---|---|",
   ...Object.entries(hyphens.record.languages).map(([name, language]) => `| \`${name}\` | ${language.confirmed} | ${language.found} | ${language.weight.gzip} |`),
+  "",
+  "| Language | Class | Found | Left out | Found on the rest | Target | Defects | Misses that the class explains | Other misses |",
+  "|---|---|---|---|---|---|---|---|---|",
+  ...Object.entries(hyphens.misses.languages).flatMap(([name, language]) =>
+    Object.entries(language.classes).map(([reference, report]) => `| \`${name}\` | \`${reference}\` | ${report.found} | ${report.leftOut} | ${report.foundRest} | ${report.target} | ${report.defects} | ${report.explained} of ${language.misses} | ${report.rest.misses} |`),
+  ),
 ];
 console.log(lines.join("\n"));
 const summary = process.env["GITHUB_STEP_SUMMARY"];

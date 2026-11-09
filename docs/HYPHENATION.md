@@ -99,6 +99,32 @@ To find the digits, the gate changes each even digit `d` of the set to `d - 1`. 
 
 In `fr`, a pattern stops each missed place. The patterns of `fr` stop a hyphen before a last syllable with a mute `e`, for example `achemi-ne` (the pattern `4ne.`). The list of Lexique has a place there. So the `fr` misses come from a different rule, not from a pattern that is missing. In `de`, patterns stop 774 of the 879 places of `shift`. In `en-us`, the causes of each class are near half and half.
 
+### The reference classes
+
+A reference class is a set of places where the list and the rule of the patterns differ by a known rule of typography. The function of a class reads only the word, its places in the list and the reference list. It does not read the patterns. `src/hyphen/classes.ts` holds each class. Its tests include words outside the class.
+
+The class `mute-e` of `fr` follows a rule of French typography: a word does not break before a last syllable with a mute `e`. The source is the *Lexique des règles typographiques en usage à l'Imprimerie nationale*, at the rules for word division. The class holds the last place of the list in a word when the last syllable has these parts:
+
+1. An onset of consonants, or consonants and the `u` of `gu` or `qu`. The letter `y` is a vowel letter of French, so it is not part of an onset.
+2. The ending `e`, `es` or `ent`.
+
+The ending `ent` is mute only in a verb form, for example `abaissent`. The file `data/hyphen/fr-forms.txt` gives the phonetic forms in Lexique of each word of the sample with the ending `ent`. When a form of the word ends with the vowel `@`, the word is not in the class, for example `moment` and `couvent`. A final `é`, `ée` or `és` is not a mute `e`, so `né`, `café` and `année` are not in the class.
+
+For each class, the record gives these values:
+
+- `found`: the share of the places of the full list that the set finds.
+- `leftOut`: the count of the places of the class within the limits.
+- `foundRest`: the share of the other places that the set finds. The target is `target`.
+- `defects`: the count of the hyphens of the set at or after the place of the class. Each one is a defect.
+- `explained`: the count of the missed places at a place of the class.
+- `rest`: the missed places that remain, with their class and cause.
+
+| Language | Class | `found` | `leftOut` | `foundRest` | `target` | `defects` | `explained` | `rest` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `fr` | `mute-e` | 0.8279 | 2946 | 0.9678 | 0.95 | 1 | 2945 | 562 |
+
+The defect is `stagnent`: the set gives `stag-nent`. All 562 places of `rest` are `inhibited`. Each run of the gate shows these values in the summary of the job. A rule difference in `de` or `en-us` gets a class of the same type, not a cut by the result of the patterns.
+
 `data/hyphen/NOTICE.md` in `packages/conformance` tells the sources of the samples. That package is private, so the samples are not part of the npm package.
 
 ## The gate
