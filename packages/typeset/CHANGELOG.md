@@ -8,6 +8,8 @@ The release train changes the range of `@mark1russell7/collections` to a version
 
 - The range `^0.9.3` of `@mark1russell7/collections` in `dependencies` does not hold `0.10.0`, so it changes.
 
+Runtime dependencies: `@mark1russell7/collections` from `^0.9.3` to `^0.10.0`. `@mark1russell7/rigor-generators` `^0.1.0` does not change.
+
 ## 0.3.0
 
 This version changes the canvas widths of `./fonts` for texts with bidi controls, and adds justified lines and the subpaths `./hyphen`. Before 1.0.0, a change of behavior increases MINOR.
