@@ -1,5 +1,13 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.4.0
+
+The release train changes the range of `@mark1russell7/collections` to a version outside the old range. The public types name @mark1russell7/collections, so its new version outside the old range can change them.
+
+### Breaking
+
+- The range `^0.9.3` of `@mark1russell7/collections` in `dependencies` does not hold `0.10.0`, so it changes.
+
 ## 0.3.0
 
 This version changes the canvas widths of `./fonts` for texts with bidi controls, and adds justified lines and the subpaths `./hyphen`. Before 1.0.0, a change of behavior increases MINOR.
