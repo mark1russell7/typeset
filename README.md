@@ -26,6 +26,8 @@ Thus a concatenation adds two numbers, and an edit updates only the path from th
 
 T7, T9, T1 and T1b are done. They are the corpus generator (`packages/corpus`), the bench (`packages/bench`) and the font tables (`packages/typeset/src/fonts`, the subpath `@mark1russell7/typeset/fonts`). The font tables read variable fonts, and CI compares them on four platforms. [docs/BENCH.md](docs/BENCH.md) and [docs/FONTS.md](docs/FONTS.md) tell how they work. [docs/ROADMAP.md](docs/ROADMAP.md) has the plan.
 
+The package `@mark1russell7/text` (`packages/text`) has the plain text helpers, for example the escapes for HTML and regular expressions. It is the bottom layer of this repository. It has no runtime dependency, and it imports no font or width.
+
 ## License
 
 MIT
