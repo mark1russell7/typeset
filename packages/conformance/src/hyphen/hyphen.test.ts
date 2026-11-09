@@ -8,10 +8,10 @@ import { buildSync } from "esbuild";
 import { describe, expect, it } from "vitest";
 import { gzipTolerance, hyphenPaths, recordDifferences, sampleHash, weighEntry, type HyphenRecord, type MissRecord } from "./gate.ts";
 import { parsePatterns, setSource } from "./patterns.ts";
-import { hyphenFiles, hyphenUrl, texHyphenCommit } from "./sources.ts";
+import { floorFaults, hyphenFiles, hyphenUrl, texHyphenCommit } from "./sources.ts";
 import type { PatternSet } from "@mark1russell7/typeset/hyphen";
 import { referenceRules } from "./classes.ts";
-import { countMisses, coveredPlaces, missCause, missClass, parseWords, scoreWords, share } from "./words.ts";
+import { countMisses, coveredPlaces, fHalf, missCause, missClass, parseWords, scoreWords, share } from "./words.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const paths = hyphenPaths(root);
@@ -90,10 +90,33 @@ describe("scoreWords", () => {
   });
 
   it("counts the places of the list, of the set and of both, and the limits take away a place of the list", () => {
-    expect(scoreWords(words, (word) => (word === "hyphen" ? [2, 3] : []), 1, 1)).toEqual({ words: 2, listed: 2, given: 2, both: 1 });
-    expect(scoreWords(words, () => [], 3, 1).listed).toBe(0);
+    expect(scoreWords(words, (word) => (word === "hyphen" ? [2, 3] : []), 1, 1)).toEqual({ words: 2, places: 2, listed: 2, given: 2, both: 1 });
+    expect(scoreWords(words, () => [], 3, 1)).toMatchObject({ places: 2, listed: 0 });
     expect(share(1, 3)).toBe(0.3333);
     expect(share(1, 0)).toBe(0);
+  });
+
+  it("gives the F-score with beta 0.5, and a wrong place costs more than a missed place", () => {
+    expect(fHalf({ words: 1, places: 4, listed: 4, given: 4, both: 4 })).toBe(1);
+    expect(fHalf({ words: 1, places: 4, listed: 4, given: 0, both: 0 })).toBe(0);
+    // Precision 1 and recall 0.5 give 0.8333. Precision 0.5 and recall 1 give 0.5556.
+    expect(fHalf({ words: 1, places: 4, listed: 4, given: 2, both: 2 })).toBe(0.8333);
+    expect(fHalf({ words: 1, places: 2, listed: 2, given: 4, both: 2 })).toBe(0.5556);
+  });
+});
+
+describe("the floors of the language sets", () => {
+  const floor = { found: 0.7575, confirmed: 0.9537 };
+
+  it("gives no fault when each rate holds or rises", () => {
+    expect(floorFaults("en-us", { found: 0.7575, confirmed: 0.9537 }, floor)).toEqual([]);
+    expect(floorFaults("en-us", { found: 0.8, confirmed: 0.96 }, floor)).toEqual([]);
+  });
+
+  it("gives a fault for each rate below its floor, so a gain in one rate does not hide a loss in the other", () => {
+    expect(floorFaults("en-us", { found: 0.7574, confirmed: 0.99 }, floor)).toEqual(["en-us: found 0.7574 is below the floor 0.7575"]);
+    expect(floorFaults("en-us", { found: 0.9, confirmed: 0.9536 }, floor)).toEqual(["en-us: confirmed 0.9536 is below the floor 0.9537"]);
+    expect(floorFaults("en-us", { found: 0.7, confirmed: 0.9 }, floor)).toHaveLength(2);
   });
 });
 
@@ -170,8 +193,16 @@ describe("each language set on its word list", () => {
       expect(language.score).toEqual(score);
       expect(language.confirmed).toBe(share(score.both, score.given));
       expect(language.found).toBe(share(score.both, score.listed));
+      expect(language.foundAll).toBe(share(score.both, score.places));
+      expect(language.fHalf).toBe(fHalf(score));
       expect(set.source.words).toEqual({ list: hyphen.list.name, independent: hyphen.list.independent, count: words.length, found: language.found, confirmed: language.confirmed });
       expect(set.source).toMatchObject({ commit: texHyphenCommit, sha256: hyphen.sha256, license: hyphen.license, file: hyphen.name });
+    });
+
+    it(`${hyphen.language}: the found rate and the confirmed rate hold their floors`, () => {
+      const rates = { found: share(score.both, score.listed), confirmed: share(score.both, score.given) };
+      expect(floorFaults(hyphen.language, rates, hyphen.floor)).toEqual([]);
+      expect(floorFaults(hyphen.language, record.languages[hyphen.language]!, hyphen.floor)).toEqual([]);
     });
 
     it(`${hyphen.language}: the record of the missed places holds the count of each class and of each cause`, () => {

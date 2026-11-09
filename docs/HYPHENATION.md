@@ -44,20 +44,36 @@ The patterns come from the project `hyphenation/tex-hyphen`, at the commit `5684
 
 Each set has a test on a sample of 10000 words of a word list from another project. The patterns do not come from these lists.
 
-| Language | Word list | License of the list | Confirmed | Found |
-| --- | --- | --- | --- | --- |
-| `en-us` | Moby Hyphenator II | Public domain | 0.9537 | 0.7575 |
-| `de` | German Wiktionary, `kaikki.org` extract of 2026-10-30 | CC BY-SA 4.0 | 0.9904 | 0.9607 |
-| `fr` | Lexique 3.83, column `orthosyll` | CC BY-SA 4.0 | 0.9993 | 0.8278 |
+| Language | Word list | License of the list | Confirmed | Found | Found, all places | F0.5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `en-us` | Moby Hyphenator II | Public domain | 0.9537 | 0.7575 | 0.6559 | 0.9068 |
+| `de` | German Wiktionary, `kaikki.org` extract of 2026-10-30 | CC BY-SA 4.0 | 0.9904 | 0.9607 | 0.9607 | 0.9843 |
+| `fr` | Lexique 3.83, column `orthosyll` | CC BY-SA 4.0 | 0.9993 | 0.8278 | 0.7889 | 0.9595 |
 
-The two values are different measures:
+The values are different measures:
 
-- `confirmed` is the share of the places of the set that the list holds. It tells how often a hyphen of the set is correct.
-- `found` is the share of the places of the list that the set gives. The left and right limits of the set remove places from this count.
+- `confirmed` is the share of the places of the set that the list holds (precision). It tells how often a hyphen of the set is correct.
+- `found` is the share of the places of the list that the set gives (recall). The left and right limits of the set remove places from this count, because the engine does not give a place there.
+- `foundAll` is the same share over all places of the list, also the places outside the limits.
+- `fHalf` is the F-score with beta 0.5. It gives `confirmed` more weight than `found`.
 
-The test gates `confirmed` at 0.95 or more. A wrong hyphen is an error, but a place that is not used is only a lost choice. The patterns of TeX leave out correct places by design, so `found` stays lower. It has no gate.
+A wrong hyphen is an error on the page, but a missed place is only a looser line. So the objective of each set is precision first. A new set must keep `confirmed` at its floor or higher, and then find as many places as possible.
+
+The test gates `confirmed` at 0.95 or more. Each language also has a floor for `confirmed` and for `found`, in the field `floor` of `hyphenFiles`. The floors are a ratchet: a new set must hold or raise both rates. So a gain in one rate does not hide a loss in the other. The gate and a test fail when a rate is below its floor.
 
 A dictionary and a pattern set can use different rules for a word. The lists also have errors, so these values are not exact measures of correctness.
+
+### Other free sets for `en-us`
+
+The `en-us` set is `hyph-en-us.tex`, the TeX file `ushyphmax.tex` with the patterns of Knuth. It is the largest free set of `patgen` for American English. Two other free sets do not meet the floors. Each value is on all 138735 single words of Moby in lowercase:
+
+| Set | License | Confirmed | Found | F0.5 |
+| --- | --- | --- | --- | --- |
+| `hyph-en-us.tex`, the set of `typeset` | Notice of Gerard D.C. Kuiken | 0.9544 | 0.7573 | 0.9072 |
+| `hyph_en_US.dic` of LibreOffice (the TeX file `hyphen.tex` and the TUGboat exception log) | BSD style | 0.9579 | 0.7543 | 0.9089 |
+| `hyph-en-gb.tex`, British rules | MIT | 0.8215 | 0.6470 | 0.7795 |
+
+The LibreOffice set has a higher `confirmed` but a lower `found`, so it does not hold the ratchet. The British set uses other rules.
 
 ### The missed places
 
