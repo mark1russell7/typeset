@@ -6,7 +6,7 @@
  * With `--write`, the command writes the record `data/hyphen/en-us-cause.json`.
  * Without it, the command exits with 1 when a new record differs from the committed record. A workflow in CI starts it.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -24,6 +24,7 @@ const paths = { params: join(data, "en-us-train-params.json"), patterns: join(da
 const params = JSON.parse(readFileSync(paths.params, "utf8")) as TrainParams;
 const runs = Number(values.runs ?? 10000);
 const { left, right } = params;
+mkdirSync(folder, { recursive: true });
 
 const moby = hyphenFiles.find((file) => file.language === "en-us")!.list;
 const mobyText = (await pinnedBytes(folder, "mhyph.txt", moby.url, moby.sha256)).toString("latin1");
