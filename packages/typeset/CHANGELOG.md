@@ -1,5 +1,18 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.5.3
+
+This version adds the hyphen set of Spanish (T14f, PR 133). Before 1.0.0, a new feature increases PATCH. The other entries do not change.
+
+### The new entry `./hyphen/es`
+
+- `./hyphen/es` holds `hyph-es.tex` (MIT) of Javier Bezos, with the limits 2 and 2. It is 15349 `gzip` bytes in the weight gate.
+- The site gives Spanish in the section "Justified lines".
+- The gate of the repository scores the set on a sample of the Spanish Wiktionary, one form for each lemma. Confirmed is 0.9984 and found is 0.9483.
+- On the entries with a hint of an editor, confirmed is 0.9802 and found is 0.8593. `docs/HYPHENATION.md` of the repository tells the groups of hints.
+
+Runtime dependencies: no change against `0.5.2` (`@mark1russell7/collections` `^0.10.0`, `@mark1russell7/rigor-generators` `^0.1.0`).
+
 ## 0.5.2
 
 This version corrects 18 words of the hyphen set of `fr` (T14d, PR 117). Before 1.0.0, a fix increases PATCH. The public API does not change.
