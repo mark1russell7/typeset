@@ -1,5 +1,18 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.5.1
+
+This version corrects a defect of the total-fit breaker (T15b). Before 1.0.0, a fix increases PATCH. The public API does not change.
+
+### The fix (T15b)
+
+- On a text with no glue, total fit did not end in practice: its steps grew as the cube of the length. A page of Han text has a break after each character and no glue.
+- The search stops at a line that is too wide also without the text of its penalty. A later break of that line can only be wider.
+- The breaks do not change: the 300 corpus paragraphs of `justify.test.ts` give the same breaks as before.
+- A property test of `fast-check` holds each breaker to a count of item reads that is linear in the item count. The inputs are text with no glue, all penalties and wide boxes, in 12 scripts.
+
+Runtime dependencies: no change against `0.5.0` (`@mark1russell7/collections` `^0.10.0`, `@mark1russell7/rigor-generators` `^0.1.0`). `fast-check` is a dev dependency only.
+
 ## 0.5.0
 
 This version changes the widths of `fontAdvance` for a list of fonts (T11, PR 66). Before 1.0.0, a change of behavior increases MINOR. The public API does not change.

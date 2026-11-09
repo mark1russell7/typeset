@@ -97,6 +97,20 @@ describe("total fit with the adjustment ratio", () => {
     expect(textsOf(paragraph, knuthPlass, 10)).toEqual(["a", "aaaaaaaaab", "ccccc"]);
   });
 
+  it("stops at a line that is too wide also without the text of its penalty, so a long text with no glue ends", () => {
+    // A page of Han text has a break place after each character and no glue. The search before T15 read each later
+    // break of each line, so this paragraph did not end in 90 s.
+    const free: Item = { type: "penalty", text: "", width: 0, cost: 0, flagged: false };
+    const glue: Item = { type: "glue", text: " ", width: 1, stretch: 1, shrink: 0.5 };
+    const items: Item[] = [box("a"), glue];
+    for (let i = 0; i < 20_000; i++) items.push(box("x"), free);
+    items.push(box("x"));
+    const lines = textsOf({ items }, knuthPlass, 10);
+    expect(lines).toHaveLength(2001);
+    expect(lines.every((line) => count(line) <= 10)).toBe(true);
+    expect(lines.join("")).toBe(`a ${"x".repeat(20_001)}`);
+  });
+
   it("keeps a word that is wider than a line, because no set of breaks is feasible", () => {
     const paragraph = paragraphOf("a bbbbbbbb c", { widthOf: count, stretch: 1, shrink: 0.5 });
     expect(textsOf(paragraph, knuthPlass, 4)).toEqual(["a", "bbbbbbbb", "c"]);

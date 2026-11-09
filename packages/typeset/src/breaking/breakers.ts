@@ -1,4 +1,4 @@
-import { adjustmentRatio, isBreak, lineStart, lineWidth, type Paragraph } from "./paragraph.ts";
+import { adjustmentRatio, isBreak, lineStart, lineWidth, type Glue, type Item, type Paragraph } from "./paragraph.ts";
 
 /**
  * A breaker: a strategy that chooses the breaks of a paragraph for the line width `width`. It gives the indices of the
@@ -97,6 +97,8 @@ function totalFitBreaks(paragraph: Paragraph, width: number, linePenalty: number
   const over = new Array<number>(nodes.length).fill(justified ? Infinity : 0);
   over[0] = 0;
   best[0] = 0;
+  // With no glue that shrinks by more than its width, the least width of a line grows with its end
+  const steady = items.every((item) => item.type !== "glue" || (item.shrink ?? 0) <= item.width);
   for (let a = 0; a < nodes.length - 1; a++) {
     if (best[a] === Infinity) continue;
     const start = a === 0 ? 0 : lineStart(items, nodes[a]!);
@@ -109,7 +111,8 @@ function totalFitBreaks(paragraph: Paragraph, width: number, linePenalty: number
       const overflow = justified ? fit < -1 : used > width;
       // A line wider than the width is possible only when no break opportunity is inside it
       if (overflow && b > a + 1) {
-        if (items[end]?.type === "penalty") continue;
+        // Only the text of the penalty can make the line too wide. A later break has no such text, so it can fit.
+        if (items[end]?.type === "penalty" && !(steady && leastWidth(items, start, end, used, justified) > width)) continue;
         break;
       }
       const penalty = items[end];
@@ -134,6 +137,17 @@ function totalFitBreaks(paragraph: Paragraph, width: number, linePenalty: number
   const breaks: number[] = [];
   for (let b = previous[nodes.length - 1]!; b > 0; b = previous[b]!) breaks.push(nodes[b]!);
   return breaks.reverse();
+}
+
+/**
+ * This function gives the least width of the line from `start` to `end`, without the text of the penalty at `end`. It is
+ * the width `used` less that text, and less the shrink of the glue for a justified edge. A later break of the line has no
+ * smaller least width when no glue shrinks by more than its width.
+ */
+function leastWidth(items: readonly Item[], start: number, end: number, used: number, justified: boolean): number {
+  let least = used - items[end]!.width;
+  if (justified) for (let i = start; i < end; i++) least -= items[i]!.type === "glue" ? ((items[i] as Glue).shrink ?? 0) : 0;
+  return least;
 }
 
 /** This function tells if the item `index` is a flagged penalty. */

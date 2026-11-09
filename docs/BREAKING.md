@@ -44,7 +44,7 @@ The prediction `typeset-t3-breakers` expected a median reduction of at least 30 
 - Greedy puts the most text into the lines before the last line. Thus no breaker with the same line count gets a smaller mean `r`.
 - Total fit keeps the line count of greedy on these cases. Thus it can remove only the variance part.
 - Under greedy, the mean part is 67 % to 70 % of the raggedness on paragraphs and pages at 120 px to 480 px. The ceiling of the reduction is thus near 30 %.
-- Total fit removes about a third of the variance part. The median reduction is 4.8 % to 12.9 % for each length class and width.
+- Total fit removes approximately a third of the variance part. The median reduction is 4.8 % to 12.9 % for each length class and width.
 - On short texts of 3 to 6 lines, the median reduction is 0. Few break choices are possible there.
 
 Total fit earns its cost where the variance part is large: long paragraphs at wide measures (12.9 % on a page at 480 px), and text with hyphen breaks. A justified edge, with stretch and shrink of the glue, is a different measure. The next section tells it.
@@ -77,7 +77,7 @@ This cost applies when a glue of the paragraph has stretch or shrink. Other para
 - If a paragraph has no feasible set, total fit uses the set with the fewest such lines. A word wider than the line is such a case.
 - Greedy and balanced do not read stretch or shrink. They compare only natural widths.
 
-The shrink of a glue has to be at most its width. A greater shrink lets a longer line have a smaller width, and the breaker stops its search at the first line over the limit.
+The shrink of a glue must be at most its width. A greater shrink lets a longer line have a smaller width, and the breaker stops its search at the first line over the limit.
 
 Total fit has no fitness classes and no tolerance. Thus it adds no cost between a tight line and a loose line, and each line with `r >= -1` stays a choice.
 
@@ -103,3 +103,15 @@ Total fit has no fitness classes and no tolerance. Thus it adds no cost between 
 | Greedy | 5.390 | 14 of 720 |
 
 These cases do not use hyphens, so the result shows only the glue.
+
+## The termination of the breakers
+
+A page of Han text has a break place after each character, and it has no glue. Before 0.5.1, the search of total fit read each later break of a line that was too wide at a penalty. Thus the steps grew as the cube of the length of a text with no glue. The search stops at such a line when the line is too wide also without the text of its penalty. A later break of the line can only be wider. A test of `justify.test.ts` breaks a paragraph of 20000 characters with no glue.
+
+The gate `termination.test.ts` holds the class of this defect. It is a property of `fast-check` for each breaker: greedy, total fit and balanced. Each input is a seeded corpus text of one of the 12 scripts, in one of 3 families:
+
+- `no-glue`: a box for each character, with a free break between two boxes.
+- `all-penalty`: a box for each character, with a break that adds a hyphen.
+- `wide-boxes`: a box for each word, on a line of 1 to 4 characters.
+
+The gate counts the item reads of the breaker. The bound is 8 times the item count times the square of the line length, so it is linear in the item count. With the search before 0.5.1, total fit reads more than the bound on its first input.
