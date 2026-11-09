@@ -155,6 +155,31 @@
           }
         }
       }
+    },
+    "es": {
+      "misses": 1520,
+      "shift": 646,
+      "silent": 38,
+      "other": 836,
+      "causes": {
+        "shift": {
+          "uncovered": 130,
+          "inhibited": 516,
+          "exception": 0
+        },
+        "silent": {
+          "uncovered": 8,
+          "inhibited": 30,
+          "exception": 0
+        },
+        "other": {
+          "uncovered": 111,
+          "inhibited": 725,
+          "exception": 0
+        }
+      },
+      "classes": {},
+      "reference": null
     }
   }
 }

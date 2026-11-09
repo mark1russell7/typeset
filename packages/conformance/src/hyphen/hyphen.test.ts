@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { source as deSource, hyphenate as deHyphenate } from "@mark1russell7/typeset/hyphen/de";
 import { source as enSource, hyphenate as enHyphenate } from "@mark1russell7/typeset/hyphen/en-us";
+import { source as esSource, hyphenate as esHyphenate } from "@mark1russell7/typeset/hyphen/es";
 import { source as frSource, hyphenate as frHyphenate } from "@mark1russell7/typeset/hyphen/fr";
 import { buildSync } from "esbuild";
 import { describe, expect, it } from "vitest";
@@ -17,7 +18,7 @@ const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const paths = hyphenPaths(root);
 const record = JSON.parse(readFileSync(paths.record, "utf8")) as HyphenRecord;
 const missRecord = JSON.parse(readFileSync(paths.misses, "utf8")) as MissRecord;
-const sets = { "en-us": { source: enSource, hyphenate: enHyphenate }, de: { source: deSource, hyphenate: deHyphenate }, fr: { source: frSource, hyphenate: frHyphenate } };
+const sets = { "en-us": { source: enSource, hyphenate: enHyphenate }, de: { source: deSource, hyphenate: deHyphenate }, fr: { source: frSource, hyphenate: frHyphenate }, es: { source: esSource, hyphenate: esHyphenate } };
 
 const file = [
   "% title: A test",

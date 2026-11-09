@@ -49,7 +49,7 @@ describe("the justified lines of the section", () => {
 describe("the records of the language sets", () => {
   it("gives a row for each language from the data files of the conformance package", () => {
     const rows = setRows(hyphenFile, missesFile);
-    expect(rows.map((row) => row.language)).toEqual(["en-us", "de", "fr"]);
+    expect(rows.map((row) => row.language)).toEqual(["en-us", "de", "fr", "es"]);
     for (const row of rows) {
       expect(row.found, row.language).toBeLessThanOrEqual(1);
       expect(row.misses, row.language).toBe(row.classes.shift + row.classes.silent + row.classes.other);

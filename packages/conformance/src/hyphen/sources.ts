@@ -29,6 +29,17 @@ export interface RateFloor {
   readonly confirmed: number;
 }
 
+/**
+ * The part of a word list that an editor changed with a hint. A module of rules makes the other entries of the list. A pages dump of
+ * the same wiki tells which entries have a hint.
+ */
+export interface HintedPart {
+  /** The pages dump, with its place and its SHA-256. */
+  readonly dump: WordList;
+  /** The least rates of the set on the sample of the part. */
+  readonly floor: RateFloor;
+}
+
 /** A language set: a pattern file, the name of its license, a word list and the floors of its rates. */
 export interface HyphenFile {
   readonly language: string;
@@ -38,6 +49,8 @@ export interface HyphenFile {
   readonly license: string;
   readonly list: WordList;
   readonly floor: RateFloor;
+  /** The part of the list with a hint, when a module of rules makes most of the list. */
+  readonly hinted?: HintedPart;
 }
 
 /** This function gives a fault for each rate of a language that is below its floor. */
@@ -88,6 +101,30 @@ export const hyphenFiles: readonly HyphenFile[] = [
       independent: true,
     },
     floor: { found: 0.8278, confirmed: 0.9993 },
+  },
+  {
+    language: "es",
+    name: "hyph-es.tex",
+    sha256: "6a2e5f39a991a23d1cd8a23dbd0f6fe96a9f07561a6695f4f3320f47030e236c",
+    license: "MIT",
+    list: {
+      name: "Spanish Wiktionary, kaikki.org extract of 2026-10-30",
+      url: "https://kaikki.org/dictionary/downloads/es/es-extract.jsonl.gz",
+      sha256: "0a7a02456ecf34dd3419e0d5adf4f18da5531487dde31829d126afe86eade861",
+      license: "CC BY-SA 4.0",
+      independent: true,
+    },
+    floor: { found: 0.9483, confirmed: 0.9984 },
+    hinted: {
+      dump: {
+        name: "Spanish Wiktionary, pages dump of 2026-10-01",
+        url: "https://dumps.wikimedia.org/eswiktionary/20261001/eswiktionary-20261001-pages-articles.xml.bz2",
+        sha256: "b10214827500ab323e06e59ceeb783e04c8be051f184b4ffe9b59efcb5f54f20",
+        license: "CC BY-SA 4.0",
+        independent: true,
+      },
+      floor: { found: 0.8593, confirmed: 0.9802 },
+    },
   },
 ];
 

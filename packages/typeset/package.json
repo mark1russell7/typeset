@@ -34,6 +34,7 @@
     "./hyphen/en-us": "./src/hyphen/en-us.ts",
     "./hyphen/de": "./src/hyphen/de.ts",
     "./hyphen/fr": "./src/hyphen/fr.ts",
+    "./hyphen/es": "./src/hyphen/es.ts",
     "./measurer": "./src/measurer.ts",
     "./bidi": "./src/bidi.ts",
     "./segmentation": "./src/segmentation.ts",
@@ -85,6 +86,10 @@
       "./hyphen/fr": {
         "types": "./build/hyphen/fr.d.ts",
         "default": "./build/hyphen/fr.js"
+      },
+      "./hyphen/es": {
+        "types": "./build/hyphen/es.d.ts",
+        "default": "./build/hyphen/es.js"
       },
       "./measurer": {
         "types": "./build/measurer.d.ts",
