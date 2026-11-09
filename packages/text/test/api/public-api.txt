@@ -1,0 +1,34 @@
+# The public API of @mark1russell7/text
+#
+# The names of each entry of the exports field, and the declaration of each name, without comments
+# and private members. The command `api-report check` compares this file with the built .d.ts files.
+# To accept a change of the API, start the build, then `api-report update`, and review the diff.
+
+## . (build/index.d.ts): names
+
+escapeAttribute: build/index.d.ts#escapeAttribute
+escapeHtml: build/index.d.ts#escapeHtml
+escapeMarkdown: build/index.d.ts#escapeMarkdown
+escapeRegExp: build/index.d.ts#escapeRegExp
+escapeWorkflowData: build/index.d.ts#escapeWorkflowData
+escapeWorkflowProperty: build/index.d.ts#escapeWorkflowProperty
+
+## Declarations
+
+### build/index.d.ts#escapeAttribute
+export declare function escapeAttribute(text: string): string;
+
+### build/index.d.ts#escapeHtml
+export declare function escapeHtml(text: string): string;
+
+### build/index.d.ts#escapeMarkdown
+export declare function escapeMarkdown(text: string): string;
+
+### build/index.d.ts#escapeRegExp
+export declare function escapeRegExp(text: string): string;
+
+### build/index.d.ts#escapeWorkflowData
+export declare function escapeWorkflowData(text: string): string;
+
+### build/index.d.ts#escapeWorkflowProperty
+export declare function escapeWorkflowProperty(text: string): string;
