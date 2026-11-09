@@ -165,3 +165,39 @@ export function texExceptionForms(text: string): { readonly forms: readonly stri
   const forms = entries.filter((entry) => /^[a-z]+(?:-[a-z]+)*$/u.test(entry));
   return { forms, skipped: entries.length - forms.length };
 }
+
+/**
+ * This function gives the entries of Webster's Unabridged Dictionary of 1913, as Project Gutenberg gives it. Each entry is a line
+ * with one headword in capitals, then a line that starts with the word and its marks. The marks `*`, `"` and `` ` `` divide the
+ * syllables. The function keeps only the words of lowercase letters whose letters agree with the headword.
+ */
+export function websterEntries(text: string): readonly string[] {
+  const lines = text.split(/\r?\n/u);
+  const entries: string[] = [];
+  for (let index = 0; index + 1 < lines.length; index += 1) {
+    const head = lines[index]!;
+    if (!/^[A-Z]+$/u.test(head)) continue;
+    const marked = lines[index + 1]!.split(/[,;\s(]/u)[0]!.toLowerCase();
+    const form = marked.replace(/["*`]+/gu, "-").replace(/^-+|-+$/gu, "");
+    if (/^[a-z]+(?:-[a-z]+)*$/u.test(form) && form.replaceAll("-", "") === head.toLowerCase()) entries.push(form);
+  }
+  return entries;
+}
+
+/** This function gives a hook of a list: the places of the form of each word, within the limits. A word out of the list has no place. */
+export function formHook(forms: readonly string[], left: number, right: number): (word: string) => readonly number[] {
+  const places = new Map<string, number[]>();
+  for (const form of forms) {
+    const parts = form.split("-");
+    const word = parts.join("");
+    let offset = 0;
+    places.set(word, parts.slice(0, -1).map((part) => (offset += part.length)).filter((place) => place >= left && place <= word.length - right));
+  }
+  return (word) => places.get(word) ?? [];
+}
+
+/** This function keeps the forms of `forms` whose word is in the list `other`. */
+export function sharedForms(forms: readonly string[], other: readonly string[]): readonly string[] {
+  const words = new Set(other.map((form) => form.replaceAll("-", "")));
+  return forms.filter((form) => words.has(form.replaceAll("-", "")));
+}

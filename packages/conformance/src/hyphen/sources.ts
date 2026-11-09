@@ -103,6 +103,19 @@ export const tugboatExceptions: WordList = {
   independent: true,
 };
 
+/**
+ * Webster's Unabridged Dictionary of 1913, from Project Gutenberg. It marks the syllables of each headword. It does not come from Moby,
+ * from `ushyphmax.tex` or from the TUGboat list. The patterns of Liang come from another dictionary of Merriam-Webster, so the
+ * convention is related. Its syllables are not exactly hyphens, and its spellings are of 1913.
+ */
+export const webster1913: WordList = {
+  name: "Webster's Unabridged Dictionary of 1913 (Project Gutenberg 29765)",
+  url: "https://www.gutenberg.org/files/29765/29765-0.txt",
+  sha256: "4d9c7a6f3b27add378aea8db3afc4d9190c2f4a6bd4341755b514155ab91873a",
+  license: "public domain",
+  independent: true,
+};
+
 /** This function gives the URL of a pattern file at the pinned commit. */
 export function hyphenUrl(file: HyphenFile): string {
   return `https://raw.githubusercontent.com/hyphenation/tex-hyphen/${texHyphenCommit}/${patternFolder}/${file.name}`;
