@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
 import { drawnTexts, fontStacks, markTexts, missingInStack, mixedTexts, stackFont } from "./stacks.ts";
 
-// The test needs the pinned font files in the folder `TYPESET_FONTS`. `fetch.ts` downloads them. A script with no file is skipped.
+// The test needs the pinned font files in the folder `TYPESET_FONTS`. The restore command of `@typeset/pinned` gets them. A script with no file is skipped.
 const folder = process.env["TYPESET_FONTS"];
 const samples = 40;
 const names = Object.keys(engines) as EngineName[];

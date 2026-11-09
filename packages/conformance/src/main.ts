@@ -4,20 +4,19 @@
  * `docs/UNICODE.md` tells the rule. The command also holds the gate of the language sets of `./hyphen`. `docs/HYPHENATION.md`
  * tells that rule.
  */
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { pinnedFile, readManifest, readPinned } from "@typeset/pinned";
 import { unicodeVersion as bidiTableVersion } from "@mark1russell7/typeset/bidi";
 import { canvasWords } from "@mark1russell7/typeset/fonts/inspect";
 import { graphemes, lineBreaks, unicodeVersion as tableVersion, wordBreaks } from "@mark1russell7/typeset/segmentation";
 import { eachBidiTest, eachCharacterTest, resolveCharacterTest, resolveClassTest, scoreBidi, type BidiScore } from "./bidi.ts";
 import { classOf, offsetsOf, unlistedFailures, type Reasons } from "./check.ts";
 import { hyphenGate } from "./hyphen/gate.ts";
-import { hyphenUrl } from "./hyphen/sources.ts";
 import { parseTests, scoreTests, type Score } from "./parse.ts";
-import { pinnedBytes } from "./pinned.ts";
-import { fileUrl, propertyFiles, testFiles, unicodeVersion, type UnicodeFile } from "./sources.ts";
+import { propertyFiles, testFiles, unicodeVersion, type UnicodeFile } from "./sources.ts";
 import { bidiTableSource, makeBidiTable, makeTable, tableSource } from "./tables.ts";
 
 const { values } = parseArgs({ options: { folder: { type: "string" }, out: { type: "string" }, write: { type: "boolean" } } });
@@ -27,13 +26,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const tablePath = join(here, "..", "..", "typeset", "src", "segmentation", "line-table.ts");
 const bidiTablePath = join(here, "..", "..", "typeset", "src", "bidi", "table.ts");
 
-/** This function gives the text of a pinned file. It downloads the file when the folder does not have the correct bytes. */
-const pinnedText = async (name: string, url: string, sha: string): Promise<string> => (await pinnedBytes(folder, name, url, sha)).toString("utf8");
+const manifest = readManifest();
+
+/** This function gives the text of a pinned file from the folder. It does not fetch the file. The workflow restores the folder. */
+const pinnedText = async (name: string): Promise<string> => readPinned(folder, pinnedFile(manifest, name)).toString("utf8");
 
 /** This function gives the text of a file of the Unicode Character Database. */
-const textOf = (file: UnicodeFile): Promise<string> => pinnedText(file.path.replace(/^.*\//u, ""), fileUrl(file), file.sha256);
+const textOf = (file: UnicodeFile): Promise<string> => pinnedText(file.path.replace(/^.*\//u, ""));
 
-mkdirSync(folder, { recursive: true });
 const table = tableSource(makeTable(await textOf(propertyFiles.lineBreak), await textOf(propertyFiles.eastAsianWidth)), unicodeVersion);
 const bidiTable = bidiTableSource(makeBidiTable(await textOf(propertyFiles.bidiClass), await textOf(propertyFiles.bidiBrackets)), unicodeVersion);
 if (values.write) {
@@ -49,7 +49,7 @@ if (bidiTableVersion !== unicodeVersion) problems.push(`the bidi table has Unico
 if (readFileSync(tablePath, "utf8") !== table) problems.push("the committed table differs from the table of the property files");
 if (readFileSync(bidiTablePath, "utf8") !== bidiTable) problems.push("the committed bidi table differs from the table of the property files");
 
-const hyphens = await hyphenGate(join(here, "..", "..", ".."), (file) => pinnedText(file.name, hyphenUrl(file), file.sha256), (file) => pinnedText(file.name, file.url, file.sha256), values.write === true);
+const hyphens = await hyphenGate(join(here, "..", "..", ".."), (file) => pinnedText(file.name), (file) => pinnedText(file.name), values.write === true);
 problems.push(...hyphens.problems);
 
 const wordTests = parseTests(await textOf(testFiles.word));

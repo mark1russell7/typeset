@@ -123,7 +123,7 @@ The comparison has four arms. Each arm is one job of the workflow.
 | `macos-2` | `macos-latest` | 2 | `exact` |
 | `windows-1` | `windows-latest` | 1 | `exact` |
 
-1. `packages/widths/src/fetch.ts` downloads the 11 Noto fonts of the corpus and the extra font from `google/fonts` at a pinned commit. It checks the SHA-256 of each file.
+1. The job restores the pinned fonts from the store of the repository. They are the 11 Noto fonts of the corpus, the extra font and the fonts of the sequences. `docs/PINNED.md` tells the rule.
 2. On the arm `linux-1`, `fontTools` makes a WOFF2 file of each font.
 3. `packages/widths/src/main.ts` measures each sample of the corpus (seed 1) with each font that covers its script, at each size from 10 px to 48 px. Each font uses the instance of the CSS weight 400.
 4. It also measures the Latin samples with the extra font, Source Sans 3, at the weights 400 and 700. The default weight of this font is 200, and the corpus does not use it.

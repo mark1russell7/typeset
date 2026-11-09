@@ -79,6 +79,11 @@ jobs:
           node-version: 26.13.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The gate reads only the pinned files of pinned.json, from the store of the repository (T20). It fetches nothing from a mirror.
+      - name: Restore the pinned files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node packages/pinned/src/main.ts restore --group unicode,patterns,lexique --folder "$RUNNER_TEMP/unicode"
       - name: Score the test files of Unicode
         env:
           CONFORMANCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}

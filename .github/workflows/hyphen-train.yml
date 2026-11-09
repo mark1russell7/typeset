@@ -40,7 +40,8 @@ jobs:
             packages/conformance/src/hyphen/cause-main.ts
             packages/conformance/data/hyphen/en-us-cause.json
             packages/conformance/src/hyphen/sources.ts
-            packages/conformance/src/pinned.ts
+            packages/pinned/src/**
+            pinned.json
             packages/conformance/data/hyphen/en-us-train-params.json
             packages/conformance/data/hyphen/en-us-moby.pat
             packages/conformance/data/hyphen/en-us-train.json
@@ -67,6 +68,11 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter @typeset/conformance...
+      # The gate reads only the pinned files of pinned.json, from the store of the repository (T20). It fetches nothing from a mirror.
+      - name: Restore the pinned lists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node packages/pinned/src/main.ts restore --group en-us-lists --folder "$RUNNER_TEMP/hyphen"
       - name: Install patgen
         run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends texlive-binaries
       - name: Train and score
@@ -100,6 +106,11 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter @typeset/conformance...
+      # The gate reads only the pinned files of pinned.json, from the store of the repository (T20). It fetches nothing from a mirror.
+      - name: Restore the pinned lists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node packages/pinned/src/main.ts restore --group en-us-lists,webster --folder "$RUNNER_TEMP/hyphen"
       - name: Score the lists
         run: mkdir -p "$GITHUB_WORKSPACE/hyphen-cause" && node packages/conformance/src/hyphen/cause-main.ts --folder "$RUNNER_TEMP/hyphen" --runs "$RUNS" --out "$GITHUB_WORKSPACE/hyphen-cause"
       - if: ${{ !cancelled() }}

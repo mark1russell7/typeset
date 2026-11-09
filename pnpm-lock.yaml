@@ -248,6 +248,9 @@ importers:
       '@mark1russell7/typeset':
         specifier: workspace:*
         version: link:../typeset
+      '@typeset/pinned':
+        specifier: workspace:*
+        version: link:../pinned
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.0.0
@@ -418,6 +421,9 @@ importers:
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
+      '@typeset/pinned':
+        specifier: workspace:*
+        version: link:../pinned
       '@vitest/coverage-v8':
         specifier: ^5.0.5
         version: 5.1.0(vitest@5.1.0)

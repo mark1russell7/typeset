@@ -28,7 +28,7 @@ describe("the Indic syllables", () => {
   });
 });
 
-// The test needs the pinned file `noto-sans-devanagari.ttf` in the folder `TYPESET_FONTS`. `fetch.ts` of `@typeset/widths` downloads it.
+// The test needs the pinned file `noto-sans-devanagari.ttf` in the folder `TYPESET_FONTS`. The restore command of `@typeset/pinned` gets it.
 const fontFile = join(process.env["TYPESET_FONTS"] ?? "", "noto-sans-devanagari.ttf");
 const present = process.env["TYPESET_FONTS"] !== undefined && existsSync(fontFile);
 

@@ -11,7 +11,7 @@ import { missingGlyphs } from "./compare.ts";
 import { harfbuzzScript, harfbuzzVersion, openReferenceFont, type Shaped } from "./harfbuzz.ts";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
 
-// The test needs the pinned font files in the folder `TYPESET_FONTS`. `fetch.ts` downloads them. A font with no file is skipped.
+// The test needs the pinned font files in the folder `TYPESET_FONTS`. The restore command of `@typeset/pinned` gets them. A font with no file is skipped.
 // When `TYPESET_BOUNDS_OUT` is set, the test writes the record `harfbuzz-bounds.json` to that path.
 const folder = process.env["TYPESET_FONTS"];
 const out = process.env["TYPESET_BOUNDS_OUT"];
