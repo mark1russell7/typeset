@@ -1,5 +1,18 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.5.2
+
+This version corrects 18 words of the hyphen set of `fr` (T14d, PR 117). Before 1.0.0, a fix increases PATCH. The public API does not change.
+
+### The fix (T14d)
+
+- The TeX patterns of `fr` gave a wrong hyphen place in 18 words of Lexique 3.83, of the class `mute-e`, for example `restent` and `stagnent`.
+- `./hyphen/fr` holds these 18 words as exceptions. Each exception gives the places of the reference rules, with the evidence of each word in `data/hyphen/fr-layer.json` of the repository.
+- The gate of the repository counts the defects of the set on all of Lexique 3.83 at each run. The count is 0.
+- Other words do not change. The found rate on the word list of `fr` goes from 0.8279 to 0.8278.
+
+Runtime dependencies: no change against `0.5.1` (`@mark1russell7/collections` `^0.10.0`, `@mark1russell7/rigor-generators` `^0.1.0`).
+
 ## 0.5.1
 
 This version corrects a defect of the total-fit breaker (T15b). Before 1.0.0, a fix increases PATCH. The public API does not change.
