@@ -10,7 +10,9 @@ import { hyphenator, type HyphenSource } from "@mark1russell7/typeset/hyphen";
 import { buildSync, version } from "esbuild";
 import { parsePatterns, setSource } from "./patterns.ts";
 import { hyphenFiles, texHyphenCommit, type HyphenFile } from "./sources.ts";
-import { classReport, parseForms, referenceClasses, type ClassReport } from "./classes.ts";
+import { classReport, countDefects, parseForms, referenceRules, rulesOf, type ClassReport, type ReferenceFile, type RuleCount } from "./classes.ts";
+import { makeLayer, withLayer, type Layer } from "./layer.ts";
+import { parseLexique, type ReferenceList } from "./lexique.ts";
 import { countMisses, coveredPlaces, parseWords, scoreWords, share, type MissCounts, type WordScore } from "./words.ts";
 
 /** The bytes of one entry. */
@@ -46,15 +48,22 @@ export interface HyphenRecord {
   readonly languages: Readonly<Record<string, LanguageRecord>>;
 }
 
-/** The missed places of one language, and the report of each reference class of the language. */
-export type LanguageMisses = MissCounts & { readonly misses: number; readonly classes: Readonly<Record<string, ClassReport>> };
+/** The defects of each reference rule of a language, on the sample and on the full reference list. It also gives the count of entries of the layer. */
+export interface ReferenceReport {
+  readonly layer: number;
+  readonly sample: Readonly<Record<string, RuleCount>>;
+  readonly full: { readonly list: string; readonly words: number; readonly rules: Readonly<Record<string, RuleCount>> };
+}
+
+/** The missed places of one language, the report of each reference class, and the defects of each reference rule. */
+export type LanguageMisses = MissCounts & { readonly misses: number; readonly classes: Readonly<Record<string, ClassReport>>; readonly reference: ReferenceReport | null };
 
 /**
  * The record of the missed places. For each language, it gives the count of all missed places, of each class and of each cause
  * of a class. It also gives the report of each reference class.
  */
 export interface MissRecord {
-  readonly schema: "typeset-hyphen-misses/3";
+  readonly schema: "typeset-hyphen-misses/4";
   readonly languages: Readonly<Record<string, LanguageMisses>>;
 }
 
@@ -72,7 +81,7 @@ export function weighEntry(file: string): EntryWeight {
 }
 
 /** This function gives the paths of the gate from the root of the repository. */
-export function hyphenPaths(root: string): { readonly source: (language: string) => string; readonly words: (language: string) => string; readonly matcher: string; readonly record: string; readonly misses: string; readonly forms: (file: string) => string } {
+export function hyphenPaths(root: string): { readonly source: (language: string) => string; readonly words: (language: string) => string; readonly matcher: string; readonly record: string; readonly misses: string; readonly forms: (file: string) => string; readonly layer: (language: string) => string } {
   return {
     source: (language) => join(root, "packages", "typeset", "src", "hyphen", `${language}.ts`),
     words: (language) => join(root, "packages", "conformance", "data", "hyphen", `${language}.txt`),
@@ -80,6 +89,7 @@ export function hyphenPaths(root: string): { readonly source: (language: string)
     record: join(root, "packages", "conformance", "data", "hyphen.json"),
     misses: join(root, "packages", "conformance", "data", "hyphen-misses.json"),
     forms: (file) => join(root, "packages", "conformance", "data", "hyphen", file),
+    layer: (language) => join(root, "packages", "conformance", "data", "hyphen", `${language}-layer.json`),
   };
 }
 
@@ -90,19 +100,26 @@ export function sampleHash(text: string): string {
 
 /**
  * This function makes the module of a language from the text of its file and the text of its word list. The function `formsOf`
- * gives the text of a file of forms of a reference class.
+ * gives the text of a file of forms. The `reference` gives the layer and the full reference list of a language with reference rules.
  */
-export function makeSet(file: HyphenFile, text: string, list: string, formsOf: (name: string) => string): { readonly source: string; readonly score: WordScore; readonly misses: LanguageMisses; readonly patterns: number; readonly exceptions: number } {
-  const data = parsePatterns(text);
+export function makeSet(file: HyphenFile, text: string, list: string, formsOf: (name: string) => string, reference?: { readonly layer: Layer; readonly full: ReferenceList }): { readonly source: string; readonly score: WordScore; readonly misses: LanguageMisses; readonly patterns: number; readonly exceptions: number } {
+  const pinned = parsePatterns(text);
+  const data = { ...pinned, ...withLayer(pinned, reference?.layer) };
   const words = parseWords(list);
   const hyphenate = hyphenator(data);
   const score = scoreWords(words, hyphenate, data.left, data.right);
   const covered = coveredPlaces(data);
-  const classes = Object.fromEntries((referenceClasses[file.language] ?? []).map((reference) => {
-    const forms = parseForms(formsOf(reference.forms));
-    return [reference.name, classReport(words, hyphenate, covered, data.left, data.right, (word) => reference.place(word, forms.get(word.word) ?? []))];
-  }));
-  const misses = { misses: score.listed - score.both, ...countMisses(words, hyphenate, covered, data.left, data.right), classes };
+  const rules = referenceRules[file.language];
+  const forms = rules === undefined ? new Map<string, readonly string[]>() : parseForms(formsOf(rules.forms));
+  const phoneticOf = (word: string): readonly string[] => forms.get(word) ?? [];
+  const classes = Object.fromEntries((rules?.classes ?? []).map((rule) => [rule.name, classReport(words, hyphenate, covered, data.left, data.right, rule, phoneticOf)]));
+  let report: ReferenceReport | null = null;
+  if (rules !== undefined && reference !== undefined) {
+    const before = hyphenator(pinned);
+    const full = countDefects(reference.full.words, rulesOf(rules), hyphenate, before, (word) => reference.full.phonetic.get(word) ?? []);
+    report = { layer: reference.layer.entries.length, sample: countDefects(words, rulesOf(rules), hyphenate, before, phoneticOf), full: { list: reference.full.name, words: reference.full.words.length, rules: full } };
+  }
+  const misses = { misses: score.listed - score.both, ...countMisses(words, hyphenate, covered, data.left, data.right), classes, reference: report };
   const origin: HyphenSource = {
     language: file.language,
     file: file.name,
@@ -111,7 +128,9 @@ export function makeSet(file: HyphenFile, text: string, list: string, formsOf: (
     license: file.license,
     words: { list: file.list.name, independent: file.list.independent, count: score.words, found: share(score.both, score.listed), confirmed: share(score.both, score.given) },
   };
-  return { source: setSource(data, origin), score, misses, patterns: data.patterns.split(" ").length, exceptions: data.exceptions === "" ? 0 : data.exceptions.split(" ").length };
+  const entries = reference?.layer.entries.length ?? 0;
+  const notes = entries === 0 ? [] : [`The exceptions also hold the ${entries} words of the layer data/hyphen/${file.language}-layer.json of @typeset/conformance.`];
+  return { source: setSource(data, origin, notes), score, misses, patterns: data.patterns.split(" ").length, exceptions: data.exceptions === "" ? 0 : data.exceptions.split(" ").length };
 }
 
 /** This function tells what differs between a committed record and a new record. Only the `gzip` bytes can differ, within the tolerance. */
@@ -129,14 +148,32 @@ export function recordDifferences(committed: HyphenRecord, fresh: HyphenRecord):
 }
 
 /** This function does the checks of the gate. `textOf` gives the text of a pattern file after it checks the SHA-256. With `write`, it writes the modules and the record. */
-export async function hyphenGate(root: string, textOf: (file: HyphenFile) => Promise<string>, write: boolean): Promise<{ readonly problems: readonly string[]; readonly record: HyphenRecord; readonly misses: MissRecord }> {
+export async function hyphenGate(root: string, textOf: (file: HyphenFile) => Promise<string>, referenceText: (file: ReferenceFile) => Promise<string>, write: boolean): Promise<{ readonly problems: readonly string[]; readonly record: HyphenRecord; readonly misses: MissRecord }> {
   const paths = hyphenPaths(root);
   const problems: string[] = [];
   const made: Omit<LanguageRecord, "weight">[] = [];
   const missed: [string, LanguageMisses][] = [];
   for (const file of hyphenFiles) {
     const list = readFileSync(paths.words(file.language), "utf8");
-    const set = makeSet(file, await textOf(file), list, (name) => readFileSync(paths.forms(name), "utf8"));
+    const text = await textOf(file);
+    const rules = referenceRules[file.language];
+    let reference: { readonly layer: Layer; readonly full: ReferenceList } | undefined;
+    if (rules !== undefined) {
+      const full = parseLexique(await referenceText(rules.list));
+      const layer = makeLayer(file.language, parsePatterns(text), full, rules);
+      const layerText = `${JSON.stringify(layer, null, 2)}
+`;
+      if (write) writeFileSync(paths.layer(file.language), layerText);
+      if (!existsSync(paths.layer(file.language)) || readFileSync(paths.layer(file.language), "utf8") !== layerText) problems.push(`the layer of ${file.language} differs from the layer of the pinned set and the reference list`);
+      reference = { layer, full };
+    }
+    const set = makeSet(file, text, list, (name) => readFileSync(paths.forms(name), "utf8"), reference);
+    for (const rule of rules === undefined ? [] : rulesOf(rules)) {
+      const full = set.misses.reference?.full.rules[rule.name];
+      if (full === undefined) continue;
+      if (full.defects > 0) problems.push(`the set ${file.language} with its layer breaks the rule ${rule.name} ${full.defects} times on the full list`);
+      if (rule.conflictLimit !== undefined && full.conflicts.length > rule.conflictLimit) problems.push(`the rule ${rule.name} of ${file.language} has ${full.conflicts.length} conflicts, over its limit ${rule.conflictLimit}`);
+    }
     if (write) writeFileSync(paths.source(file.language), set.source);
     if (!existsSync(paths.source(file.language)) || readFileSync(paths.source(file.language), "utf8") !== set.source) problems.push(`the committed set ${file.language} differs from the set of its pinned file`);
     missed.push([file.language, set.misses]);
@@ -147,7 +184,7 @@ export async function hyphenGate(root: string, textOf: (file: HyphenFile) => Pro
   if (write) writeFileSync(paths.record, `${JSON.stringify(record, null, 2)}\n`);
   if (!existsSync(paths.record)) problems.push("the record does not exist");
   else problems.push(...recordDifferences(JSON.parse(readFileSync(paths.record, "utf8")) as HyphenRecord, record));
-  const misses: MissRecord = { schema: "typeset-hyphen-misses/3", languages: Object.fromEntries(missed) };
+  const misses: MissRecord = { schema: "typeset-hyphen-misses/4", languages: Object.fromEntries(missed) };
   const missText = `${JSON.stringify(misses, null, 2)}\n`;
   if (write) writeFileSync(paths.misses, missText);
   if (!existsSync(paths.misses) || readFileSync(paths.misses, "utf8") !== missText) problems.push("the record of the missed places differs from the sets and the word lists");

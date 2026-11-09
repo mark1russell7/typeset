@@ -34,10 +34,10 @@
       "reason": "T14 adds the entry. The T14 prediction gave no byte limit, so the strategist ruled that the limit is the first CI measure, at head e246887. The line is a ratchet: a rise needs a PR that tells its reason."
     },
     "./hyphen/fr": {
-      "limitGzipBytes": 5568,
-      "baseGzipBytes": 5568,
+      "limitGzipBytes": 5655,
+      "baseGzipBytes": 5655,
       "run": "42497492999",
-      "reason": "T14 adds the entry. The T14 prediction gave no byte limit, so the strategist ruled that the limit is the first CI measure, at head e246887. The line is a ratchet: a rise needs a PR that tells its reason."
+      "reason": "T14 adds the entry at 5568 bytes, the first CI measure at head e246887. T14d adds 87 bytes: the 18 words of the exception layer data/hyphen/fr-layer.json, which correct the mute-e defects of the TeX set on all of Lexique 3.83. The strategist accepted the rise. The line is a ratchet: a rise needs a PR that tells its reason."
     }
   },
   "caps": {

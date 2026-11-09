@@ -59,7 +59,7 @@ if (bidiTableVersion !== unicodeVersion) problems.push(`the bidi table has Unico
 if (readFileSync(tablePath, "utf8") !== table) problems.push("the committed table differs from the table of the property files");
 if (readFileSync(bidiTablePath, "utf8") !== bidiTable) problems.push("the committed bidi table differs from the table of the property files");
 
-const hyphens = await hyphenGate(join(here, "..", "..", ".."), (file) => pinnedText(file.name, hyphenUrl(file), file.sha256), values.write === true);
+const hyphens = await hyphenGate(join(here, "..", "..", ".."), (file) => pinnedText(file.name, hyphenUrl(file), file.sha256), (file) => pinnedText(file.name, file.url, file.sha256), values.write === true);
 problems.push(...hyphens.problems);
 
 const wordTests = parseTests(await textOf(testFiles.word));
@@ -125,11 +125,19 @@ const lines = [
   "|---|---|---|---|",
   ...Object.entries(hyphens.record.languages).map(([name, language]) => `| \`${name}\` | ${language.confirmed} | ${language.found} | ${language.weight.gzip} |`),
   "",
-  "| Language | Class | Found | Left out | Found on the rest | Target | Defects | Misses that the class explains | Other misses |",
-  "|---|---|---|---|---|---|---|---|---|",
+  "| Language | Class | Found | Left out | Found on the rest | Target | Misses that the class explains | Other misses |",
+  "|---|---|---|---|---|---|---|---|",
   ...Object.entries(hyphens.misses.languages).flatMap(([name, language]) =>
-    Object.entries(language.classes).map(([reference, report]) => `| \`${name}\` | \`${reference}\` | ${report.found} | ${report.leftOut} | ${report.foundRest} | ${report.target} | ${report.defects} | ${report.explained} of ${language.misses} | ${report.rest.misses} |`),
+    Object.entries(language.classes).map(([reference, report]) => `| \`${name}\` | \`${reference}\` | ${report.found} | ${report.leftOut} | ${report.foundRest} | ${report.target} | ${report.explained} of ${language.misses} | ${report.rest.misses} |`),
   ),
+  "",
+  "| Language | Rule | Defects on the sample | Defects on the full list | Words of the full list | Defects of the pinned set alone (sample, full list) | Conflicts in the list | Words of the layer |",
+  "|---|---|---|---|---|---|---|---|",
+  ...Object.entries(hyphens.misses.languages).flatMap(([name, language]) => {
+    const reference = language.reference;
+    if (reference === null) return [];
+    return Object.entries(reference.full.rules).map(([rule, full]) => `| \`${name}\` | \`${rule}\` | ${reference.sample[rule]!.defects} | ${full.defects} | ${reference.full.words} | ${reference.sample[rule]!.pinnedDefects}, ${full.pinnedDefects} | ${full.conflicts.length} | ${reference.layer} |`);
+  }),
 ];
 console.log(lines.join("\n"));
 const summary = process.env["GITHUB_STEP_SUMMARY"];

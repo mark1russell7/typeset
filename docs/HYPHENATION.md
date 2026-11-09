@@ -33,12 +33,12 @@ The patterns come from the project `hyphenation/tex-hyphen`, at the commit `5684
 | --- | --- | --- | --- | --- |
 | `en-us` | `hyph-en-us.tex` | The all-permissive notice of Gerard D.C. Kuiken | 33537 | 18202 |
 | `de` | `hyph-de-1996.tex` | MIT | 281320 | 123851 |
-| `fr` | `hyph-fr.tex` | MIT | 12755 | 5568 |
+| `fr` | `hyph-fr.tex` | MIT | 12943 | 5655 |
 
 - These weights include the matcher. The matcher alone is 884 minified bytes and 539 gzip bytes.
 - The weights use the measure of the weight gate: a bundle for the browser by esbuild, minified, then gzip at level 9.
 - The header of each pattern file stays at the top of its module as a legal comment. The bundles keep this comment, so the license stays with the data. The weights include it.
-- The `gzip` bytes come from the zlib of Node 24. Another zlib can give other bytes, so the gate allows a difference of 1 %. The minified bytes are exact.
+- The `gzip` bytes come from the zlib of Node 24. Another zlib can give other bytes, so the gate accepts a difference of 1 %. The minified bytes are exact.
 
 ## The word lists
 
@@ -48,14 +48,14 @@ Each set has a test on a sample of 10000 words of a word list from another proje
 | --- | --- | --- | --- | --- |
 | `en-us` | Moby Hyphenator II | Public domain | 0.9537 | 0.7575 |
 | `de` | German Wiktionary, `kaikki.org` extract of 2026-10-30 | CC BY-SA 4.0 | 0.9904 | 0.9607 |
-| `fr` | Lexique 3.83, column `orthosyll` | CC BY-SA 4.0 | 0.9993 | 0.8279 |
+| `fr` | Lexique 3.83, column `orthosyll` | CC BY-SA 4.0 | 0.9993 | 0.8278 |
 
 The two values are different measures:
 
 - `confirmed` is the share of the places of the set that the list holds. It tells how often a hyphen of the set is correct.
 - `found` is the share of the places of the list that the set gives. The left and right limits of the set remove places from this count.
 
-The test gates `confirmed` at 0.95 or more, because a wrong hyphen is an error and a place that is not used is only a lost choice. The patterns of TeX leave out correct places by design, so `found` stays lower. It has no gate.
+The test gates `confirmed` at 0.95 or more. A wrong hyphen is an error, but a place that is not used is only a lost choice. The patterns of TeX leave out correct places by design, so `found` stays lower. It has no gate.
 
 A dictionary and a pattern set can use different rules for a word. The lists also have errors, so these values are not exact measures of correctness.
 
@@ -71,7 +71,7 @@ A missed place is a place of the list, within the limits of the set, that the se
 | --- | --- | --- | --- | --- |
 | `en-us` | 5069 | 1461 | 1094 | 2514 |
 | `de` | 1163 | 879 | 27 | 257 |
-| `fr` | 3507 | 15 | 666 | 2826 |
+| `fr` | 3508 | 15 | 667 | 2826 |
 
 The record `data/hyphen-misses.json` in `packages/conformance` holds these counts. The gate and a test fail when the record is not current. In `de`, most misses are a `shift`: the list and the set put the hyphen at different sides of one letter. In `en-us` and `fr`, most misses are `other`.
 
@@ -94,10 +94,12 @@ To find the digits, the gate changes each even digit `d` of the set to `d - 1`. 
 | `de` | `silent` | 7 | 20 | 0 |
 | `de` | `other` | 55 | 202 | 0 |
 | `fr` | `shift` | 0 | 15 | 0 |
-| `fr` | `silent` | 0 | 666 | 0 |
+| `fr` | `silent` | 0 | 666 | 1 |
 | `fr` | `other` | 0 | 2826 | 0 |
 
-In `fr`, a pattern stops each missed place. The patterns of `fr` stop a hyphen before a last syllable with a mute `e`, for example `achemi-ne` (the pattern `4ne.`). The list of Lexique has a place there. So the `fr` misses come from a different rule, not from a pattern that is missing. In `de`, patterns stop 774 of the 879 places of `shift`. In `en-us`, the causes of each class are near half and half.
+In `fr`, a pattern stops each missed place, except in `stagnent`. That word is an exception of the layer.
+
+The patterns of `fr` stop a hyphen before a last syllable with a mute `e`, for example `achemi-ne` (the pattern `4ne.`). The list of Lexique has a place there. So the `fr` misses come from a different rule, not from a pattern that is missing. In `de`, patterns stop 774 of the 879 places of `shift`. In `en-us`, the causes of each class are near half and half.
 
 ### The reference classes
 
@@ -108,22 +110,44 @@ The class `mute-e` of `fr` follows a rule of French typography: a word does not 
 1. An onset of consonants, or consonants and the `u` of `gu` or `qu`. The letter `y` is a vowel letter of French, so it is not part of an onset.
 2. The ending `e`, `es` or `ent`.
 
-The ending `ent` is mute only in a verb form, for example `abaissent`. The file `data/hyphen/fr-forms.txt` gives the phonetic forms in Lexique of each word of the sample with the ending `ent`. When a form of the word ends with the vowel `@`, the word is not in the class, for example `moment` and `couvent`. A final `é`, `ée` or `és` is not a mute `e`, so `né`, `café` and `année` are not in the class.
+The ending `ent` is mute only in a verb form, for example `abaissent`. The file `data/hyphen/fr-forms.txt` gives the phonetic forms in Lexique of the words of the sample that the rules read. When a form of the word ends with the vowel `@` or with `nt`, the word is not in the class. Examples are `moment`, `couvent` and `establishment`. A final `é`, `ée` or `és` is not a mute `e`, so `né`, `café` and `année` are not in the class.
 
 For each class, the record gives these values:
 
 - `found`: the share of the places of the full list that the set finds.
 - `leftOut`: the count of the places of the class within the limits.
 - `foundRest`: the share of the other places that the set finds. The target is `target`.
-- `defects`: the count of the hyphens of the set at or after the place of the class. Each one is a defect.
 - `explained`: the count of the missed places at a place of the class.
 - `rest`: the missed places that remain, with their class and cause.
 
-| Language | Class | `found` | `leftOut` | `foundRest` | `target` | `defects` | `explained` | `rest` |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `fr` | `mute-e` | 0.8279 | 2946 | 0.9678 | 0.95 | 1 | 2945 | 562 |
+| Language | Class | `found` | `leftOut` | `foundRest` | `target` | `explained` | `rest` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `fr` | `mute-e` | 0.8278 | 2946 | 0.9678 | 0.95 | 2946 of 3508 | 562 |
 
-The defect is `stagnent`: the set gives `stag-nent`. All 562 places of `rest` are `inhibited`. Each run of the gate shows these values in the summary of the job. A rule difference in `de` or `en-us` gets a class of the same type, not a cut by the result of the patterns.
+All 562 places of `rest` are `inhibited`. Each run of the gate shows these values in the summary of the job. A rule difference in `de` or `en-us` gets a class of the same type, not a cut by the result of the patterns.
+
+### The reference rules and the layer
+
+A reference rule tells where a hyphen of the set is a defect. Each class is a rule: a hyphen at or after the place of the class is a defect. A guard is a rule with no class. Its target is 0 defects.
+
+The guard `gn-digraph` of `fr` reads the digraph `gn`. When a phonetic form of the word has the sound `N`, as in `gagner`, the letters `gn` are one sound. A hyphen between them is a defect when the list has no place there. In `stagner`, the letters `g` and `n` are two sounds, so the guard does not apply.
+
+Sometimes the list has the place, but a phonetic form has the sound `N`. Then two columns of the list disagree. Each such hyphen is a conflict inside the list, not a defect.
+
+The layer does not remove a conflict. The record lists each word with a conflict. The limit of conflicts of `gn-digraph` is 15. It is a ratchet: a rise needs a reason in its pull request.
+
+The gate counts the defects on the sample and on all of Lexique 3.83 at each run. It downloads `Lexique383.tsv` from <https://www.lexique.org/databases/Lexique383/Lexique383.tsv> and examines its SHA-256. The counts are in the field `reference` of the record.
+
+The exception layer corrects each defect of the pinned set. The file `data/hyphen/fr-layer.json` gives one entry for each lowercase word of Lexique with a defect. The entry gives the hyphens of the pinned set without the defects. It also gives the rules, the syllables and the phonetic forms of the word as evidence.
+
+The module of `fr` holds the entries as exceptions. The gate makes the layer from the pinned set at each run. An update of the TeX set thus removes each entry that it corrects.
+
+| Language | Rule | Defects of the TeX set (sample, Lexique) | Defects with the layer (sample, Lexique) | Conflicts in Lexique | Words of the layer |
+| --- | --- | --- | --- | --- | --- |
+| `fr` | `mute-e` | 1, 18 | 0, 0 | 0 | 18 |
+| `fr` | `gn-digraph` | 0, 0 | 0, 0 | 15 | 18 |
+
+The 15 words with a conflict are `agnat`, `agnathes`, `ignifuge`, `ignifuger`, `ignifugé`, `ignifugée`, `ignifugées`, `ignifugés`, `ignition`, `igné`, `inexpugnable`, `inexpugnables`, `magnificat`, `pugnace` and `pugnacité`. Lexique 3.83 has 116194 words of letters alone with syllables. The layer adds 87 `gzip` bytes to `./hyphen/fr`.
 
 `data/hyphen/NOTICE.md` in `packages/conformance` tells the sources of the samples. That package is private, so the samples are not part of the npm package.
 
@@ -134,6 +158,9 @@ The CI job `conformance` also holds the gate of the sets. The gate stops in thes
 - The SHA-256 of a pattern file differs from `sources.ts`.
 - A committed module differs from the module of its pinned file.
 - A field of `packages/conformance/data/hyphen.json` differs from a new measure, or a weight differs from the record.
+- A committed layer differs from the layer of the pinned set and the reference list.
+- A set with its layer has a defect of a reference rule on the full list.
+- The conflicts of a rule on the full list are more than the limit of the rule.
 
 The test `packages/conformance/src/hyphen/hyphen.test.ts` also fails when a value in the record or in `source` is stale.
 

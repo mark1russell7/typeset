@@ -1,5 +1,5 @@
 {
-  "schema": "typeset-hyphen-misses/3",
+  "schema": "typeset-hyphen-misses/4",
   "languages": {
     "en-us": {
       "misses": 5069,
@@ -23,7 +23,8 @@
           "exception": 1
         }
       },
-      "classes": {}
+      "classes": {},
+      "reference": null
     },
     "de": {
       "misses": 1163,
@@ -47,12 +48,13 @@
           "exception": 0
         }
       },
-      "classes": {}
+      "classes": {},
+      "reference": null
     },
     "fr": {
-      "misses": 3507,
+      "misses": 3508,
       "shift": 15,
-      "silent": 666,
+      "silent": 667,
       "other": 2826,
       "causes": {
         "shift": {
@@ -63,7 +65,7 @@
         "silent": {
           "uncovered": 0,
           "inhibited": 666,
-          "exception": 0
+          "exception": 1
         },
         "other": {
           "uncovered": 0,
@@ -73,12 +75,11 @@
       },
       "classes": {
         "mute-e": {
-          "found": 0.8279,
+          "found": 0.8278,
           "leftOut": 2946,
           "foundRest": 0.9678,
           "target": 0.95,
-          "defects": 1,
-          "explained": 2945,
+          "explained": 2946,
           "rest": {
             "misses": 562,
             "shift": 14,
@@ -100,6 +101,56 @@
                 "inhibited": 434,
                 "exception": 0
               }
+            }
+          }
+        }
+      },
+      "reference": {
+        "layer": 18,
+        "sample": {
+          "mute-e": {
+            "defects": 0,
+            "pinnedDefects": 1,
+            "conflicts": []
+          },
+          "gn-digraph": {
+            "defects": 0,
+            "pinnedDefects": 0,
+            "conflicts": [
+              "inexpugnables",
+              "igné"
+            ]
+          }
+        },
+        "full": {
+          "list": "Lexique 3.83",
+          "words": 116194,
+          "rules": {
+            "mute-e": {
+              "defects": 0,
+              "pinnedDefects": 18,
+              "conflicts": []
+            },
+            "gn-digraph": {
+              "defects": 0,
+              "pinnedDefects": 0,
+              "conflicts": [
+                "agnat",
+                "agnathes",
+                "ignifuge",
+                "ignifuger",
+                "ignifugé",
+                "ignifugée",
+                "ignifugées",
+                "ignifugés",
+                "ignition",
+                "igné",
+                "inexpugnable",
+                "inexpugnables",
+                "magnificat",
+                "pugnace",
+                "pugnacité"
+              ]
             }
           }
         }
