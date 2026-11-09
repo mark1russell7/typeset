@@ -6,14 +6,15 @@ import { source as enSource, hyphenate as enHyphenate } from "@mark1russell7/typ
 import { source as frSource, hyphenate as frHyphenate } from "@mark1russell7/typeset/hyphen/fr";
 import { buildSync } from "esbuild";
 import { describe, expect, it } from "vitest";
-import { gzipTolerance, hyphenPaths, recordDifferences, sampleHash, weighEntry, type HyphenRecord } from "./gate.ts";
+import { gzipTolerance, hyphenPaths, recordDifferences, sampleHash, weighEntry, type HyphenRecord, type MissRecord } from "./gate.ts";
 import { parsePatterns, setSource } from "./patterns.ts";
 import { hyphenFiles, hyphenUrl, texHyphenCommit } from "./sources.ts";
-import { parseWords, scoreWords, share } from "./words.ts";
+import { countMisses, missClass, parseWords, scoreWords, share } from "./words.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const paths = hyphenPaths(root);
 const record = JSON.parse(readFileSync(paths.record, "utf8")) as HyphenRecord;
+const missRecord = JSON.parse(readFileSync(paths.misses, "utf8")) as MissRecord;
 const sets = { "en-us": { source: enSource, hyphenate: enHyphenate }, de: { source: deSource, hyphenate: deHyphenate }, fr: { source: frSource, hyphenate: frHyphenate } };
 
 const file = [
@@ -94,6 +95,25 @@ describe("scoreWords", () => {
   });
 });
 
+describe("missClass and countMisses", () => {
+  it("puts a missed place in shift, silent or other", () => {
+    expect(missClass(3, [2])).toBe("shift");
+    expect(missClass(3, [4, 7])).toBe("shift");
+    expect(missClass(3, [])).toBe("silent");
+    expect(missClass(3, [5])).toBe("other");
+  });
+
+  it("counts each missed place within the limits one time, and the sum is listed minus both", () => {
+    const words = parseWords("hy-phen-ation ta-ble con-cat-e-nate");
+    const hyphenate = (word: string): readonly number[] => (word === "hyphenation" ? [2, 5] : word === "concatenate" ? [9] : []);
+    const counts = countMisses(words, hyphenate, 2, 2);
+    // hyphenation: 6 shift (5 is given). table: 2 silent. concatenate: 3, 6 and 7 other (9 is not a place of the list)
+    expect(counts).toEqual({ shift: 1, silent: 1, other: 3 });
+    const score = scoreWords(words, hyphenate, 2, 2);
+    expect(counts.shift + counts.silent + counts.other).toBe(score.listed - score.both);
+  });
+});
+
 describe("each language set on its word list", () => {
   it("has each set of the sources", () => {
     expect(Object.keys(sets).sort()).toEqual(hyphenFiles.map((source) => source.language).sort());
@@ -127,6 +147,12 @@ describe("each language set on its word list", () => {
       expect(language.found).toBe(share(score.both, score.listed));
       expect(set.source.words).toEqual({ list: hyphen.list.name, independent: hyphen.list.independent, count: words.length, found: language.found, confirmed: language.confirmed });
       expect(set.source).toMatchObject({ commit: texHyphenCommit, sha256: hyphen.sha256, license: hyphen.license, file: hyphen.name });
+    });
+
+    it(`${hyphen.language}: the record of the missed places holds the count of each class`, () => {
+      const counts = countMisses(words, set.hyphenate, left, right);
+      expect(missRecord.schema).toBe("typeset-hyphen-misses/1");
+      expect(missRecord.languages[hyphen.language]).toEqual({ misses: score.listed - score.both, ...counts });
     });
 
     it(`${hyphen.language}: the weight in the record is the weight of the entry`, () => {

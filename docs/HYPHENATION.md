@@ -59,6 +59,22 @@ The test gates `confirmed` at 0.95 or more, because a wrong hyphen is an error a
 
 A dictionary and a pattern set can use different rules for a word. The lists also have errors, so these values are not exact measures of correctness.
 
+### The missed places
+
+A missed place is a place of the list, within the limits of the set, that the set does not give. `countMisses` puts each missed place in one class:
+
+- `shift`: the set gives a place one letter before or after it.
+- `silent`: the set gives no place in the word.
+- `other`: the set gives other places in the word, but none next to it.
+
+| Language | Missed places | `shift` | `silent` | `other` |
+| --- | --- | --- | --- | --- |
+| `en-us` | 5069 | 1461 | 1094 | 2514 |
+| `de` | 1163 | 879 | 27 | 257 |
+| `fr` | 3507 | 15 | 666 | 2826 |
+
+The record `data/hyphen-misses.json` in `packages/conformance` holds these counts. The gate and a test fail when the record is not current. In `de`, most misses are a `shift`: the list and the set put the hyphen at different sides of one letter. In `en-us` and `fr`, most misses are `other`. The next measure examines the class `other`.
+
 `data/hyphen/NOTICE.md` in `packages/conformance` tells the sources of the samples. That package is private, so the samples are not part of the npm package.
 
 ## The gate
