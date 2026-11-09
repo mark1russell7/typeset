@@ -1,6 +1,6 @@
 name: Site read
 
-# The read of the section "Justified lines" on the served site (T14). Chromium opens the site. For en-us, de and fr, the
+# The read of the section "Justified lines" on the served site (T14). Chromium opens the site. For en-us, de, fr and es, the
 # read takes the lines of the sample text, then of a visitor text at 200 px. It checks each line, its ratio, the worst ratio
 # and the hyphen count of total fit and greedy, and the table of the language sets. The record is an artifact.
 # The read starts after each Pages run on main, on a pull request that changes the read, or by hand with a URL.
