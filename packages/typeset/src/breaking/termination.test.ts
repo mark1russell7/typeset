@@ -10,8 +10,8 @@ import { breakers, type Breaker, type Item, type Paragraph } from "../breaking.t
 const unit = 8;
 
 /**
- * The bound of the reads, for each item and each square of the line length. The worst ratio over the 12 scripts was 0.12 for
- * greedy, 0.58 for total fit and 4.1 for balanced, which runs total fit at a number of widths.
+ * This constant is the bound of the reads for each item and each square of the line length. Over the 12 scripts, the worst ratio
+ * was 0.12 for greedy, 0.58 for total fit and 4.1 for balanced. Balanced runs total fit at some widths.
  */
 const factor = 8;
 
@@ -89,7 +89,7 @@ const stepCase: fc.Arbitrary<StepCase> = fc.record({
 
 describe("the termination of the breakers", () => {
   for (const [name, breaker] of Object.entries(breakers)) {
-    it(`${name} reads a number of items that is linear in the item count, on text with no glue, all penalties or wide boxes`, { timeout: 60_000 }, () => {
+    it(`${name} reads items in a count that is linear in the item count, on text with no glue, all penalties or wide boxes`, { timeout: 60_000 }, () => {
       fc.assert(
         fc.property(stepCase, (c) => {
           // A wide box is wider than a line only when the line holds 1 to 4 characters
