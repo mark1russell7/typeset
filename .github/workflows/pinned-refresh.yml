@@ -1,0 +1,55 @@
+name: Pinned refresh
+
+# The refresh of the store of the pinned files (T20). The gates read only the files of pinned.json, from the release
+# pinned-files of this repository. They do not fetch a file from a mirror. This job fetches each file that the store does not
+# have from its mirror, checks its size and its SHA-256, and uploads it. Each week and by hand with "all", it also checks that
+# each mirror still gives the bytes of the manifest. A difference fails the job and names the file.
+
+on:
+  pull_request:
+    paths:
+      - pinned.json
+      - packages/pinned/**
+      - .github/workflows/pinned-refresh.yml
+  push:
+    branches: [main]
+    paths:
+      - pinned.json
+      - packages/pinned/**
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      all:
+        description: Also check the mirror of each file that the store has.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pinned-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh the store
+    # A pull request from a fork has no token that can write a release.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+      - name: Refresh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALL: ${{ github.event_name == 'schedule' || inputs.all == true }}
+        run: node packages/pinned/src/main.ts refresh --folder "$RUNNER_TEMP/pinned" $([ "$ALL" = true ] && echo --all)
