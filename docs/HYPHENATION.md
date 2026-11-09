@@ -105,7 +105,11 @@ The first training of 2026-11-09 has 4 levels and 5036 patterns. Its patterns ha
 
 On the held-out half, the 95 % interval of the `found` gain is 0.0604 to 0.0649. The interval of the `confirmed` gain is 0.0216 to 0.0241. On the TUGboat list, the interval of the `found` gain is -0.1087 to -0.0584. The interval of the `confirmed` gain is -0.1166 to -0.0786.
 
-The shipped set `ushyphmax.tex` comes from the TUGboat exception log of 1989. Its header tells that it finds all places of the words of that log. So the TUGboat list is not independent of the shipped set. The shipped set does not change until a ruling on this result.
+The shipped set `ushyphmax.tex` comes from the TUGboat exception log of 1989. Its header tells that it finds all places of the words of that log. So the TUGboat list is not independent of the shipped set. The ruling of 2026-11-09 keeps the fail, and the shipped set does not change.
+
+The rule for each check list: a check list must be independent of the training data of each set that it compares. Read the source of each set before you choose a check list.
+
+The next step measures the cause before a new training. It compares Moby with the TUGboat list on their shared words. It also scores each set on a third list, the syllables of Webster's Unabridged Dictionary of 1913.
 
 ### The missed places
 
