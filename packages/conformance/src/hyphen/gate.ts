@@ -10,7 +10,7 @@ import { hyphenator, type HyphenSource } from "@mark1russell7/typeset/hyphen";
 import { buildSync, version } from "esbuild";
 import { parsePatterns, setSource } from "./patterns.ts";
 import { hyphenFiles, texHyphenCommit, type HyphenFile } from "./sources.ts";
-import { countMisses, parseWords, scoreWords, share, type MissCounts, type WordScore } from "./words.ts";
+import { countMisses, coveredPlaces, parseWords, scoreWords, share, type MissCounts, type WordScore } from "./words.ts";
 
 /** The bytes of one entry. */
 export interface EntryWeight {
@@ -45,9 +45,9 @@ export interface HyphenRecord {
   readonly languages: Readonly<Record<string, LanguageRecord>>;
 }
 
-/** The record of the missed places: for each language, the count of all missed places and of each class. */
+/** The record of the missed places: for each language, the count of all missed places, of each class and of each cause of a class. */
 export interface MissRecord {
-  readonly schema: "typeset-hyphen-misses/1";
+  readonly schema: "typeset-hyphen-misses/2";
   readonly languages: Readonly<Record<string, MissCounts & { readonly misses: number }>>;
 }
 
@@ -86,7 +86,7 @@ export function makeSet(file: HyphenFile, text: string, list: string): { readonl
   const words = parseWords(list);
   const hyphenate = hyphenator(data);
   const score = scoreWords(words, hyphenate, data.left, data.right);
-  const misses = countMisses(words, hyphenate, data.left, data.right);
+  const misses = countMisses(words, hyphenate, coveredPlaces(data), data.left, data.right);
   const origin: HyphenSource = {
     language: file.language,
     file: file.name,
@@ -131,7 +131,7 @@ export async function hyphenGate(root: string, textOf: (file: HyphenFile) => Pro
   if (write) writeFileSync(paths.record, `${JSON.stringify(record, null, 2)}\n`);
   if (!existsSync(paths.record)) problems.push("the record does not exist");
   else problems.push(...recordDifferences(JSON.parse(readFileSync(paths.record, "utf8")) as HyphenRecord, record));
-  const misses: MissRecord = { schema: "typeset-hyphen-misses/1", languages: Object.fromEntries(missed) };
+  const misses: MissRecord = { schema: "typeset-hyphen-misses/2", languages: Object.fromEntries(missed) };
   const missText = `${JSON.stringify(misses, null, 2)}\n`;
   if (write) writeFileSync(paths.misses, missText);
   if (!existsSync(paths.misses) || readFileSync(paths.misses, "utf8") !== missText) problems.push("the record of the missed places differs from the sets and the word lists");

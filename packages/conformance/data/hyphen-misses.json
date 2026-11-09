@@ -1,23 +1,74 @@
 {
-  "schema": "typeset-hyphen-misses/1",
+  "schema": "typeset-hyphen-misses/2",
   "languages": {
     "en-us": {
       "misses": 5069,
       "shift": 1461,
       "silent": 1094,
-      "other": 2514
+      "other": 2514,
+      "causes": {
+        "shift": {
+          "uncovered": 706,
+          "inhibited": 754,
+          "exception": 1
+        },
+        "silent": {
+          "uncovered": 486,
+          "inhibited": 608,
+          "exception": 0
+        },
+        "other": {
+          "uncovered": 1191,
+          "inhibited": 1322,
+          "exception": 1
+        }
+      }
     },
     "de": {
       "misses": 1163,
       "shift": 879,
       "silent": 27,
-      "other": 257
+      "other": 257,
+      "causes": {
+        "shift": {
+          "uncovered": 105,
+          "inhibited": 774,
+          "exception": 0
+        },
+        "silent": {
+          "uncovered": 7,
+          "inhibited": 20,
+          "exception": 0
+        },
+        "other": {
+          "uncovered": 55,
+          "inhibited": 202,
+          "exception": 0
+        }
+      }
     },
     "fr": {
       "misses": 3507,
       "shift": 15,
       "silent": 666,
-      "other": 2826
+      "other": 2826,
+      "causes": {
+        "shift": {
+          "uncovered": 0,
+          "inhibited": 15,
+          "exception": 0
+        },
+        "silent": {
+          "uncovered": 0,
+          "inhibited": 666,
+          "exception": 0
+        },
+        "other": {
+          "uncovered": 0,
+          "inhibited": 2826,
+          "exception": 0
+        }
+      }
     }
   }
 }

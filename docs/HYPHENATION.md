@@ -73,7 +73,31 @@ A missed place is a place of the list, within the limits of the set, that the se
 | `de` | 1163 | 879 | 27 | 257 |
 | `fr` | 3507 | 15 | 666 | 2826 |
 
-The record `data/hyphen-misses.json` in `packages/conformance` holds these counts. The gate and a test fail when the record is not current. In `de`, most misses are a `shift`: the list and the set put the hyphen at different sides of one letter. In `en-us` and `fr`, most misses are `other`. The next measure examines the class `other`.
+The record `data/hyphen-misses.json` in `packages/conformance` holds these counts. The gate and a test fail when the record is not current. In `de`, most misses are a `shift`: the list and the set put the hyphen at different sides of one letter. In `en-us` and `fr`, most misses are `other`.
+
+### The causes of the misses
+
+The record also gives the cause of each missed place, from the digits of the patterns at the place:
+
+- `uncovered`: no pattern gives a digit at the place.
+- `inhibited`: the largest digit at the place is even. A pattern stops the hyphen there.
+- `exception`: the word is an exception of the set, so the patterns do not apply.
+
+To find the digits, the gate changes each even digit `d` of the set to `d - 1`. This change keeps the order of the digits. So with the changed set, `hyphenator` gives each place where a pattern gives a digit.
+
+| Language | Class | `uncovered` | `inhibited` | `exception` |
+| --- | --- | --- | --- | --- |
+| `en-us` | `shift` | 706 | 754 | 1 |
+| `en-us` | `silent` | 486 | 608 | 0 |
+| `en-us` | `other` | 1191 | 1322 | 1 |
+| `de` | `shift` | 105 | 774 | 0 |
+| `de` | `silent` | 7 | 20 | 0 |
+| `de` | `other` | 55 | 202 | 0 |
+| `fr` | `shift` | 0 | 15 | 0 |
+| `fr` | `silent` | 0 | 666 | 0 |
+| `fr` | `other` | 0 | 2826 | 0 |
+
+In `fr`, a pattern stops each missed place. The patterns of `fr` stop a hyphen before a last syllable with a mute `e`, for example `achemi-ne` (the pattern `4ne.`). The list of Lexique has a place there. So the `fr` misses come from a different rule, not from a pattern that is missing. In `de`, patterns stop 774 of the 879 places of `shift`. In `en-us`, the causes of each class are near half and half.
 
 `data/hyphen/NOTICE.md` in `packages/conformance` tells the sources of the samples. That package is private, so the samples are not part of the npm package.
 
