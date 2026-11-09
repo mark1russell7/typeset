@@ -42,7 +42,7 @@ export interface LanguageRecord {
   readonly confirmed: number;
   /** The F-score with beta 0.5 of `found` and `confirmed`. */
   readonly fHalf: number;
-  /** The report of the part of the list with a hint and of the part that a module of rules makes alone, when the list has a hint part. */
+  /** The report of the hint part of the list and of the part that a module of rules makes alone. Only a list with a hint part has it. */
   readonly parts?: HintedReport;
   readonly weight: EntryWeight;
 }

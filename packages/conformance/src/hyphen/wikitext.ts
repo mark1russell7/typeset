@@ -1,6 +1,6 @@
 /**
- * The reader of a pages dump of the Spanish Wiktionary. For a Spanish entry, the module `generar-pron/es` makes the syllables from
- * the title, or from the hint `ayuda` of the template `pron-graf` when an editor types one. This reader finds the entries with a hint.
+ * The reader of a pages dump of the Spanish Wiktionary. The module `generar-pron/es` makes the syllables of a Spanish entry from its
+ * title. When an editor types a hint `ayuda` in the template `pron-graf`, the module uses the hint. This reader finds the entries with a hint.
  */
 
 /** A Spanish entry with a hint: the title and the first hint of its template `pron-graf`. */

@@ -64,7 +64,7 @@ describe("the groups of a hint", () => {
     expect(hintGroup("subrayar", "sub-ra-yar")).toBe("sub");
     expect(hintGroup("bienestar", "bien-es-tar")).toBe("other");
     expect(hintGroup("Ávila", "Á.vi.la")).toBe("other");
-    expect(hintGroup("Cambridge", "kéim-brich")).toBe("respelling");
+    expect(hintGroup("mouse", "maus")).toBe("respelling");
   });
 });
 

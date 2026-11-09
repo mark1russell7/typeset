@@ -70,7 +70,7 @@ A dictionary and a pattern set can use different rules for a word. The lists als
 
 The header of `hyph-es.tex` names its authors, Javier Bezos and Francesc Carmona, and names no word list. Bezos wrote the patterns by hand from the rules of Spanish. So the Spanish Wiktionary is independent of the data of the set.
 
-The hyphen fields of the Spanish list come from a module of rules. On each Spanish page, the template `pron-graf` calls the module `Módulo:generar-pron/es`, and the module makes the syllables from the title. An editor changes the result only with the hint `ayuda`. So most of the list is the output of rules, and a match on it shows that two sets of rules agree.
+The hyphen fields of the Spanish list come from a module of rules. On each Spanish page, the template `pron-graf` uses the module `Módulo:generar-pron/es`, and the module makes the syllables from the title. An editor changes the result only with the hint `ayuda`. So most of the list is the output of rules, and a match on it shows that two sets of rules agree.
 
 The gate splits the list in two parts with the pages dump of 2026-10-01, pinned by its SHA-256:
 
@@ -98,9 +98,11 @@ The file `data/hyphen/es-hints.json` gives the counts of each group of hints, an
 | other boundaries | 7560 | 1525 | 0.9834 | 0.8778 | | |
 | respellings | 538 | 508 | 0.7258 | 0.7329 | | |
 
-The *Ortografía de la lengua española* (RAE and ASALE, 2010) accepts two divisions of a prefixed word at the end of a line. Its part on the hyphen at the end of a line gives the division by syllables and the division by parts of the word, for example `de-sam-pa-ro` and `des-am-pa-ro`. The hints of (a) mark the parts. The columns "both RAE places" also count the place one letter before the prefix boundary. That place counts when the prefix ends with a consonant before a vowel, or before `l` or `r` of an onset. With that place, `des` and `sub` go to a confirmed of 1.0000. So their misses are a difference of convention, not defects of the set.
+The *Ortografía de la lengua española* (RAE and ASALE, 2010) accepts two divisions of a prefixed word at the end of a line. Its part on the hyphen at the end of a line gives the division by syllables and the division by parts of the word. An example is `de-sam-pa-ro` and `des-am-pa-ro`. The hints of (a) mark the parts.
 
-The 538 respellings have 509 lemmas, most of them loanwords such as `Cambridge` with the hint `kéim-brich`. Their rates show the real wrong hyphens that a reader sees. An exception list made from the hints is item T14g. It builds the list from one half of the lemmas and scores the other half.
+The columns "both RAE places" also count the place one letter before the prefix boundary. That place counts when the prefix ends with a consonant before a vowel, or before `l` or `r` of an onset. With that place, `des` and `sub` go to a confirmed of 1.0000. So their misses are a difference of convention, not defects of the set.
+
+The 538 respellings have 509 lemmas. Examples are the loanword `mouse` with the hint `maus`, and `México` with the hint `Méjico`. Their rates show the real wrong hyphens that a reader sees. An exception list made from the hints is item T14g. It builds the list from one half of the lemmas and scores the other half.
 
 The floors of `es` are the first measure. The field `hinted.floor` of `hyphenFiles` holds the floors of (a).
 

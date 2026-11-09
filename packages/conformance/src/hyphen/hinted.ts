@@ -36,7 +36,7 @@ export interface GroupCount {
   readonly lemmas: number;
 }
 
-/** The file of the hints of a language: the counts of the part, its sample and the words of the main sample that are in the part. */
+/** The file of the hints of a language. It gives the counts of the part, its sample, and the words of the main sample in the part. */
 export interface HintFile {
   readonly schema: "typeset-hyphen-hints/1";
   readonly dump: { readonly name: string; readonly url: string; readonly sha256: string };
@@ -58,8 +58,8 @@ const onsets = new Set(["pr", "br", "tr", "dr", "cr", "gr", "fr", "pl", "bl", "c
 
 /**
  * This function gives the syllable place that the spelling rules of the Real Academia Española accept in place of the boundary of a
- * prefix, or `undefined`. A prefix that ends with a consonant before a vowel, or before `l` or `r` of an onset, has a second place one
- * letter earlier: `des-am-pa-ro` or `de-sam-pa-ro`, `sub-ra-yar` or `su-bra-yar`.
+ * prefix, or `undefined`. A prefix can end with a consonant before a vowel, or before `l` or `r` of an onset. Then it has a second
+ * place one letter earlier: `des-am-pa-ro` or `de-sam-pa-ro`, `sub-ra-yar` or `su-bra-yar`.
  */
 export function prefixAlternative(word: string, prefix: string): number | undefined {
   const lower = word.toLowerCase();
@@ -70,8 +70,8 @@ export function prefixAlternative(word: string, prefix: string): number | undefi
 }
 
 /**
- * This function changes the boundary place of the prefix of a listed word to its second place when the set gives the second place
- * and not the boundary. So the score counts each of the two places that the rules accept.
+ * This function changes the boundary place of the prefix of a listed word to its second place. It does this only when the set gives
+ * the second place and not the boundary. So the score counts each of the two places that the rules accept.
  */
 export function withAlternative(entry: ListedWord, prefix: string, hyphenate: (word: string) => readonly number[]): ListedWord {
   const second = prefixAlternative(entry.word, prefix);
