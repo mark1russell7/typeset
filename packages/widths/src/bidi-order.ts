@@ -75,24 +75,88 @@ export function orderOfPlaces(places: readonly Placed[]): number[] {
   return [...places].sort((a, b) => a.center - b.center || a.index - b.index).map((place) => place.index);
 }
 
-/** The result of one browser. */
+/**
+ * The variants of the rules that the read compares with each mismatch (T13d). Each variant changes characters of the text
+ * and keeps their indexes, then `resolveText` gives the order. A match with a variant names a possible cause.
+ * - `noN0` changes each bracket to `!`, so the rule N0 does not pair it. Its class stays ON.
+ * - `isolatesBN` changes each isolate control to U+200C of class BN, so it acts as a removed character.
+ * - `isolatesON` changes each isolate control to `!` of class ON, so it acts as a neutral.
+ * - The other two variants join `noN0` with an isolate variant.
+ */
+export const variantNames = ["noN0", "isolatesBN", "isolatesON", "noN0IsolatesBN", "noN0IsolatesON"] as const;
+
+/** The name of a variant of the rules. */
+export type VariantName = (typeof variantNames)[number];
+
+const brackets: ReadonlySet<string> = new Set(["(", ")", "[", "]"]);
+const isolates: ReadonlySet<string> = new Set(["⁦", "⁧", "⁨", "⁩"]);
+
+/** This function gives the text of a variant. Each change keeps one UTF-16 unit for one, so the indexes stay the same. */
+export function variantText(text: string, variant: VariantName): string {
+  const noN0 = variant === "noN0" || variant.startsWith("noN0Isolates");
+  const isolate = variant.endsWith("BN") ? "‌" : variant.endsWith("ON") ? "!" : undefined;
+  return Array.from(text, (character) => (noN0 && brackets.has(character) ? "!" : isolate !== undefined && isolates.has(character) ? isolate : character)).join("");
+}
+
+/** This function gives the order of the compared indexes of a case under a variant of the rules. */
+export function variantOrder(item: OrderCase, variant: VariantName): number[] {
+  const kept = new Set(item.indexes);
+  return visualIndexes(resolveText(variantText(item.text, variant), 0)).filter((index) => kept.has(index));
+}
+
+/** One mismatch of a read: the text, the two orders and the variants that give the order of the browser. */
+export interface OrderMismatch {
+  readonly text: string;
+  readonly expected: readonly number[];
+  readonly actual: readonly number[];
+  readonly variants: readonly VariantName[];
+}
+
+/** The result of one read of one browser. */
+export interface OrderRead {
+  readonly texts: number;
+  readonly matched: number;
+  /** For each variant, the count of mismatched texts that the variant gives in the order of the browser. */
+  readonly variants: Readonly<Record<VariantName, number>>;
+  /** The count of mismatched texts that no variant gives. */
+  readonly unexplained: number;
+  /** The first texts that do not match. */
+  readonly mismatches: readonly OrderMismatch[];
+}
+
+/**
+ * The result of one browser, with two reads of the same texts.
+ * - `range` takes the box of each character from a DOM range, as in T13b.
+ * - `spans` puts each character in its own `<span>` and takes the box of the span.
+ */
 export interface BrowserOrder {
   readonly browser: string;
   readonly version: string;
-  readonly texts: number;
-  readonly matched: number;
-  /** The first texts that do not match, with the two orders. */
-  readonly mismatches: readonly { readonly text: string; readonly expected: readonly number[]; readonly actual: readonly number[] }[];
+  readonly range: OrderRead;
+  readonly spans: OrderRead;
 }
 
-/** This function compares the orders of a browser with the cases. It keeps at most `keep` mismatches in the result. */
-export function compareOrders(browser: string, version: string, cases: readonly OrderCase[], actual: readonly (readonly number[])[], keep = 20): BrowserOrder {
-  const mismatches: { text: string; expected: readonly number[]; actual: readonly number[] }[] = [];
+/** The names of the two reads of a browser. */
+export const readNames = ["range", "spans"] as const;
+
+const same = (a: readonly number[], b: readonly number[]): boolean => a.length === b.length && a.every((index, k) => index === b[k]);
+
+/** This function compares the orders of a read with the cases. It keeps at most `keep` mismatches in the result. */
+export function compareOrders(cases: readonly OrderCase[], actual: readonly (readonly number[])[], keep = 20): OrderRead {
+  const mismatches: OrderMismatch[] = [];
+  const variants = Object.fromEntries(variantNames.map((name) => [name, 0])) as Record<VariantName, number>;
   let matched = 0;
+  let unexplained = 0;
   cases.forEach((item, i) => {
     const order = actual[i] ?? [];
-    if (order.length === item.expected.length && order.every((index, k) => index === item.expected[k])) matched++;
-    else if (mismatches.length < keep) mismatches.push({ text: item.text, expected: item.expected, actual: order });
+    if (same(order, item.expected)) {
+      matched++;
+      return;
+    }
+    const causes = variantNames.filter((name) => same(order, variantOrder(item, name)));
+    for (const name of causes) variants[name]++;
+    if (causes.length === 0) unexplained++;
+    if (mismatches.length < keep) mismatches.push({ text: item.text, expected: item.expected, actual: order, variants: causes });
   });
-  return { browser, version, texts: cases.length, matched, mismatches };
+  return { texts: cases.length, matched, variants, unexplained, mismatches };
 }

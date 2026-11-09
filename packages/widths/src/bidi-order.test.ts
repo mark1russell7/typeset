@@ -1,6 +1,6 @@
 import { bidiClass } from "@mark1russell7/typeset/bidi";
 import { describe, expect, it } from "vitest";
-import { compareOrders, orderCase, orderOfPlaces, orderTexts } from "./bidi-order.ts";
+import { compareOrders, orderCase, orderOfPlaces, orderTexts, variantNames, variantOrder, variantText } from "./bidi-order.ts";
 
 describe("orderCase", () => {
   it("reverses a Hebrew run after a Latin letter", () => {
@@ -52,11 +52,47 @@ describe("orderOfPlaces", () => {
   });
 });
 
+describe("variantText", () => {
+  it("keeps the length of the text, so the indexes stay the same", () => {
+    const text = "(a⁧b)⁩[c]";
+    for (const variant of variantNames) expect(variantText(text, variant)).toHaveLength(text.length);
+  });
+
+  it("changes the brackets for noN0 and the isolates for the isolate variants", () => {
+    expect(variantText("(a⁧b)⁩", "noN0")).toBe("!a⁧b!⁩");
+    expect(variantText("(a⁧b)⁩", "isolatesBN")).toBe("(a‌b)‌");
+    expect(variantText("(a⁧b)⁩", "isolatesON")).toBe("(a!b)!");
+    expect(variantText("(a⁧b)⁩", "noN0IsolatesON")).toBe("!a!b!!");
+  });
+});
+
+describe("variantOrder", () => {
+  it("gives the order without the rule N0", () => {
+    // With N0, the brackets go into the Hebrew run. Without N0, the closing bracket between ב and a takes the level 0.
+    expect(variantOrder(orderCase("א(ב)a"), "noN0")).toEqual([2, 1, 0, 3, 4]);
+  });
+
+  it("gives the order with an isolate as a removed character", () => {
+    // The RLI isolates bא at the level 1, so א goes left of b. As BN, the isolate does nothing, and b stays at the level 0.
+    const item = orderCase("a⁧bא⁩c");
+    expect(item.expected).toEqual([0, 3, 2, 5]);
+    expect(variantOrder(item, "isolatesBN")).toEqual([0, 2, 3, 5]);
+  });
+});
+
 describe("compareOrders", () => {
   it("counts the matched texts and keeps the first mismatches", () => {
     const cases = [orderCase("aבג"), orderCase("ab"), orderCase("בג")];
-    const result = compareOrders("test", "1", cases, [[0, 2, 1], [1, 0], []], 1);
-    expect(result).toMatchObject({ browser: "test", texts: 3, matched: 1 });
-    expect(result.mismatches).toEqual([{ text: "ab", expected: [0, 1], actual: [1, 0] }]);
+    const result = compareOrders(cases, [[0, 2, 1], [1, 0], []], 1);
+    expect(result).toMatchObject({ texts: 3, matched: 1, unexplained: 2 });
+    expect(result.mismatches).toEqual([{ text: "ab", expected: [0, 1], actual: [1, 0], variants: [] }]);
+  });
+
+  it("counts each variant that gives the order of a mismatch", () => {
+    const result = compareOrders([orderCase("א(ב)a"), orderCase("a⁧bא⁩c")], [[2, 1, 0, 3, 4], [0, 2, 3, 5]]);
+    expect(result.matched).toBe(0);
+    expect(result.unexplained).toBe(0);
+    expect(result.variants).toEqual({ noN0: 1, isolatesBN: 1, isolatesON: 1, noN0IsolatesBN: 2, noN0IsolatesON: 2 });
+    expect(result.mismatches[0]!.variants).toEqual(["noN0", "noN0IsolatesBN", "noN0IsolatesON"]);
   });
 });
