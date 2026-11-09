@@ -91,6 +91,18 @@ export const hyphenFiles: readonly HyphenFile[] = [
   },
 ];
 
+/**
+ * The TUGboat list of hyphen exceptions for US English. It is a second list that does not come from Moby. The training of `en-us`
+ * scores each set on it, so a gain does not come only from the rules of one dictionary.
+ */
+export const tugboatExceptions: WordList = {
+  name: "TUGboat hyphenation exceptions for US English (ushyphex.tex, 2021)",
+  url: "https://mirrors.ctan.org/info/digests/tugboat/hyphenex/ushyphex.tex",
+  sha256: "9392bd6e14b2f34ebc31d2ba4eddb7d1266bf563bfd89c6161f63cfd7f00ef5c",
+  license: "free use, change and distribution, by the notice of the TeX Users Group",
+  independent: true,
+};
+
 /** This function gives the URL of a pattern file at the pinned commit. */
 export function hyphenUrl(file: HyphenFile): string {
   return `https://raw.githubusercontent.com/hyphenation/tex-hyphen/${texHyphenCommit}/${patternFolder}/${file.name}`;

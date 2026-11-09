@@ -242,6 +242,9 @@ importers:
 
   packages/conformance:
     dependencies:
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.1.27
+        version: 0.1.27
       '@mark1russell7/typeset':
         specifier: workspace:*
         version: link:../typeset

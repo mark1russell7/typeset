@@ -75,6 +75,42 @@ The `en-us` set is `hyph-en-us.tex`, the TeX file `ushyphmax.tex` with the patte
 
 The LibreOffice set has a higher `confirmed` but a lower `found`, so it does not hold the ratchet. The British set uses other rules.
 
+### The training of `en-us`
+
+No free set meets the floors of `en-us`. So a workflow in CI trains a set with `patgen` on half of Moby Hyphenator II. The workflow is `.github/workflows/hyphen-train.yml`, and the command is `src/hyphen/train-main.ts`.
+
+- The training reads the single lowercase words of all of Moby. It removes each word that Moby gives in two or more different forms.
+- A seeded hash of each word puts the word in the training half or in the held-out half. The seed is in `data/hyphen/en-us-train-params.json`. The order of the file does not change the halves.
+- `patgen` trains on the training half only. The parameters of each level are in the same file.
+- The command scores the trained set and the shipped set on the held-out half, and on the TUGboat list `ushyphex.tex`. The TUGboat list does not come from Moby.
+- For each rate, a paired bootstrap over the words gives a 95 % interval of the difference. The bootstrap comes from `@mark1russell7/rigor-statistics`.
+- The patterns go to `data/hyphen/en-us-moby.pat`, and the rates go to `data/hyphen/en-us-train.json`. The workflow fails when a new training gives other bytes.
+
+The trained set passes when all these conditions are true:
+
+1. On the held-out half, the low end of the interval of the `found` gain is above 0. A rise inside the noise is not a gain.
+2. On the held-out half, `confirmed` of the trained set is at least `confirmed` of the shipped set.
+3. On the TUGboat list, both rates of the trained set are at least the rates of the shipped set. A gain on Moby with a loss on this list is a fail.
+
+The field `verdict` of the record gives each condition. A set that passes becomes the shipped set only after a separate change, with its `gzip` bytes at most 2 times the bytes of today.
+
+The first training of 2026-11-09 has 4 levels and 5036 patterns. Its patterns have 15686 `gzip` bytes. It fails condition 3:
+
+| List | Words | Set | Confirmed | Found | F0.5 |
+| --- | --- | --- | --- | --- | --- |
+| Held-out half of Moby | 68000 | trained | 0.9799 | 0.8252 | 0.9445 |
+| Held-out half of Moby | 68000 | shipped | 0.9571 | 0.7626 | 0.9106 |
+| TUGboat list | 1505 | trained | 0.7526 | 0.5635 | 0.7053 |
+| TUGboat list | 1505 | shipped | 0.8503 | 0.6473 | 0.8001 |
+
+On the held-out half, the 95 % interval of the `found` gain is 0.0604 to 0.0649. The interval of the `confirmed` gain is 0.0216 to 0.0241. On the TUGboat list, the interval of the `found` gain is -0.1087 to -0.0584. The interval of the `confirmed` gain is -0.1166 to -0.0786.
+
+The shipped set `ushyphmax.tex` comes from the TUGboat exception log of 1989. Its header tells that it finds all places of the words of that log. So the TUGboat list is not independent of the shipped set. The ruling of 2026-11-09 keeps the fail, and the shipped set does not change.
+
+The rule for each check list: a check list must be independent of the training data of each set that it compares. Read the source of each set before you choose a check list.
+
+The next step measures the cause before a new training. It compares Moby with the TUGboat list on their shared words. It also scores each set on a third list, the syllables of Webster's Unabridged Dictionary of 1913.
+
 ### The missed places
 
 A missed place is a place of the list, within the limits of the set, that the set does not give. `countMisses` puts each missed place in one class:

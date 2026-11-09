@@ -18,3 +18,15 @@ These are the changes from each source:
 
 - The command `src/hyphen/draw.ts` keeps only the words with letters alone, and it draws the sample with seed 14.
 - It puts a hyphen at each place, sorts the words and puts them on one line.
+
+## The trained set of `en-us`
+
+The command `src/hyphen/train-main.ts` trains a pattern set for `en-us` with `patgen`, from the training half of all of Moby Hyphenator II. The files of this training are these:
+
+| File | Contents | License |
+| --- | --- | --- |
+| `en-us-train-params.json` | The seed of the halves and the parameters of `patgen` for each level | MIT, the license of `typeset` |
+| `en-us-moby.pat` | The patterns that `patgen` gives | MIT, the license of `typeset` |
+| `en-us-train.json` | The rates of the trained set and of the shipped set, with bootstrap intervals | MIT, the license of `typeset` |
+
+Moby Hyphenator II is in the public domain. So the trained patterns do not keep a license of their source, and they are the work of `typeset`. The TUGboat list `ushyphex.tex` gives only a second score. The training does not read it.
