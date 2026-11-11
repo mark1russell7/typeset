@@ -7,7 +7,7 @@ import { fontsFor, generateSample, scriptIds, scripts, type ScriptId } from "@ty
 import { afterAll, describe, expect, it } from "vitest";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
 
-// The test needs the pinned font files in the folder `TYPESET_FONTS`. `fetch.ts` downloads them. A script with no file is skipped.
+// The test needs the pinned font files in the folder `TYPESET_FONTS`. The restore command of `@typeset/pinned` gets them. A script with no file is skipped.
 // The path `TYPESET_BOUND_RECORD` gets the JSON record of the run.
 const folder = process.env["TYPESET_FONTS"];
 const recordPath = process.env["TYPESET_BOUND_RECORD"];

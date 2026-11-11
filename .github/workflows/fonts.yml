@@ -44,6 +44,8 @@ jobs:
             packages/corpus/src/**
             packages/widths/src/**
             packages/typeset/src/**
+            packages/pinned/src/**
+            pinned.json
             .github/workflows/fonts.yml
       # The paths above do not see a bump of playwright, which changes only the lock. This step compares that one entry.
       - if: github.event_name == 'pull_request'
@@ -100,8 +102,11 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Download the fonts
-        run: node packages/widths/src/fetch.ts "$RUNNER_TEMP/fonts"
+      # The gate reads only the pinned files of pinned.json, from the store of the repository (T20). It fetches nothing from a mirror.
+      - name: Restore the pinned fonts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node packages/pinned/src/main.ts restore --group fonts --folder "$RUNNER_TEMP/fonts"
       # The tests of the Indic shaper and of the Text rope need the real fonts. Without TYPESET_FONTS, they do not run.
       - name: Test the shapers with the real fonts
         run: pnpm --filter @mark1russell7/typeset exec vitest run src/fonts/indic.test.ts

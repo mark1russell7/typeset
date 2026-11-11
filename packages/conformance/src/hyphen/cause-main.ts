@@ -6,13 +6,13 @@
  * With `--write`, the command writes the record `data/hyphen/en-us-cause.json`.
  * Without it, the command exits with 1 when a new record differs from the committed record. A workflow in CI starts it.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { hyphenator } from "@mark1russell7/typeset/hyphen";
 import { hyphenate as shipped } from "@mark1russell7/typeset/hyphen/en-us";
-import { pinnedBytes } from "../pinned.ts";
+import { pinnedFile, readManifest, readPinned } from "@typeset/pinned";
 import { hyphenFiles, tugboatExceptions, webster1913 } from "./sources.ts";
 import { compareSets, formHook, listedForms, patgenPatterns, sharedForms, texExceptionForms, websterEntries, wordCounts, type TrainParams } from "./train.ts";
 
@@ -24,12 +24,13 @@ const paths = { params: join(data, "en-us-train-params.json"), patterns: join(da
 const params = JSON.parse(readFileSync(paths.params, "utf8")) as TrainParams;
 const runs = Number(values.runs ?? 10000);
 const { left, right } = params;
-mkdirSync(folder, { recursive: true });
 
+// The workflow restores the pinned files into the folder. The command does not fetch them.
+const manifest = readManifest();
 const moby = hyphenFiles.find((file) => file.language === "en-us")!.list;
-const mobyText = (await pinnedBytes(folder, "mhyph.txt", moby.url, moby.sha256)).toString("latin1");
-const tugText = (await pinnedBytes(folder, "ushyphex.tex", tugboatExceptions.url, tugboatExceptions.sha256)).toString("utf8");
-const websterText = (await pinnedBytes(folder, "webster-1913.txt", webster1913.url, webster1913.sha256)).toString("utf8");
+const mobyText = readPinned(folder, pinnedFile(manifest, "mhyph.txt")).toString("latin1");
+const tugText = readPinned(folder, pinnedFile(manifest, "ushyphex.tex")).toString("utf8");
+const websterText = readPinned(folder, pinnedFile(manifest, "webster-1913.txt")).toString("utf8");
 
 const mobyForms = listedForms(mobyText.split(/\r?\n/u).filter((line) => /^[a-z¥]+$/u.test(line)).map((line) => line.replaceAll("¥", "-"))).forms;
 const tugForms = texExceptionForms(tugText).forms;

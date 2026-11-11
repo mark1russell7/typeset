@@ -1,0 +1,231 @@
+{
+  "schema": "pinned/1",
+  "repository": "mark1russell7/typeset",
+  "store": "pinned-files",
+  "files": [
+    {
+      "name": "LineBreak.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/LineBreak.txt",
+      "sha256": "e6a18fa91f8f6a6f8e534b1d3f128c21ada45bfe152eb6b1bcc5e15fd8ac92e6",
+      "bytes": 263180,
+      "group": "unicode"
+    },
+    {
+      "name": "EastAsianWidth.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/EastAsianWidth.txt",
+      "sha256": "ea7ce50f3444a050333448dffef1cadd9325af55cbb764b4a2280faf52170a33",
+      "bytes": 201595,
+      "group": "unicode"
+    },
+    {
+      "name": "DerivedBidiClass.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/extracted/DerivedBidiClass.txt",
+      "sha256": "4867b4b7f0731ed1bfcd34cc6251211ff1542541fce0734b6fbda139ee80b3a4",
+      "bytes": 173433,
+      "group": "unicode"
+    },
+    {
+      "name": "BidiBrackets.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/BidiBrackets.txt",
+      "sha256": "dadbaf38a0d0246e5b805bf8725cb81b7c621f93d030595635f5ba2c2f179428",
+      "bytes": 8891,
+      "group": "unicode"
+    },
+    {
+      "name": "GraphemeBreakTest.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt",
+      "sha256": "e2d134d2c52919bace503ebb6a551c1855fe1a1faec18478c78fff254a1793ec",
+      "bytes": 126570,
+      "group": "unicode"
+    },
+    {
+      "name": "WordBreakTest.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/auxiliary/WordBreakTest.txt",
+      "sha256": "1de23a75f37904abc7d206239ee8d34f8fdf0fb4ab32a7174dfbabbde25419b2",
+      "bytes": 322136,
+      "group": "unicode"
+    },
+    {
+      "name": "LineBreakTest.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/auxiliary/LineBreakTest.txt",
+      "sha256": "e69884e0dde6a8724873f885d68c52dc14518abf9ae4ca9e2283b8773db3b752",
+      "bytes": 3166819,
+      "group": "unicode"
+    },
+    {
+      "name": "BidiTest.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/BidiTest.txt",
+      "sha256": "888bdfc8090652272d1f859cdb00ae659e2dc6c26740be61ef1d03998a687620",
+      "bytes": 7959988,
+      "group": "unicode"
+    },
+    {
+      "name": "BidiCharacterTest.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/BidiCharacterTest.txt",
+      "sha256": "a3e6e905ab5afbe318a96df5401d0372a04cd73ef139ab5e3cf0ae241c255488",
+      "bytes": 6880771,
+      "group": "unicode"
+    },
+    {
+      "name": "hyph-en-us.tex",
+      "url": "https://raw.githubusercontent.com/hyphenation/tex-hyphen/5684c0f51c0b81133db2efbe60a408b4155a3ff5/hyph-utf8/tex/generic/hyph-utf8/patterns/tex/hyph-en-us.tex",
+      "sha256": "f4ffcd96c5cbc886bdad23f95dcae8edc3cd3620eae62f7946eceda97c4e68f8",
+      "bytes": 34128,
+      "group": "patterns"
+    },
+    {
+      "name": "hyph-de-1996.tex",
+      "url": "https://raw.githubusercontent.com/hyphenation/tex-hyphen/5684c0f51c0b81133db2efbe60a408b4155a3ff5/hyph-utf8/tex/generic/hyph-utf8/patterns/tex/hyph-de-1996.tex",
+      "sha256": "374ad1ce3263f8a2791ec070ef9b516c532dae64456f3fb656e617e8ae53a9d3",
+      "bytes": 274609,
+      "group": "patterns"
+    },
+    {
+      "name": "hyph-fr.tex",
+      "url": "https://raw.githubusercontent.com/hyphenation/tex-hyphen/5684c0f51c0b81133db2efbe60a408b4155a3ff5/hyph-utf8/tex/generic/hyph-utf8/patterns/tex/hyph-fr.tex",
+      "sha256": "526cad6fe8f52fcd3caa3fcaf667cb1740cfc14bca198680e00dc343a84594de",
+      "bytes": 30353,
+      "group": "patterns"
+    },
+    {
+      "name": "hyph-es.tex",
+      "url": "https://raw.githubusercontent.com/hyphenation/tex-hyphen/5684c0f51c0b81133db2efbe60a408b4155a3ff5/hyph-utf8/tex/generic/hyph-utf8/patterns/tex/hyph-es.tex",
+      "sha256": "6a2e5f39a991a23d1cd8a23dbd0f6fe96a9f07561a6695f4f3320f47030e236c",
+      "bytes": 42602,
+      "group": "patterns"
+    },
+    {
+      "name": "Lexique383.tsv",
+      "url": "https://www.lexique.org/databases/Lexique383/Lexique383.tsv",
+      "sha256": "637ba37a767a66679c48371d673ece50cbf541b49a4e40e598963d4f3fbce52b",
+      "bytes": 25850780,
+      "group": "lexique"
+    },
+    {
+      "name": "mhyph.txt",
+      "url": "https://www.gutenberg.org/files/3204/files/mhyph.txt",
+      "sha256": "eeb30474c86b8af3469035ec1a0913e35905325ca885290db9dfed9881e230ac",
+      "bytes": 2602250,
+      "group": "en-us-lists"
+    },
+    {
+      "name": "ushyphex.tex",
+      "url": "https://mirrors.ctan.org/info/digests/tugboat/hyphenex/ushyphex.tex",
+      "sha256": "9392bd6e14b2f34ebc31d2ba4eddb7d1266bf563bfd89c6161f63cfd7f00ef5c",
+      "bytes": 26295,
+      "group": "en-us-lists"
+    },
+    {
+      "name": "webster-1913.txt",
+      "url": "https://www.gutenberg.org/files/29765/29765-0.txt",
+      "sha256": "4d9c7a6f3b27add378aea8db3afc4d9190c2f4a6bd4341755b514155ab91873a",
+      "bytes": 28936640,
+      "group": "webster"
+    },
+    {
+      "name": "noto-sans.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d",
+      "bytes": 2049096,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-serif.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notoserif/NotoSerif%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "4d8e6761424656867019081a1a01336f3cb086982682698714054fc33f782713",
+      "bytes": 1887192,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-mono.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosansmono/NotoSansMono%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "2cb2adb378a8f574213e23df697050b83c54c27df465a2015552740b2769a081",
+      "bytes": 1708408,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-arabic.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosansarabic/NotoSansArabic%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e",
+      "bytes": 844676,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-hebrew.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosanshebrew/NotoSansHebrew%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "7ef36a2c3593758cdb622e1bdef4f84523e92fbc3ccc667438dd80ff54c2de88",
+      "bytes": 112640,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-devanagari.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosansdevanagari/NotoSansDevanagari%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "14ec4af41f27482216d1c2229f417ff9b1425e1babb014e57d1d40d03229853e",
+      "bytes": 641944,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-thai.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosansthai/NotoSansThai%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "5a1c559bb539583c8a1fd99d1c5b9491e5e14478c9cd2bd0970d5c3096cc9ef8",
+      "bytes": 218652,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-sc.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+      "sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+      "bytes": 17772300,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-jp.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf",
+      "sha256": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f",
+      "bytes": 9589900,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-kr.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+      "sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+      "bytes": 10414588,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-emoji.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf",
+      "sha256": "de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551",
+      "bytes": 1982596,
+      "group": "fonts"
+    },
+    {
+      "name": "source-sans-3.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/sourcesans3/SourceSans3%5Bwght%5D.ttf",
+      "sha256": "042fe2cc0b933e328410d7acbd0aa6a1873dca5aef81875f4bc214b08825c7b9",
+      "bytes": 646340,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-bengali.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosansbengali/NotoSansBengali%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "dcd42978094e584a849c84a51450eeac40c8826057d566ea6d4b9627a403a05a",
+      "bytes": 463668,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-khmer.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosanskhmer/NotoSansKhmer%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "f37a8431a0c5d5ed2f81a767417546aca576a81fb7eff9c924d46aecf828f2ca",
+      "bytes": 359788,
+      "group": "fonts"
+    },
+    {
+      "name": "noto-sans-mongolian.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/6c1dbe27dcf7d817d4b62cec033ba77fa8e2a5ec/ofl/notosansmongolian/NotoSansMongolian-Regular.ttf",
+      "sha256": "caea465b44ff4a2c0ab7bc4a2da4abcb1cf10658d70c5e49f08c9e07ae589c3a",
+      "bytes": 388172,
+      "group": "fonts"
+    }
+  ]
+}

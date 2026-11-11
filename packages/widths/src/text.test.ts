@@ -6,7 +6,7 @@ import { measureWidth, readFont, type Font, type MeasureOptions } from "@mark1ru
 import { describe, expect, it } from "vitest";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
 
-// The test needs the pinned font files in the folder `TYPESET_FONTS`. `fetch.ts` downloads them. A script with no file is skipped.
+// The test needs the pinned font files in the folder `TYPESET_FONTS`. The restore command of `@typeset/pinned` gets them. A script with no file is skipped.
 const folder = process.env["TYPESET_FONTS"];
 const modes: readonly Pick<MeasureOptions, "shaping" | "rounding">[] = [
   { shaping: "dom", rounding: "exact" },

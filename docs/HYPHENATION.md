@@ -261,7 +261,7 @@ Sometimes the list has the place, but a phonetic form has the sound `N`. Then tw
 
 The layer does not remove a conflict. The record lists each word with a conflict. The limit of conflicts of `gn-digraph` is 15. It is a ratchet: a rise needs a reason in its pull request.
 
-The gate counts the defects on the sample and on all of Lexique 3.83 at each run. It downloads `Lexique383.tsv` from <https://www.lexique.org/databases/Lexique383/Lexique383.tsv> and examines its SHA-256. The counts are in the field `reference` of the record.
+The gate counts the defects on the sample and on all of Lexique 3.83 at each run. It reads the pinned file `Lexique383.tsv`, from <https://www.lexique.org/databases/Lexique383/Lexique383.tsv>. `docs/PINNED.md` tells how the job restores it. The counts are in the field `reference` of the record.
 
 The exception layer corrects each defect of the pinned set. The file `data/hyphen/fr-layer.json` gives one entry for each lowercase word of Lexique with a defect. The entry gives the hyphens of the pinned set without the defects. It also gives the rules, the syllables and the phonetic forms of the word as evidence.
 
@@ -291,7 +291,7 @@ The test `packages/conformance/src/hyphen/hyphen.test.ts` also fails when a valu
 
 ## How to change a set
 
-1. Change the commit or the file and each SHA-256 in `packages/conformance/src/hyphen/sources.ts`.
+1. Change the commit or the file and each SHA-256 in `packages/conformance/src/hyphen/sources.ts` and in `pinned.json`. `docs/PINNED.md` tells the steps of the store.
 2. Start `pnpm --filter @typeset/conformance tables --folder <folder>`. It writes the modules and the record.
 3. Commit the modules and the record.
 

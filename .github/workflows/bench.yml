@@ -62,6 +62,8 @@ jobs:
             packages/typeset/src/**
             packages/widths/src/**
             packages/bench/src/**
+            packages/pinned/src/**
+            pinned.json
             .github/workflows/bench.yml
       - id: weight
         uses: mark1russell7/template/.github/actions/changes@93668034510218d1ab35f1071d943f96d3fa7c38 # main
@@ -99,8 +101,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # A fixture of the measurer cases, not a part of the harness: the pinned fonts, with the SHA-256 of each file
-      - name: Fetch the pinned fonts
-        run: node packages/widths/src/fetch.ts "$RUNNER_TEMP/fonts"
+      - name: Restore the pinned fonts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node packages/pinned/src/main.ts restore --group fonts --folder "$RUNNER_TEMP/fonts"
       - name: Run the bench
         # main.ts also writes the table of the arms to the summary of the job
         env:

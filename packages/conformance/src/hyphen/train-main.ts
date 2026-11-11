@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { hyphenator } from "@mark1russell7/typeset/hyphen";
 import { hyphenate as shipped } from "@mark1russell7/typeset/hyphen/en-us";
-import { pinnedBytes, sha256Of } from "../pinned.ts";
+import { pinnedFile, readManifest, readPinned, sha256Of } from "@typeset/pinned";
 import { hyphenFiles, tugboatExceptions } from "./sources.ts";
 import { compareSets, levelAnswers, listedForms, patgenPatterns, ratesOf, splitForms, texExceptionForms, translateFile, wordCounts, type TrainParams } from "./train.ts";
 
@@ -24,9 +24,11 @@ const params = JSON.parse(readFileSync(paths.params, "utf8")) as TrainParams;
 const runs = Number(values.runs ?? 10000);
 mkdirSync(folder, { recursive: true });
 
+// The workflow restores the pinned files into the folder. The command does not fetch them.
+const manifest = readManifest();
 const moby = hyphenFiles.find((file) => file.language === "en-us")!.list;
-const mobyText = (await pinnedBytes(folder, "mhyph.txt", moby.url, moby.sha256)).toString("latin1");
-const tugText = (await pinnedBytes(folder, "ushyphex.tex", tugboatExceptions.url, tugboatExceptions.sha256)).toString("utf8");
+const mobyText = readPinned(folder, pinnedFile(manifest, "mhyph.txt")).toString("latin1");
+const tugText = readPinned(folder, pinnedFile(manifest, "ushyphex.tex")).toString("utf8");
 
 // The forms of Moby: each single word in lowercase, with a hyphen at each place. draw.ts uses the same filter.
 const listed = listedForms(mobyText.split(/\r?\n/u).filter((line) => /^[a-z¥]+$/u.test(line)).map((line) => line.replaceAll("¥", "-")));

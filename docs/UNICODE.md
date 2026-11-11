@@ -5,7 +5,7 @@ The subpath `@mark1russell7/typeset/segmentation` gives the break positions of U
 ## The rule
 
 - The gate pins Unicode 17.0.0. `packages/conformance/src/sources.ts` has the version and the SHA-256 of each file.
-- A file with a different SHA-256 stops the gate.
+- A file with a different SHA-256 stops the gate. The job restores each file from the store of the repository. `docs/PINNED.md` tells the rule.
 - A failed test stops the gate if `packages/conformance/data/reasons.json` has no reason for it.
 - The gate also stops if the runtime has a different Unicode version.
 - The gate also stops if `line-table.ts` or `bidi/table.ts` differs from the table of the property files.
@@ -26,7 +26,7 @@ The gate scores the bidi files for the levels and for the order. It gives one sc
 
 ## Change the version
 
-1. Change the version and each SHA-256 in `packages/conformance/src/sources.ts`.
+1. Change the version and each SHA-256 in `packages/conformance/src/sources.ts` and in `pinned.json`. `docs/PINNED.md` tells the steps of the store.
 2. Change the exact version of Node in the job `conformance`, so that the runtime has the new Unicode version.
 3. Compare the rules of UAX #14 with the rules in `packages/typeset/src/segmentation/line.ts`.
    Compare the rules of UAX #9 with the rules in `packages/typeset/src/bidi/resolve.ts`. Use the revision of the new version, not the latest page.

@@ -19,7 +19,7 @@ The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` st
 
 - The file `cases/index.ts` has the list of the case modules. The bench starts each case of each module in its own arm.
 - A test fails when a module of the folder `cases` is not in the list. Thus each case gets a run.
-- The cases of `cases/measurer.ts` read the pinned fonts. The Bench job fetches them with the SHA-256 of each file into the folder `TYPESET_FONTS`.
+- The cases of `cases/measurer.ts` read the pinned fonts. The Bench job restores them from the store of the repository into the folder `TYPESET_FONTS`. `docs/PINNED.md` tells the rule.
 
 - Each round starts one fresh process for each arm. The order of the arms turns by one place each round, and it goes backward in each second turn. Thus each arm is at each position the same number of times.
 - A process does a warm-up, doubles its batch until a batch takes 5 ms, and then times 15 batches. Its value is the median time of one call.
