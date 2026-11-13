@@ -20,6 +20,7 @@ const visitorTexts = {
   "en-us": "Internationalization of characteristically incomprehensible documentation requires extraordinary responsibility and considerable understanding.",
   de: "Die Donaudampfschifffahrtsgesellschaft prüft Rechtsschutzversicherungsgesellschaften und Geschwindigkeitsbegrenzungen an Straßenbahnhaltestellen.",
   fr: "La constitutionnalité des recommandations internationales nécessite une compréhension approfondie des responsabilités gouvernementales.",
+  es: "La internacionalización de las telecomunicaciones exige responsabilidades extraordinarias y una comprensión considerablemente profunda.",
 } as const;
 type Language = keyof typeof visitorTexts;
 const languages = Object.keys(visitorTexts) as Language[];
