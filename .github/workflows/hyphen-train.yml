@@ -53,7 +53,7 @@ jobs:
     name: Train en-us
     needs: changes
     if: needs.changes.outputs.match == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
       RUNS: ${{ inputs.runs || '10000' }}
@@ -86,7 +86,7 @@ jobs:
     name: Cause en-us
     needs: changes
     if: needs.changes.outputs.match == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     env:
       RUNS: ${{ inputs.runs || '10000' }}
