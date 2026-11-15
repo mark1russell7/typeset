@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@mark1russell7/rigor-statistics": "^0.2.2",
-    "@mark1russell7/site-pages": "^0.4.4",
+    "@mark1russell7/site-pages": "^0.5.2",
     "@mark1russell7/typeset": "workspace:*",
     "@typeset/conformance": "workspace:*",
     "@typeset/corpus": "workspace:*",
