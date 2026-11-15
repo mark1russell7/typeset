@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { breakGaps, breakVerdict, stackGate, withVerdicts, type StackArm } from "./stack-gate.ts";
+import { breakGaps, breakVerdict, stackGate, staleGaps, withVerdicts, type StackArm } from "./stack-gate.ts";
 
 describe("stackGate", () => {
   const file: StackArm = {
@@ -14,7 +14,7 @@ describe("stackGate", () => {
   };
 
   it("fails a width cell above 1.28/64 px, and an arm with no file", () => {
-    const rows = stackGate(["a", "b"], new Map([["a", file]]));
+    const rows = stackGate(["a", "b"], new Map([["a", file]]), []);
     expect(rows.map((row) => `${row.arm} ${row.cell} ${row.verdict}`)).toEqual([
       "a width s covered 16px pass",
       "a width s uncovered 16px fail",
@@ -34,16 +34,29 @@ describe("breakVerdict", () => {
     expect(breakVerdict({ ...cell(0, 0, 0), n: 0 }, []).verdict).toBe("fail");
   });
 
-  it("gives a known gap only for the opportunity records of a listed cell, and fails a stale gap", () => {
+  it("gives a known gap only for the opportunity records of a listed cell, and a pass to a listed cell at the bar", () => {
     expect(breakVerdict(cell(50, 50, 0), gaps)).toMatchObject({ verdict: "known-gap" });
     expect(breakVerdict(cell(50, 46, 4), gaps).verdict).toBe("fail");
-    expect(breakVerdict(cell(98, 2, 0), gaps)).toMatchObject({ verdict: "fail", reason: expect.stringMatching(/stale/) });
+    expect(breakVerdict(cell(98, 2, 0), gaps)).toMatchObject({ verdict: "pass", reason: expect.stringMatching(/not necessary on this arm/) });
+  });
+
+  it("fails a gap as stale only when its cell passes the bar on each arm", () => {
+    const arm = (name: string, same: number): StackArm => ({ arm: name, stacks: { cells: [], breaks: { cells: [cell(same, 100 - same, 0)] } } });
+    const twoArms = (a: number, b: number) => new Map([["a", arm("a", a)], ["b", arm("b", b)]]);
+    expect(staleGaps(twoArms(98, 96), gaps)).toEqual([]);
+    expect(staleGaps(twoArms(98, 99), gaps)).toEqual(gaps);
+    expect(staleGaps(new Map(), gaps)).toEqual(gaps);
+    const rows = stackGate(["a", "b"], twoArms(98, 96), gaps);
+    expect(rows.map((row) => `${row.arm} ${row.cell} ${row.verdict}`)).toEqual(["a breaks s covered pass", "b breaks s covered known-gap"]);
+    const stale = stackGate(["a", "b"], twoArms(98, 99), gaps);
+    expect(stale.map((row) => `${row.arm} ${row.cell} ${row.verdict}`)).toEqual(["a breaks s covered pass", "b breaks s covered pass", "all breaks s covered fail"]);
+    expect(stale.at(-1)!.reason).toMatch(/stale/);
   });
 
   it("adds the verdict to each cell, and lists each stack of the run in both sets", () => {
     expect(withVerdicts([cell(50, 50, 0)], gaps)).toEqual([{ ...cell(50, 50, 0), ...breakVerdict(cell(50, 50, 0), gaps) }]);
     expect(breakGaps.map((gap) => `${gap.stack} ${gap.set}`)).toEqual(
-      ["latin-han", "han-first", "latin-arabic-emoji", "latin-indic-thai", "all-scripts"].flatMap((stack) => [stack + " covered", stack + " uncovered"]),
+      ["han-first", "latin-arabic-emoji", "latin-indic-thai", "all-scripts"].flatMap((stack) => [stack + " covered", stack + " uncovered"]),
     );
     expect(breakGaps.filter((gap) => gap.items.includes("T12b")).map((gap) => gap.stack)).toEqual(["latin-indic-thai", "latin-indic-thai", "all-scripts", "all-scripts"]);
   });
