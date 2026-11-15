@@ -24,7 +24,7 @@
   "dependencies": {
     "@mark1russell7/rigor-bench": "^0.2.29",
     "@mark1russell7/rigor-generators": "^0.1.0",
-    "@mark1russell7/rigor-statistics": "^0.1.0",
+    "@mark1russell7/rigor-statistics": "^0.2.2",
     "@mark1russell7/typeset": "workspace:*",
     "@typeset/corpus": "workspace:*",
     "playwright": "^1.64.1"

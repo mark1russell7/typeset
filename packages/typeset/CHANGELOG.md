@@ -1,5 +1,13 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.6.0
+
+The release train changes the range of `@mark1russell7/collections` to a version outside the old range. The public types name @mark1russell7/collections, so its new version outside the old range can change them.
+
+### Breaking
+
+- The range `^0.10.0` of `@mark1russell7/collections` in `dependencies` does not hold `0.11.0`, so it changes.
+
 ## 0.5.3
 
 This version adds the hyphen set of Spanish (T14f, PR 133). Before 1.0.0, a new feature increases PATCH. The other entries do not change.
