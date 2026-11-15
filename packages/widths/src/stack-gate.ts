@@ -24,20 +24,20 @@ export interface BreakGap {
 }
 
 /**
- * The known gaps, from the Fonts run 42410280511: each break cell of each arm fails only by its `opportunity` records.
- * The gate fails a listed cell that passes the bar, so that the list stays true.
+ * The known gaps of `layoutText` of layout-contract 0.10.0, which breaks a text at the places of `lineBreaks` (UAX #14).
+ * On each arm, a listed cell fails the bar only by its `opportunity` records, or it passes. The engines of the arms round the
+ * widths differently, so a cell can pass on one arm and be a known gap on another arm. The gate fails a gap when its cell
+ * passes the bar on each arm, so that the list stays true. The cells of latin-han pass on each arm since layout-contract 0.10.0.
  */
 export const breakGaps: readonly BreakGap[] = [
-  { stack: "latin-han", set: "covered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between ideographs" },
-  { stack: "latin-han", set: "uncovered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between ideographs" },
-  { stack: "han-first", set: "covered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between ideographs and kana" },
-  { stack: "han-first", set: "uncovered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between ideographs and kana" },
-  { stack: "latin-arabic-emoji", set: "covered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between emoji" },
-  { stack: "latin-arabic-emoji", set: "uncovered", items: ["layout-contract#255"], due: "after T12 is on npm", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 between emoji" },
+  { stack: "han-first", set: "covered", items: ["layout-contract#255"], due: "when layout-contract#255 closes", reason: "Chromium breaks before a small kana, as the CSS line-break normal does, and lineBreaks reads a small kana as class NS, as UAX #14 does by default" },
+  { stack: "han-first", set: "uncovered", items: ["layout-contract#255"], due: "when layout-contract#255 closes", reason: "Chromium breaks before a small kana, as the CSS line-break normal does, and lineBreaks reads a small kana as class NS, as UAX #14 does by default" },
+  { stack: "latin-arabic-emoji", set: "covered", items: ["layout-contract#255"], due: "when layout-contract#255 closes", reason: "Chromium ends a line that holds a lone skin tone modifier after a space one emoji earlier than the model, and the model has a break place there. The cause is open" },
+  { stack: "latin-arabic-emoji", set: "uncovered", items: ["layout-contract#255"], due: "when layout-contract#255 closes", reason: "Chromium ends a line that holds a lone skin tone modifier after a space one emoji earlier than the model, and the model has a break place there. The cause is open" },
   { stack: "latin-indic-thai", set: "covered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "Chromium breaks Thai words by the dictionary of ICU" },
   { stack: "latin-indic-thai", set: "uncovered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "Chromium breaks Thai words by the dictionary of ICU" },
-  { stack: "all-scripts", set: "covered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 in Han, kana, Hangul and emoji, and Chromium breaks Thai words by the dictionary of ICU" },
-  { stack: "all-scripts", set: "uncovered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "layoutText breaks only at white space, and Chromium breaks by UAX #14 in Han, kana, Hangul and emoji, and Chromium breaks Thai words by the dictionary of ICU" },
+  { stack: "all-scripts", set: "covered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "Chromium breaks before a small kana, as the CSS line-break normal does, and lineBreaks reads a small kana as class NS, as UAX #14 does by default. Chromium breaks Thai words by the dictionary of ICU. Chromium ends a line that holds a lone skin tone modifier after a space one emoji earlier than the model, and the model has a break place there. The cause is open" },
+  { stack: "all-scripts", set: "uncovered", items: ["T12b", "layout-contract#255"], due: "2026-11-28", reason: "Chromium breaks before a small kana, as the CSS line-break normal does, and lineBreaks reads a small kana as class NS, as UAX #14 does by default. Chromium breaks Thai words by the dictionary of ICU. Chromium ends a line that holds a lone skin tone modifier after a space one emoji earlier than the model, and the model has a break place there. The cause is open" },
 ];
 
 /** The verdict of a break cell. A `known-gap` cell is not a pass. */
@@ -47,14 +47,15 @@ export interface BreakVerdict {
 }
 
 /**
- * This function gives the verdict of a cell. A cell passes when at least `breakBar` of its records have the same lines. A
- * listed cell is a known gap only when the bar holds with its `opportunity` records counted as the same.
+ * This function gives the verdict of a cell on one arm. A cell passes when at least `breakBar` of its records have the same
+ * lines. A listed cell is a known gap only when the bar holds with its `opportunity` records counted as the same. A listed
+ * cell that passes is a pass on this arm. `staleGaps` examines the gap on all the arms.
  */
 export function breakVerdict(cell: BreakCell, gaps: readonly BreakGap[] = breakGaps): BreakVerdict {
   const gap = gaps.find((value) => value.stack === cell.stack && value.set === cell.set);
   if (cell.n === 0) return { verdict: "fail", reason: "the cell has no record" };
   const share = `${cell.same} of ${cell.n} the same`;
-  if (cell.same >= breakBar * cell.n) return gap === undefined ? { verdict: "pass", reason: share } : { verdict: "fail", reason: `${share}, so the gap of ${gap.items.join(" and ")} is stale` };
+  if (cell.same >= breakBar * cell.n) return { verdict: "pass", reason: gap === undefined ? share : `${share}, so the gap of ${gap.items.join(" and ")} is not necessary on this arm` };
   if (gap === undefined) return { verdict: "fail", reason: `${share}, opportunity ${cell.opportunity}, width ${cell.width}` };
   if (cell.same + cell.opportunity >= breakBar * cell.n) return { verdict: "known-gap", reason: `${share}, opportunity ${cell.opportunity}: ${gap.reason}, ${gap.items.join(" and ")}, due ${gap.due}` };
   return { verdict: "fail", reason: `${share}, and ${cell.width} width records are more than the gap allows` };
@@ -85,9 +86,21 @@ export interface GateRow {
   readonly reason: string;
 }
 
-/** This function gives the rows of the gate. An arm with no file, no stacks or no break cells gives a failed row. */
-export function stackGate(arms: readonly string[], files: ReadonlyMap<string, StackArm>): GateRow[] {
-  return arms.flatMap((arm): GateRow[] => {
+/**
+ * This function gives the gaps that no arm needs: each break cell of the gap passes the bar on its arm. A gap whose cell is on
+ * no arm is also stale. The gate fails each stale gap, so that the list stays true.
+ */
+export function staleGaps(files: ReadonlyMap<string, StackArm>, gaps: readonly BreakGap[] = breakGaps): BreakGap[] {
+  const cells = [...files.values()].flatMap((file) => file.stacks?.breaks?.cells ?? []);
+  return gaps.filter((gap) => !cells.some((cell) => cell.stack === gap.stack && cell.set === gap.set && breakVerdict(cell, [gap]).verdict !== "pass"));
+}
+
+/**
+ * This function gives the rows of the gate. An arm with no file, no stacks or no break cells gives a failed row. A stale gap
+ * gives a failed row for all the arms.
+ */
+export function stackGate(arms: readonly string[], files: ReadonlyMap<string, StackArm>, gaps: readonly BreakGap[] = breakGaps): GateRow[] {
+  const rows = arms.flatMap((arm): GateRow[] => {
     const file = files.get(arm);
     if (file?.stacks?.breaks === undefined) return [{ arm, cell: "all", verdict: "fail", reason: "the arm has no record of the stack widths and breaks" }];
     const widths = file.stacks.cells.map((cell): GateRow => ({
@@ -96,9 +109,16 @@ export function stackGate(arms: readonly string[], files: ReadonlyMap<string, St
       verdict: cell.n > 0 && cell.worst64 <= stackLimit64 ? "pass" : "fail",
       reason: `worst ${cell.worst64.toFixed(3)}/64 px, n ${cell.n}`,
     }));
-    const breaks = file.stacks.breaks.cells.map((cell): GateRow => ({ arm, cell: `breaks ${cell.stack} ${cell.set}`, ...breakVerdict(cell) }));
+    const breaks = file.stacks.breaks.cells.map((cell): GateRow => ({ arm, cell: `breaks ${cell.stack} ${cell.set}`, ...breakVerdict(cell, gaps) }));
     return [...widths, ...breaks];
   });
+  const stale = staleGaps(files, gaps).map((gap): GateRow => ({
+    arm: "all",
+    cell: `breaks ${gap.stack} ${gap.set}`,
+    verdict: "fail",
+    reason: `the cell passes the bar on each arm, so the gap of ${gap.items.join(" and ")} is stale`,
+  }));
+  return [...rows, ...stale];
 }
 
 if (import.meta.main) {

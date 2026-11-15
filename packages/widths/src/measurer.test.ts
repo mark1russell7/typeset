@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { createMeasurer, layoutText, TEXT_UNITS } from "@mark1russell7/layout-contract/text";
 import { engines, measureWidth, readFont, type EngineName } from "@mark1russell7/typeset/fonts";
 import { fontAdvance } from "@mark1russell7/typeset/measurer";
+import { lineBreaks } from "@mark1russell7/typeset/segmentation";
 import { fontsFor, generateSample, scriptIds, type FontId, type ScriptId } from "@typeset/corpus";
 import { describe, expect, it } from "vitest";
 import { cssInstance, extraSource, extraWeights, fileName, scriptTags } from "./sources.ts";
@@ -75,8 +76,40 @@ describe.skipIf(folder === undefined)("fontAdvance with the real fonts", () => {
 /** The width limit of a stack cell, in px: 1.28 in 1/64 px, as the prediction of T11 gives it. */
 const stackLimit = 1.28 / 64;
 
-/** The segmenter of the grapheme clusters, as the layout of layout-contract divides a text. */
-const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+/** A run of the white space that the layout of layout-contract collapses, as in CSS. A no-break space stays in its word. */
+const whiteRun = /[ \t\n\v\f\r\u0085\u2028\u2029]+/gu;
+
+/** This function gives the text with no white space of `whiteRun`. */
+function solid(text: string): string {
+  return text.replace(whiteRun, "");
+}
+
+/**
+ * This function gives the count of the runs of white space between two words of a text. The layout puts one space in each run.
+ * A space before a lone skin tone modifier is such a run too: UAX #14 breaks after the space, though the two are one grapheme cluster.
+ */
+function gapsOf(text: string): number {
+  return Math.max(0, text.split(whiteRun).filter((piece) => piece !== "").length - 1);
+}
+
+/**
+ * This function gives the break places of UAX #14 in a text, as the count of the UTF-16 units before each place that are not
+ * white space. The layout splits a text into words at these places: `lineBreaks` with no option, as layout-contract calls it.
+ */
+function breakPlaces(text: string): Set<number> {
+  return new Set(lineBreaks(text).map((place) => solid(text.slice(0, place.offset)).length));
+}
+
+/** This function gives the end of each line but the last, as the count of the UTF-16 units before the end that are not white space. */
+function lineEnds(lines: readonly string[]): number[] {
+  const ends: number[] = [];
+  let count = 0;
+  for (const line of lines.slice(0, -1)) {
+    count += solid(line).length;
+    ends.push(count);
+  }
+  return ends;
+}
 
 /** This function tells if a font has a glyph for each code point of a text. */
 function coversText(font: ReturnType<typeof readFont>, text: string): boolean {
@@ -123,6 +156,7 @@ describe.skipIf(folder === undefined)("fontAdvance with a font stack, as Blink f
       expect(covered.every(({ text }) => missingInStack(list, text) === 0), stack.id).toBe(true);
       // A drawn text can have a code point that no font has. The model and the layout still give it a width: the .notdef advance.
       const texts = [...covered, ...drawnTexts(stack, 1)];
+      const places = new Map(texts.map(({ text }) => [text, breakPlaces(text)]));
       for (const engine of names) {
         const advance = fontAdvance({ faces: stack.fonts.map((id) => ({ family: `typeset-${id}`, data: bytesOf(id) })), engine });
         for (const { id, text } of texts) {
@@ -138,15 +172,18 @@ describe.skipIf(folder === undefined)("fontAdvance with a font stack, as Blink f
               return advance(segment, css);
             }, { maxEntries: 0 });
             const line = layoutText(text, { font, measurer, lineHeight: size * 1.25 });
-            // The layout measures the space one time, and puts it between each two words. A space with a lone skin tone
-            // modifier after it is one grapheme cluster, so it is in a word.
+            // The layout measures the space one time, and puts it in each run of white space between two words.
             const pieces = parts.filter((part) => part !== " ");
-            const spaces = [...graphemes.segment(text)].filter(({ segment }) => segment === " ").length;
+            const spaces = gapsOf(text);
             const sum = pieces.reduce((total, part) => total + advance(part, font), 0) + spaces * advance(" ", font);
             expect(Math.abs(line.widths[0]! - sum), `${id} ${engine} ${size}px`).toBeLessThanOrEqual(((pieces.length + spaces) * 0.5) / TEXT_UNITS);
             expect(Number.isFinite(line.widths[0]!) && line.widths[0]! > 0, `${id} ${engine} ${size}px`).toBe(true);
             const wrapped = layoutText(text, { font, measurer, lineHeight: size * 1.25, wrapWidth: size * 8 });
-            expect(wrapped.lines.join(" ").split(/\s+/u), `${id} ${engine} ${size}px`).toEqual(text.split(/\s+/u));
+            // The lines keep each character of the text but the white space, in order. A line ends only at a break place of
+            // UAX #14, so a word stays whole. Such a place can be between two ideographs or two emoji, with no space.
+            expect(solid(wrapped.lines.join("")), `${id} ${engine} ${size}px`).toBe(solid(text));
+            const ends = places.get(text)!;
+            expect(lineEnds(wrapped.lines).filter((end) => !ends.has(end)), `${id} ${engine} ${size}px`).toEqual([]);
             for (const width of wrapped.widths) expect(Number.isInteger(width * TEXT_UNITS), id).toBe(true);
           }
         }

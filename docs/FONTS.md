@@ -632,6 +632,9 @@ A font stack is a list of corpus fonts in the order of a CSS `font-family` list.
 - `width`: each line of Chromium ends at white space, so a width moves the break.
 - `layoutText` 0.5.3 breaks only at white space. Chromium also breaks between ideographs, kana, Hangul syllables and Thai words, as UAX #14 and a dictionary tell.
 - So a text of these scripts gives `opportunity` records until `layoutText` uses the break positions of `lineBreaks` (T12).
+- `layoutText` 0.10.0 uses the break positions of `lineBreaks`. The cause still splits the text at white space, as 0.5.3 did. So a record where Chromium ends a line between two emoji is an `opportunity` record, though the model has a break there.
+- With 0.10.0, the cells of `latin-han` pass. The gaps that stay: Chromium breaks before a small kana (CSS `line-break: normal`), Chromium breaks Thai words by the dictionary of ICU, and Chromium ends a line with a lone skin tone modifier after a space one emoji earlier.
+- A listed gap can pass on one arm and stay a gap on another arm. The gate fails a gap only when its cell passes on each arm.
 - A `width` record also has `widthLine`: the first different line of the model and its model width. Compare it with the box width.
 
 ### The first run of the breaks (42410280511)
