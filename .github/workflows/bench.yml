@@ -55,7 +55,7 @@ jobs:
       - id: runs
         run: echo "list=[$(seq -s, 1 "$RUNS")]" >> "$GITHUB_OUTPUT"
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+        uses: mark1russell7/template/.github/actions/changes@e34da837089781ed64d4619b1391938e1219664c # main
         with:
           paths: |
             packages/corpus/src/**
@@ -64,7 +64,7 @@ jobs:
             packages/bench/src/**
             .github/workflows/bench.yml
       - id: weight
-        uses: mark1russell7/template/.github/actions/changes@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+        uses: mark1russell7/template/.github/actions/changes@e34da837089781ed64d4619b1391938e1219664c # main
         with:
           paths: |
             packages/typeset/src/**
@@ -148,7 +148,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@eb7f3517aa8614e338a46acd37ab0c49395be5f9 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@e34da837089781ed64d4619b1391938e1219664c # main
         with:
           needs: ${{ toJSON(needs) }}
           # The job weight skips only when its filter finds no weighed file. Then no entry changed, so the skip is no read of a change.
