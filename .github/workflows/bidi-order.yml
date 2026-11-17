@@ -71,8 +71,12 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter @typeset/widths...
+      # The action of the template installs the browser from a cache, with a time limit and a second try.
       - name: Install the browser
-        run: pnpm --filter @typeset/widths exec playwright install --with-deps "$BROWSER"
+        uses: mark1russell7/template/.github/actions/setup-playwright@94adcfe753a1ec7d03cc03f445f1f0559d5c205f # main
+        with:
+          browsers: ${{ matrix.browser }}
+          command: pnpm --filter @typeset/widths exec playwright
       - name: Read the order
         run: node packages/widths/src/bidi-order-main.ts --browser "$BROWSER" --seed "$SEED" --count "$COUNT" --out "$GITHUB_WORKSPACE/bidi-order.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

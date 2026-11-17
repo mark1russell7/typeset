@@ -166,8 +166,12 @@ jobs:
             "$RUNNER_TEMP/venv/bin/python" -m fontTools.ttLib.woff2 compress -o "$RUNNER_TEMP/woff2/$name.woff2" "$file"
           done
           echo "WOFF2=--woff2=$RUNNER_TEMP/woff2" >> "$GITHUB_ENV"
+      # The action of the template installs the browser from a cache, with a time limit and a second try.
       - name: Install Chromium
-        run: pnpm --filter @typeset/widths exec playwright install --with-deps chromium
+        uses: mark1russell7/template/.github/actions/setup-playwright@94adcfe753a1ec7d03cc03f445f1f0559d5c205f # main
+        with:
+          browsers: chromium
+          command: pnpm --filter @typeset/widths exec playwright
       - name: Measure the widths
         run: >-
           node packages/widths/src/main.ts --fonts "$RUNNER_TEMP/fonts" ${WOFF2:-}

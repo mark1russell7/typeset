@@ -63,8 +63,12 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter @typeset/widths...
+      # The action of the template installs the browser from a cache, with a time limit and a second try.
       - name: Install the browser
-        run: pnpm --filter @typeset/widths exec playwright install --with-deps chromium
+        uses: mark1russell7/template/.github/actions/setup-playwright@94adcfe753a1ec7d03cc03f445f1f0559d5c205f # main
+        with:
+          browsers: chromium
+          command: pnpm --filter @typeset/widths exec playwright
       - name: Read the section
         run: node packages/widths/src/justify-read-main.ts --url "$SITE_URL" --out "$GITHUB_WORKSPACE/justify-read.json"
       - if: ${{ !cancelled() }}
