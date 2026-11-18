@@ -103,7 +103,7 @@ Each change, with its reason:
 - The warm-up of `timeArm` has no minimum of 5 calls. Its batch doubles while a batch takes less than a quarter of the 5 ms.
 - The calibration starts from the batch of the warm-up, not from 1. The count of timed batches stays 15 (`warmSamples: 0`).
 - The A/A ratio is `b / a`, the inverse of the old `a / b`. It is the median of the logs of the ratios.
-- The A/A interval comes from order statistics, not from a bootstrap. At 20 rounds, its coverage is 0.9586, above its level of 0.9.
+- The A/A interval comes from order statistics, not from a bootstrap. Its coverage is 0.9586 at 20 rounds and 0.9116 at 42 rounds, above its level of 0.9.
 - The times are in milliseconds, not in nanoseconds. The record has the schema `typeset-bench/2`.
 - `cases/index.ts` merges the case modules with `mergeCaseModules`. The test of the list of modules uses `moduleListGaps`.
 - The bench has no limit, so no limit changes. Each arm gives "no read", as before.
@@ -119,6 +119,25 @@ On the 15 records of the runs 41446214122, 41455318165 and 42414121767:
 - The new interval is wider in each of the 15 records. Its mean width is 0.0207, and the mean width of the old interval is 0.0153.
 - One verdict changes: job 5 of the run 41446214122. Its old interval [0.9922, 0.9989] does not hold 1. Its new interval [0.9983, 1.0101] holds 1.
 - The cause is the method of the interval. The bootstrap interval has no stated coverage, and the interval of order statistics has a coverage of 0.9586.
+
+### The A/A run of the new harness
+
+The run [44216571207](https://github.com/mark1russell7/typeset/actions/runs/44216571207) has 5 jobs of this harness. The bench has 21 arms at this commit, so the balanced count of rounds is 42.
+
+| Job | CPU | A/A ratio | 90 % interval |
+|---|---|---|---|
+| 1 | AMD EPYC 9V74 | 0.9971 | [0.9919, 1.0003] |
+| 2 | AMD EPYC 7763 | 0.9938 | [0.9914, 0.9987] |
+| 3 | AMD EPYC 7763 | 1.0000 | [0.9976, 1.0031] |
+| 4 | AMD EPYC 9V45 | 1.0057 | [0.9998, 1.0122] |
+| 5 | AMD EPYC 7763 | 1.0025 | [0.9992, 1.0067] |
+
+- The largest distance from 1 is 0.0062. The spread of the 5 ratios is 0.0119.
+- Thus the floor is 0.0181. The floor of the run 42414121767 (old harness) is 0.0215.
+- The run 42414121767 had 10 arms and 20 rounds. Thus the difference of the floors does not come from the harness only.
+- 4 of the 5 intervals hold 1. The interval of job 2 does not hold 1.
+- At a coverage of 0.9116, 1 or more of 5 intervals misses 1 with a probability of 0.37.
+- Each record also keeps the ratio and the interval of each order (`aFirst`, `bFirst`).
 
 ## A no-read is not a pass (T10d)
 
