@@ -179,11 +179,11 @@ importers:
         specifier: ^2.0.0
         version: 2.1.4
       '@mark1russell7/ste-lint':
-        specifier: ^0.3.0
-        version: 0.3.2
+        specifier: ^0.4.0
+        version: 0.4.0
       '@mark1russell7/template-cli':
         specifier: ^0.1.4
-        version: 0.1.7
+        version: 0.1.9
       '@swc/core':
         specifier: ^1.15.0
         version: 1.16.22
@@ -299,8 +299,8 @@ importers:
         specifier: ^0.2.2
         version: 0.2.2
       '@mark1russell7/site-pages':
-        specifier: ^0.5.2
-        version: 0.5.2
+        specifier: ^0.8.0
+        version: 0.8.0
       '@mark1russell7/typeset':
         specifier: workspace:*
         version: link:../typeset
@@ -663,6 +663,10 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
+  '@mark1russell7/files@0.0.4':
+    resolution: {integrity: sha512-Pb978ZnvlAxzcdWtRtqTGb7mZFCvlNrdKnpZqhxQ7gafzeNGf1JqYFuB4RWiLbJzRuFUWjEoAVG5f2TndCIlSg==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/layout-contract@0.10.0':
     resolution: {integrity: sha512-I+7OUWzOky/Xdjll45pe6Azxqd/5XjaJrH3YdE6WXWn/ttw1rgd/AWrPMTDn6X8VTNpPL8pD829SICcT4RIKZg==}
     engines: {node: '>=22.12'}
@@ -726,17 +730,13 @@ packages:
     resolution: {integrity: sha512-DBcPP7mt0LsUFIVk8luMICkwbrt/JRCIosHCfpn/F/IM5PYbUKHrCvyzKfwglw4M7lKa7oO70vpcQ2jZZxqKeA==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/rigor-statistics@0.2.5':
-    resolution: {integrity: sha512-jaUqrz8FmsUoR9n0MeRUIk9UTpG5QL+dF/moh+C23fyihb00LgOD42Up//1piIPVZZDiq6lua0sBcSKMwh5IFg==}
-    engines: {node: '>=22'}
-
-  '@mark1russell7/site-pages@0.5.2':
-    resolution: {integrity: sha512-wZaQllWi5qrxXzzY04b2v2r07RMKq4HsOGguw5i0kuTL/Cl3IEyw3zIhcSoU0pAh9iwK+MD6KrbfywGE4oRAJQ==}
+  '@mark1russell7/site-pages@0.8.0':
+    resolution: {integrity: sha512-OlqsZfj5yNovI1ysfPJEIVsRnON3KgEP9ELMIH5CO+kP9FY5Vu873oCY+Zja5dKB8wTVgU3YewEcTqH9ncDurg==}
     engines: {node: '>=22'}
     hasBin: true
 
-  '@mark1russell7/ste-lint@0.3.2':
-    resolution: {integrity: sha512-0WRNon1oYKX1mmTP/AhrPnpoGAGolmpkJWHaTkHXc4SKe1tQhUvPrY/0TQ4gvu7aN+TEPpypiZDIkOjYZG8qBA==}
+  '@mark1russell7/ste-lint@0.4.0':
+    resolution: {integrity: sha512-V58Mtpt7WOW2wRBreSuuIO4am0WOdrJq8603+NNtqyI5EY0/LpPiQFxEDx+yNOgkN5ddnpPTkjalRTmBF+9GXQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -744,8 +744,8 @@ packages:
     resolution: {integrity: sha512-E3zTfOPDRFE/KdvETa4PqXMu5Vm9eG7Ipy+oMAptB1kDMAQX9y2By+sH17sIezHoqODFWldi2+GwPNMaW301Vg==}
     engines: {node: '>=22'}
 
-  '@mark1russell7/template-cli@0.1.7':
-    resolution: {integrity: sha512-Wy4xa6OgNXyMunSyXOArxmrspLSCuyw1pf1P5X45Uiwe1aWHzn0LJptUYVGUSwT3GTp9FGVDhFMeOnKlapD3Xw==}
+  '@mark1russell7/template-cli@0.1.9':
+    resolution: {integrity: sha512-7ebtLlCmT6KYhbpoI2SZHXCQC6/7Rc660SvKwQvfslseSQrXMRlmBj+1/F5KOCep6aB+LtvGWg+HmTKi6uZjyQ==}
     engines: {node: '>=22.12'}
     hasBin: true
 
@@ -2052,6 +2052,8 @@ snapshots:
 
   '@mark1russell7/cue@2.1.4': {}
 
+  '@mark1russell7/files@0.0.4': {}
+
   '@mark1russell7/layout-contract@0.10.0':
     dependencies:
       '@mark1russell7/predicates': 0.1.2
@@ -2102,16 +2104,13 @@ snapshots:
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.16
 
-  '@mark1russell7/rigor-statistics@0.2.5':
+  '@mark1russell7/site-pages@0.8.0':
     dependencies:
-      '@mark1russell7/rigor-generators': 0.1.16
+      '@mark1russell7/rigor-statistics': 0.2.11
 
-  '@mark1russell7/site-pages@0.5.2':
+  '@mark1russell7/ste-lint@0.4.0':
     dependencies:
-      '@mark1russell7/rigor-statistics': 0.2.5
-
-  '@mark1russell7/ste-lint@0.3.2':
-    dependencies:
+      '@mark1russell7/files': 0.0.4
       typescript: 6.0.3
 
   '@mark1russell7/strategy-space@0.0.5':
@@ -2119,7 +2118,7 @@ snapshots:
       '@mark1russell7/rigor-generators': 0.1.16
       '@mark1russell7/rigor-statistics': 0.1.29
 
-  '@mark1russell7/template-cli@0.1.7':
+  '@mark1russell7/template-cli@0.1.9':
     dependencies:
       '@clack/prompts': 1.8.1
 
