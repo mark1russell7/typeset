@@ -43,7 +43,7 @@ Timing runs go to CI, not to a shared machine. The workflow `bench.yml` runs the
 - A pull request that changes the corpus, the package `@mark1russell7/typeset`, the widths tools, the bench or the workflow runs a balanced count of rounds. The check `Bench OK` gives the result.
 - The balanced count is 2 times the count of arms. Then each arm is at each position 2 times, one time in each direction of the order.
 - A run of `workflow_dispatch` also runs the balanced count by default. Give the identifier of its prediction in the input `prediction`.
-- The input `runs` of `workflow_dispatch` gives the count of bench jobs. Each job has its own runner. At most 3 jobs run at the same time.
+- The input `runs` of `workflow_dispatch` gives the count of bench jobs. Each job has its own runner. At most 2 bench jobs and the job `weight` run at the same time.
 - Each job uploads its record as the artifact `bench-records-<n>`.
 - A limit comes from 5 runs or more: the worst value plus the spread of the runs.
 
