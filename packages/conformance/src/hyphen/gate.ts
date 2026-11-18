@@ -10,7 +10,7 @@ import { hyphenator, type HyphenSource } from "@mark1russell7/typeset/hyphen";
 import { buildSync, version } from "esbuild";
 import { hintedReport, type HintedReport, type HintFile } from "./hinted.ts";
 import { parsePatterns, setSource } from "./patterns.ts";
-import { floorFaults, hyphenFiles, texHyphenCommit, type HyphenFile } from "./sources.ts";
+import { floorFaults, hyphenFiles, originOf, texHyphenCommit, type HyphenFile } from "./sources.ts";
 import { classReport, countDefects, parseForms, referenceRules, rulesOf, type ClassReport, type ReferenceFile, type RuleCount } from "./classes.ts";
 import { makeLayer, withLayer, type Layer } from "./layer.ts";
 import { parseLexique, type ReferenceList } from "./lexique.ts";
@@ -198,7 +198,8 @@ export async function hyphenGate(root: string, textOf: (file: HyphenFile) => Pro
       parts = hintedReport(hints, parseWords(list), set.hyphenate, set.left, set.right, { runs: hintedRuns, seed: hints.seed });
       problems.push(...floorFaults(`${file.language} hinted`, parts.hinted, file.hinted.floor));
     }
-    made.push({ file: file.name, commit: texHyphenCommit, sha256: file.sha256, license: file.license, patterns: set.patterns, exceptions: set.exceptions, list: file.list, sample: sampleHash(list), score: set.score, found: share(set.score.both, set.score.listed), foundAll: share(set.score.both, set.score.places), confirmed: share(set.score.both, set.score.given), fHalf: fHalf(set.score), ...(parts === undefined ? {} : { parts }) });
+    // The record keeps the origin of the list. The mirrors are places to fetch from, so a new mirror does not change the record.
+    made.push({ file: file.name, commit: texHyphenCommit, sha256: file.sha256, license: file.license, patterns: set.patterns, exceptions: set.exceptions, list: originOf(file.list), sample: sampleHash(list), score: set.score, found: share(set.score.both, set.score.listed), foundAll: share(set.score.both, set.score.places), confirmed: share(set.score.both, set.score.given), fHalf: fHalf(set.score), ...(parts === undefined ? {} : { parts }) });
   }
   const languages = Object.fromEntries(made.map((language, index) => [hyphenFiles[index]!.language, { ...language, weight: weighEntry(paths.source(hyphenFiles[index]!.language)) }]));
   const record: HyphenRecord = { schema: "typeset-hyphen/1", esbuild: version, gzipLevel: 9, matcher: weighEntry(paths.matcher), languages };
