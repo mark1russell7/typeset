@@ -1,17 +1,19 @@
 /**
  * The command `pnpm bench`. It starts each case of `cases/index.ts` with an A/A pair and writes the record as JSON.
+ * The option `--arms` gives a list of arm ids, separated by commas. Then the bench starts only those arms.
  * Timing runs belong in CI (the workflow `bench.yml`), not on a shared machine.
  */
 import { appendFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { gateLine, jobModels, writeGateLine } from "@mark1russell7/rigor-bench";
-import { aa, arms, balancedRounds, fontFixtures, fontFolder } from "./cases/index.ts";
+import { balancedRounds, gateLine, jobModels, writeGateLine } from "@mark1russell7/rigor-bench";
+import { aa, fontFixtures, fontFolder, pickArms } from "./cases/index.ts";
 import { aaLevel, runBench } from "./harness.ts";
 
 const { values } = parseArgs({
   options: {
-    rounds: { type: "string", default: String(balancedRounds) },
+    rounds: { type: "string" },
+    arms: { type: "string", default: "" },
     samples: { type: "string", default: "15" },
     "min-sample-ms": { type: "string", default: "5" },
     "warmup-ms": { type: "string", default: "300" },
@@ -24,13 +26,17 @@ const { values } = parseArgs({
 const folder = process.env[fontFolder];
 if (folder === undefined || folder === "") throw new Error(`the bench needs the pinned fonts in the folder of the variable ${fontFolder}`);
 
+// An empty list gives all arms. The default count of rounds is balanced for the arms of the run: 2 times their count.
+const arms = pickArms(values.arms.split(",").map((id) => id.trim()).filter((id) => id !== ""));
+const rounds = values.rounds === undefined ? balancedRounds(arms.length) : Number(values.rounds);
+
 const us = (ms: number): string => (ms * 1e3).toFixed(1);
 const ratio = (r: { ratio: number; low: number; high: number }): string => `${r.ratio.toFixed(4)} [${r.low.toFixed(4)}, ${r.high.toFixed(4)}]`;
 
 const record = await runBench({
   module: fileURLToPath(new URL("./cases/index.ts", import.meta.url)),
   arms,
-  rounds: Number(values.rounds),
+  rounds,
   aa: [...aa],
   child: { samples: Number(values.samples), minSampleMs: Number(values["min-sample-ms"]), warmupMs: Number(values["warmup-ms"]) },
   fixtures: { folder, files: fontFixtures },
@@ -57,7 +63,7 @@ console.log(`wrote ${values.out}`);
 const summary = process.env["GITHUB_STEP_SUMMARY"];
 if (summary !== undefined && summary !== "") {
   const lines = [
-    `### Bench, ${record.config.rounds} rounds${values.label === "" ? "" : `, prediction ${values.label}`}`,
+    `### Bench, ${record.config.arms.length} arms, ${record.config.rounds} rounds${values.label === "" ? "" : `, prediction ${values.label}`}`,
     "",
     `CPU: ${record.environment.cpu}, Node ${record.environment.node}`,
     "",

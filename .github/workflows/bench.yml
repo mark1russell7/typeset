@@ -23,6 +23,10 @@ on:
         description: The count of rounds. Each round starts one fresh process for each arm. Empty gives 2 times the count of arms, a balanced order.
         type: string
         default: ""
+      arms:
+        description: The ids of the arms, separated by commas. The list has the 2 arms of the A/A pair. Empty gives all arms.
+        type: string
+        default: ""
       prediction:
         description: The id of the prediction that the run scores. A commit adds the prediction before the run.
         type: string
@@ -88,6 +92,7 @@ jobs:
         run: ${{ fromJSON(needs.changes.outputs.runs) }}
     env:
       ROUNDS: ${{ github.event_name == 'workflow_dispatch' && inputs.rounds || '' }}
+      ARMS: ${{ github.event_name == 'workflow_dispatch' && inputs.arms || '' }}
       PREDICTION: ${{ inputs.prediction }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -106,7 +111,7 @@ jobs:
         # main.ts also writes the table of the arms to the summary of the job
         env:
           TYPESET_FONTS: ${{ runner.temp }}/fonts
-        run: pnpm bench ${ROUNDS:+--rounds "$ROUNDS"} --out "$GITHUB_WORKSPACE/bench-records.json" --label "$PREDICTION"
+        run: pnpm bench ${ROUNDS:+--rounds "$ROUNDS"} ${ARMS:+--arms "$ARMS"} --out "$GITHUB_WORKSPACE/bench-records.json" --label "$PREDICTION"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bench-records-${{ matrix.run }}

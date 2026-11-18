@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { armOrder, moduleListGaps } from "@mark1russell7/rigor-bench";
 import { bootstrapMedian } from "@mark1russell7/rigor-statistics";
 import { describe, expect, it } from "vitest";
-import { aa, arms, balancedRounds, cases, fontCases, fontFixtures, fontFolder, moduleOf, modules } from "./cases/index.ts";
+import { aa, arms, balancedRounds, cases, fontCases, fontFixtures, fontFolder, moduleOf, modules, pickArms } from "./cases/index.ts";
 import { measure, runBench, type BenchRecord } from "./index.ts";
 import { replayAa, rescore, type BenchRecordV1 } from "./rescore.ts";
 
@@ -34,6 +34,19 @@ describe("the cases of the bench", () => {
       expect(Object.keys(modules[moduleOf[name]!]!)).toContain(name);
     }
     expect(arms.find((arm) => arm.id === aa[1])?.case).toBe(aa[0]);
+  });
+
+  it("picks the arms of a list in the order of the bench, and refuses an unknown arm, an arm two times or a list without the A/A pair", () => {
+    expect(pickArms([])).toBe(arms);
+    // The 10 arms of the run 42414121767 of the old harness, in another order
+    const old = [aa[1], "measurer.all-scripts", "measurer.latin-han", "measurer.one-font", "corpus.edits", aa[0], "breaking.balanced", "breaking.total-fit", "breaking.greedy", "breaking.paragraph"];
+    const picked = pickArms(old);
+    expect(picked.map((arm) => arm.id)).toEqual(arms.map((arm) => arm.id).filter((id) => old.includes(id)));
+    expect(picked).toHaveLength(10);
+    expect(picked.find((arm) => arm.id === aa[1])?.case).toBe(aa[0]);
+    expect(() => pickArms(["breaking.none", ...aa])).toThrow(/no arm breaking\.none/);
+    expect(() => pickArms([...aa, aa[0]])).toThrow(/two times/);
+    expect(() => pickArms(["breaking.greedy", aa[0]])).toThrow(/A\/A pair, and corpus\.generate#aa/);
   });
 
   it("pins the SHA-256 of each font file that a measurer case reads, one time", () => {

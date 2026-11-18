@@ -38,3 +38,19 @@ export const arms: readonly CaseArm[] = [...Object.keys(cases).map((name) => ({ 
  * puts each arm at each position 2 times, one time in each direction.
  */
 export const balancedRounds: number = balancedCount(arms.length);
+
+/**
+ * The arms of a run: each arm of `arms` with an id in `ids`, in the order of `arms`. An empty list gives all arms.
+ * The function throws on an unknown id, on an id two times and on a list without the 2 arms of the A/A pair.
+ */
+export function pickArms(ids: readonly string[]): readonly CaseArm[] {
+  if (ids.length === 0) return arms;
+  const known = new Set(arms.map((arm) => arm.id));
+  const unknown = ids.filter((id) => !known.has(id));
+  if (unknown.length > 0) throw new Error(`the bench has no arm ${unknown.join(", ")}`);
+  const picked = new Set(ids);
+  if (picked.size !== ids.length) throw new Error("the list of arms has an arm two times");
+  const missing = aa.filter((id) => !picked.has(id));
+  if (missing.length > 0) throw new Error(`the list of arms needs the 2 arms of the A/A pair, and ${missing.join(", ")} is not in it`);
+  return arms.filter((arm) => picked.has(arm.id));
+}
