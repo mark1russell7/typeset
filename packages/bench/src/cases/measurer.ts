@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readFont } from "@mark1russell7/typeset/fonts";
 import { fontAdvance } from "@mark1russell7/typeset/measurer";
-import { fileName, fontStacks, mixedTexts, stackFont, type FontStack } from "@typeset/widths";
+import type { FixtureFile } from "@mark1russell7/rigor-bench/fresh";
+import { extraSource, fileName, fontSources, fontStacks, mixedTexts, stackFont, type FontStack } from "@typeset/widths";
 import { defineCase, type BenchCase, type CaseModule } from "../case.ts";
 
 /** The environment variable with the folder of the pinned font files. `bench.yml` fetches them with their SHA-256. */
@@ -41,9 +42,25 @@ function stackOf(id: string): FontStack {
   return stack;
 }
 
-/** The cases of the font-stack measurer of T11. A stack of one font is the base of the fallback over a list. */
-export const cases: CaseModule = {
-  "measurer.one-font": stackCase({ id: "latin", fonts: ["noto-sans"], scripts: ["latin"] }),
-  "measurer.latin-han": stackCase(stackOf("latin-han")),
-  "measurer.all-scripts": stackCase(stackOf("all-scripts")),
+/** The font stack of each case. A stack of one font is the base of the fallback over a list. */
+const stacks: Readonly<Record<string, FontStack>> = {
+  "measurer.one-font": { id: "latin", fonts: ["noto-sans"], scripts: ["latin"] },
+  "measurer.latin-han": stackOf("latin-han"),
+  "measurer.all-scripts": stackOf("all-scripts"),
 };
+
+/** The cases of the font-stack measurer of T11. */
+export const cases: CaseModule = Object.fromEntries(Object.entries(stacks).map(([name, stack]) => [name, stackCase(stack)]));
+
+/** This function gives the pinned SHA-256 of a font. */
+function sha256Of(id: string): string {
+  const source = [...fontSources, extraSource].find((value) => value.id === id);
+  if (source === undefined) throw new Error(`no source of the font ${id}`);
+  return source.sha256;
+}
+
+/**
+ * The font files that the cases read, with the pinned SHA-256 of each file. The bench gives them to `freshArms`, so a
+ * changed file stops the run before the first process.
+ */
+export const fontFixtures: readonly FixtureFile[] = [...new Set(Object.values(stacks).flatMap((stack) => stack.fonts))].map((id) => ({ file: fileName(id), sha256: sha256Of(id) }));

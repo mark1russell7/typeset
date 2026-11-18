@@ -1,14 +1,14 @@
 export { defineCase, type BenchCase, type CaseModule } from "./case.ts";
 export { measure, type ChildOptions, type ChildResult } from "./child.ts";
 export {
+  aaLevel,
+  armSummaries,
   environment,
-  roundOrder,
   runBench,
-  type Arm,
+  type AaRecord,
   type ArmSummary,
   type BenchConfig,
   type BenchEnvironment,
   type BenchRecord,
   type ProcessRecord,
-  type RatioEstimate,
 } from "./harness.ts";
