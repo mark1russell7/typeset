@@ -20,13 +20,21 @@ The package `@typeset/bench` (`packages/bench`) times the cases. `pnpm bench` st
 - The file `cases/index.ts` has the list of the case modules. The bench starts each case of each module in its own arm.
 - A test fails when a module of the folder `cases` is not in the list. Thus each case gets a run.
 - The cases of `cases/measurer.ts` read the pinned fonts. The Bench job fetches them with the SHA-256 of each file into the folder `TYPESET_FONTS`.
+- The harness examines the SHA-256 of each font file again before the first process. A changed file stops the bench.
 
-- Each round starts one fresh process for each arm. The order of the arms turns by one place each round, and it goes backward in each second turn. Thus each arm is at each position the same number of times.
-- A process does a warm-up, doubles its batch until a batch takes 5 ms, and then times 15 batches. Its value is the median time of one call.
-- The statistics come from `@mark1russell7/rigor-statistics` (`median`, `quantile`, `summarize`, `bootstrapMedian`).
-- Two arms with the same case make the A/A pair. Its ratio is the median over the rounds, with a 90 % bootstrap interval. The interval must hold 1. An interval without 1 is a bias of the harness, not noise.
-- The record (schema `typeset-bench/1`) has the CPU model, the Node version, the mode (`ci` or `local`), each process and the summary of each arm.
-- The bench fails when a process fails or when the record does not have all its processes.
+- The harness is `freshArms` of `@mark1russell7/rigor-bench`. Each round starts one fresh process for each arm.
+- The order of the arms is `armOrder`. Each odd round reverses the order of the round before it, and the order turns by one place each 2 rounds.
+- Thus in 2 times the count of arms, each arm is at each position 2 times.
+- A process times its case with `timeArm` of rigor-bench. It warms up for 300 ms, doubles its batch until a batch takes 5 ms, and then times 15 batches.
+- The value `ms` of a process is the median time of one call, in milliseconds.
+- The summary of each arm comes from `armTimes` of rigor-bench. It has the median, the 10th and the 90th percentile, the minimum and the maximum.
+- The field `spread` of an arm is p90 / p10.
+- Two arms with the same case make the A/A pair. Its ratio is `b / a` from `aaOrders` of rigor-bench, with a 90 % interval of order statistics.
+- `aaOrders` also gives the ratio of the rounds where `a` starts first and of the rounds where `b` starts first.
+- The interval must hold 1. An interval without 1 is a bias of the harness, not noise.
+- The record has the schema `typeset-bench/2`. It has the CPU model, the memory, the Node version and the mode (`ci` or `local`).
+- The record also has each process, the summary of each arm and the hashes of the fonts.
+- The bench fails when a process fails, when a font file is not the pinned file, or when the record does not have all its processes.
 
 ## Where the bench runs
 
@@ -56,7 +64,7 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 - A budget for a ratio (for example "at most 5 % slower") can decide only when it is larger than 0.017. Else the verdict is "cannot decide".
 - The runners have different CPU models. The median of `corpus.generate` went from 2103 to 3544 us. Thus compare only ratios of one job, not times of different jobs.
 - The spread of the process medians (maximum minus minimum) follows the worst process, and it grows with the count of processes. Two jobs had a spread over 10 %, but their A/A ratios stayed near 1.
-- A spread claim uses the field `processP90P10`: the 90th percentile of the process medians divided by the 10th percentile. In the 5 jobs, it was 1.0365, 1.0293, 1.0348, 1.0093 and 1.0177 for `corpus.generate`, and at most 1.0513 for `corpus.edits`.
+- A spread claim uses the field `spread` (`processP90P10` in a record of `typeset-bench/1`): the 90th percentile of the process medians divided by the 10th percentile. In the 5 jobs, it was 1.0365, 1.0293, 1.0348, 1.0093 and 1.0177 for `corpus.generate`, and at most 1.0513 for `corpus.edits`.
 
 ## The rule for a claim of speed
 
@@ -83,6 +91,34 @@ The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/4144
 
 - Each of the 5 intervals holds 1. The spread of the ratios is 0.0117, and the largest distance from 1 is 0.0098.
 - The arms of the pair never share a process. Each arm and round has a new process.
+
+## The harness of rigor-bench
+
+The bench uses the shared harness of `@mark1russell7/rigor-bench` in place of its own copy. That package is the home of this code.
+
+Each change, with its reason:
+
+- The order is `armOrder` in place of `roundOrder`. Both are balanced in 2 times the count of arms. `armOrder` is the order of the shared harness.
+- The timer is `timeArm` in place of the local loop. The clock is `performance.now()` in place of `process.hrtime.bigint()`.
+- The warm-up of `timeArm` has no minimum of 5 calls. Its batch doubles while a batch takes less than a quarter of the 5 ms.
+- The calibration starts from the batch of the warm-up, not from 1. The count of timed batches stays 15 (`warmSamples: 0`).
+- The A/A ratio is `b / a`, the inverse of the old `a / b`. It is the median of the logs of the ratios.
+- The A/A interval comes from order statistics, not from a bootstrap. At 20 rounds, its coverage is 0.9586, above its level of 0.9.
+- The times are in milliseconds, not in nanoseconds. The record has the schema `typeset-bench/2`.
+- `cases/index.ts` merges the case modules with `mergeCaseModules`. The test of the list of modules uses `moduleListGaps`.
+- The bench has no limit, so no limit changes. Each arm gives "no read", as before.
+
+### The replay of the old records
+
+`node src/rescore.ts <folder>` keeps the old rules for a record of `typeset-bench/1`. It also applies the new A/A rule to it (`replayAa`).
+
+On the 15 records of the runs 41446214122, 41455318165 and 42414121767:
+
+- The old rules give 2166 of 2170 values again with `===`. The 4 other values are the ends of bootstrap intervals of the run 41446214122, as in T9.
+- The floor by the old rule and by the new rule is 0.0162 and 0.0161, 0.0138 and 0.0137, and 0.0215 and 0.0217.
+- The new interval is wider in each of the 15 records. Its mean width is 0.0207, and the mean width of the old interval is 0.0153.
+- One verdict changes: job 5 of the run 41446214122. Its old interval [0.9922, 0.9989] does not hold 1. Its new interval [0.9983, 1.0101] holds 1.
+- The cause is the method of the interval. The bootstrap interval has no stated coverage, and the interval of order statistics has a coverage of 0.9586.
 
 ## A no-read is not a pass (T10d)
 
