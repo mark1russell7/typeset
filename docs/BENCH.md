@@ -142,6 +142,24 @@ The run [44216571207](https://github.com/mark1russell7/typeset/actions/runs/4421
 - At a coverage of 0.9116, 1 or more of 5 intervals misses 1 with a probability of 0.37.
 - Each record also keeps the ratio and the interval of each order (`aFirst`, `bFirst`).
 
+### The A/A run of the old shape on the new harness
+
+The run [44233779076](https://github.com/mark1russell7/typeset/actions/runs/44233779076) has 5 jobs of this harness with the input `arms`. It has the 10 arms of the run 42414121767, in the same order, and 20 balanced rounds.
+
+| Job | CPU | A/A ratio | 90 % interval |
+|---|---|---|---|
+| 1 | AMD EPYC 9V74 | 0.9964 | [0.9912, 1.0005] |
+| 2 | AMD EPYC 7763 | 0.9974 | [0.9878, 1.0039] |
+| 3 | AMD EPYC 9V45 | 1.0013 | [0.9856, 1.0197] |
+| 4 | AMD EPYC 9V74 | 1.0027 | [0.9967, 1.0062] |
+| 5 | Intel Xeon 6973P-C | 1.0027 | [0.9990, 1.0095] |
+
+- The largest distance from 1 is 0.0036. The spread of the 5 ratios is 0.0062.
+- Thus the floor is 0.0098. The 3 runs of the old harness with this shape have the floors 0.0162, 0.0138 and 0.0215.
+- So the lower floor of the new harness does not come from the shape only.
+- Each run has one draw of 5 runners, and the CPU models change from run to run. So this result does not give the size of the gain.
+- The 5 intervals hold 1. At a coverage of 0.9586, 1 or more of 5 intervals misses 1 with a probability of 0.19.
+
 ## A no-read is not a pass (T10d)
 
 A gate that cannot read a case gives a GitHub warning on its check line. The job log alone is not sufficient, because the check stays green.
