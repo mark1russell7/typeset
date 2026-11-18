@@ -12,7 +12,7 @@ import { parseArgs } from "node:util";
 import { hyphenator } from "@mark1russell7/typeset/hyphen";
 import { hyphenate as shipped } from "@mark1russell7/typeset/hyphen/en-us";
 import { pinnedBytes, sha256Of } from "../pinned.ts";
-import { hyphenFiles, tugboatExceptions } from "./sources.ts";
+import { hyphenFiles, placesOf, tugboatExceptions } from "./sources.ts";
 import { compareSets, levelAnswers, listedForms, patgenPatterns, ratesOf, splitForms, texExceptionForms, translateFile, wordCounts, type TrainParams } from "./train.ts";
 
 const { values } = parseArgs({ options: { folder: { type: "string" }, patgen: { type: "string" }, out: { type: "string" }, runs: { type: "string" }, write: { type: "boolean" } } });
@@ -25,8 +25,8 @@ const runs = Number(values.runs ?? 10000);
 mkdirSync(folder, { recursive: true });
 
 const moby = hyphenFiles.find((file) => file.language === "en-us")!.list;
-const mobyText = (await pinnedBytes(folder, "mhyph.txt", moby.url, moby.sha256)).toString("latin1");
-const tugText = (await pinnedBytes(folder, "ushyphex.tex", tugboatExceptions.url, tugboatExceptions.sha256)).toString("utf8");
+const mobyText = (await pinnedBytes(folder, "mhyph.txt", placesOf(moby), moby.sha256)).toString("latin1");
+const tugText = (await pinnedBytes(folder, "ushyphex.tex", placesOf(tugboatExceptions), tugboatExceptions.sha256)).toString("utf8");
 
 // The forms of Moby: each single word in lowercase, with a hyphen at each place. draw.ts uses the same filter.
 const listed = listedForms(mobyText.split(/\r?\n/u).filter((line) => /^[a-z¥]+$/u.test(line)).map((line) => line.replaceAll("¥", "-")));

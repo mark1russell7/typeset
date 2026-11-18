@@ -1,0 +1,58 @@
+name: Hyphen sources
+
+# The pinned files of the en-us training (Moby Hyphenator II, the TUGboat exceptions and Webster 1913) in the cache of main.
+# The jobs of hyphen-train.yml restore the cache, so a pull request does not fetch the files from their hosts. The hosts
+# often refuse a runner: 20 of the last 40 runs of the training failed on a fetch (2026-11-13 to 11-17), with HTTP 503 from
+# www.gutenberg.org, and a connect time-out or a bad certificate chain from mirrors.ctan.org.
+# A daily run fetches the files only when the cache does not have them, for example after a change of sources.ts.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/conformance/src/hyphen/sources.ts
+      - packages/conformance/src/hyphen/sources-main.ts
+      - packages/conformance/src/pinned.ts
+      - .github/workflows/hyphen-sources.yml
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A run of main finishes: a newer run waits for it.
+concurrency:
+  group: hyphen-sources
+  cancel-in-progress: false
+
+jobs:
+  sources:
+    name: Hyphen sources
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The key changes with sources.ts, so a new pin makes a new entry. The path and the runner image are the same as in
+      # hyphen-train.yml, because the version of a cache entry comes from them.
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/hyphen
+          key: hyphen-sources-${{ hashFiles('packages/conformance/src/hyphen/sources.ts') }}
+          lookup-only: true
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+      # The script imports only node: modules, pinned.ts and sources.ts, so it needs no install.
+      - if: steps.cache.outputs.cache-hit != 'true'
+        name: Fetch the pinned files
+        run: node packages/conformance/src/hyphen/sources-main.ts --folder "$RUNNER_TEMP/hyphen"
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/hyphen
+          key: hyphen-sources-${{ hashFiles('packages/conformance/src/hyphen/sources.ts') }}

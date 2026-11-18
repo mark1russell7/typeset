@@ -10,6 +10,8 @@ export interface WordList {
   readonly name: string;
   /** The place of the list. */
   readonly url: string;
+  /** Other places of the same file, in the order of the tries after `url`. The SHA-256 holds each place to the same bytes. */
+  readonly mirrors?: readonly string[];
   /** The SHA-256 of the file that gave the sample in `data/hyphen`. */
   readonly sha256: string;
   /** The terms of the list. */
@@ -68,6 +70,7 @@ export const hyphenFiles: readonly HyphenFile[] = [
     list: {
       name: "Moby Hyphenator II",
       url: "https://www.gutenberg.org/files/3204/files/mhyph.txt",
+      mirrors: ["https://mirror.csclub.uwaterloo.ca/gutenberg/3/2/0/3204/files/mhyph.txt"],
       sha256: "eeb30474c86b8af3469035ec1a0913e35905325ca885290db9dfed9881e230ac",
       license: "public domain",
       independent: true,
@@ -135,6 +138,7 @@ export const hyphenFiles: readonly HyphenFile[] = [
 export const tugboatExceptions: WordList = {
   name: "TUGboat hyphenation exceptions for US English (ushyphex.tex, 2021)",
   url: "https://mirrors.ctan.org/info/digests/tugboat/hyphenex/ushyphex.tex",
+  mirrors: ["https://mirrors.mit.edu/CTAN/info/digests/tugboat/hyphenex/ushyphex.tex"],
   sha256: "9392bd6e14b2f34ebc31d2ba4eddb7d1266bf563bfd89c6161f63cfd7f00ef5c",
   license: "free use, change and distribution, by the notice of the TeX Users Group",
   independent: true,
@@ -148,10 +152,16 @@ export const tugboatExceptions: WordList = {
 export const webster1913: WordList = {
   name: "Webster's Unabridged Dictionary of 1913 (Project Gutenberg 29765)",
   url: "https://www.gutenberg.org/files/29765/29765-0.txt",
+  mirrors: ["https://mirror.csclub.uwaterloo.ca/gutenberg/2/9/7/6/29765/29765-0.txt"],
   sha256: "4d9c7a6f3b27add378aea8db3afc4d9190c2f4a6bd4341755b514155ab91873a",
   license: "public domain",
   independent: true,
 };
+
+/** This function gives the places of a word list in the order of the tries: `url`, then each place of `mirrors`. */
+export function placesOf(list: WordList): readonly string[] {
+  return [list.url, ...(list.mirrors ?? [])];
+}
 
 /** This function gives the URL of a pattern file at the pinned commit. */
 export function hyphenUrl(file: HyphenFile): string {
