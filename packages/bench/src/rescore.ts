@@ -29,6 +29,13 @@ export interface BenchRecordV1 {
 
 type Add = (name: string, stored: number, computed: number) => void;
 
+/** This function gives the process of an arm in a round of a record. It throws when the record has no such process. */
+function processOf<P extends { readonly arm: string; readonly round: number }>(processes: readonly P[], round: number, arm: string): P {
+  const p = processes.find((x) => x.round === round && x.arm === arm);
+  if (p === undefined) throw new Error(`the record has no process of ${arm} in round ${round}`);
+  return p;
+}
+
 function checker(): { checks: Check[]; add: Add } {
   const checks: Check[] = [];
   return { checks, add: (name, stored, computed) => checks.push({ name, stored, computed, equal: stored === computed }) };
@@ -48,8 +55,8 @@ export function rescoreV1(record: BenchRecordV1): Check[] {
   if (record.aa !== undefined) {
     const [first, second] = record.aa.arms;
     record.aa.perRound.forEach((stored, round) => {
-      const a = record.processes.find((p) => p.round === round && p.arm === first)!;
-      const b = record.processes.find((p) => p.round === round && p.arm === second)!;
+      const a = processOf(record.processes, round, first);
+      const b = processOf(record.processes, round, second);
       add(`aa round ${round}`, stored, a.medianNs / b.medianNs);
     });
     const interval = bootstrapMedian(record.aa.perRound, { level: 0.9, runs: 2000, seed: 1 });
@@ -80,8 +87,8 @@ export function rescoreV2(record: BenchRecord): Check[] {
   if (record.aa !== undefined) {
     const [a, b] = record.aa.arms;
     for (const stored of record.aa.rounds) {
-      const pa = record.processes.find((p) => p.round === stored.round && p.arm === a)!;
-      const pb = record.processes.find((p) => p.round === stored.round && p.arm === b)!;
+      const pa = processOf(record.processes, stored.round, a);
+      const pb = processOf(record.processes, stored.round, b);
       add(`aa round ${stored.round} a`, stored.a, pa.ms);
       add(`aa round ${stored.round} b`, stored.b, pb.ms);
       add(`aa round ${stored.round} first is a`, stored.first === "a" ? 1 : 0, pa.position < pb.position ? 1 : 0);
@@ -107,16 +114,11 @@ export function rescoreV2(record: BenchRecord): Check[] {
 export function replayAa(record: BenchRecordV1): AaOrders | undefined {
   if (record.aa === undefined) return undefined;
   const [a, b] = record.aa.arms;
-  const find = (round: number, arm: string) => {
-    const p = record.processes.find((x) => x.round === round && x.arm === arm);
-    if (p === undefined) throw new Error(`the record has no process of ${arm} in round ${round}`);
-    return p;
-  };
   const rounds: PairedTime[] = [...new Set(record.processes.map((p) => p.round))]
     .sort((x, y) => x - y)
     .map((round) => {
-      const pa = find(round, a);
-      const pb = find(round, b);
+      const pa = processOf(record.processes, round, a);
+      const pb = processOf(record.processes, round, b);
       return { case: a, round, first: pa.position < pb.position ? "a" : "b", a: pa.medianNs / 1e6, b: pb.medianNs / 1e6 };
     });
   return aaOrders(rounds, aaLevel)[0];

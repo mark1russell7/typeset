@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -102,6 +102,26 @@ describe("runBench", () => {
       rmSync(folder, { recursive: true, force: true });
     }
   });
+
+  it("rejects and starts no more processes when a process gives too few samples", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "typeset-bench-"));
+    const starts = join(folder, "starts.txt");
+    const before = process.env["TYPESET_BENCH_STARTS"];
+    process.env["TYPESET_BENCH_STARTS"] = starts;
+    try {
+      const short = fileURLToPath(new URL("./fixtures/short-samples.ts", import.meta.url));
+      const seen: string[] = [];
+      await expect(runBench({ module: short, arms: [{ id: "short", case: "fixture.short" }], rounds: 3, child, onProcess: (p) => seen.push(p.arm) })).rejects.toThrow(
+        /gave 1 samples of fixture\.short, not 3 of fixture\.short/,
+      );
+      expect(seen).toEqual([]);
+      expect(readFileSync(starts, "utf8").split("\n").filter(Boolean)).toHaveLength(1);
+    } finally {
+      if (before === undefined) delete process.env["TYPESET_BENCH_STARTS"];
+      else process.env["TYPESET_BENCH_STARTS"] = before;
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }, 60_000);
 
   it("fails closed on an unknown case, a duplicate arm or a bad A/A pair", async () => {
     await expect(runBench({ module, arms: [{ id: "x", case: "fixture.none" }], rounds: 1, child })).rejects.toThrow(/fixture\.none/);
