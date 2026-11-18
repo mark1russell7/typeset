@@ -163,6 +163,11 @@ export function placesOf(list: WordList): readonly string[] {
   return [list.url, ...(list.mirrors ?? [])];
 }
 
+/** This function gives the origin of a word list for a record: each field but `mirrors`, in the order of the record. */
+export function originOf(list: WordList): Omit<WordList, "mirrors"> {
+  return { name: list.name, url: list.url, sha256: list.sha256, license: list.license, independent: list.independent };
+}
+
 /** This function gives the URL of a pattern file at the pinned commit. */
 export function hyphenUrl(file: HyphenFile): string {
   return `https://raw.githubusercontent.com/hyphenation/tex-hyphen/${texHyphenCommit}/${patternFolder}/${file.name}`;

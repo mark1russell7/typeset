@@ -9,7 +9,7 @@ import { buildSync } from "esbuild";
 import { describe, expect, it } from "vitest";
 import { gzipTolerance, hyphenPaths, recordDifferences, sampleHash, weighEntry, type HyphenRecord, type MissRecord } from "./gate.ts";
 import { parsePatterns, setSource } from "./patterns.ts";
-import { floorFaults, hyphenFiles, hyphenUrl, texHyphenCommit } from "./sources.ts";
+import { floorFaults, hyphenFiles, hyphenUrl, originOf, texHyphenCommit } from "./sources.ts";
 import type { PatternSet } from "@mark1russell7/typeset/hyphen";
 import { referenceRules } from "./classes.ts";
 import { countMisses, coveredPlaces, fHalf, missCause, missClass, parseWords, scoreWords, share } from "./words.ts";
@@ -77,6 +77,15 @@ describe("setSource", () => {
       const code = new TextDecoder().decode(buildSync({ entryPoints: [paths.source(language)], bundle: true, minify: true, format: "esm", write: false, logLevel: "silent" }).outputFiles[0]!.contents);
       expect(code).toContain("Copyright");
     }
+  });
+});
+
+describe("originOf", () => {
+  it("gives the list of each language in the committed record, with the same fields in the same order", () => {
+    for (const file of hyphenFiles) expect(JSON.stringify(originOf(file.list))).toBe(JSON.stringify(record.languages[file.language]?.list));
+  });
+  it("leaves out the mirrors, so a new mirror does not change the record", () => {
+    for (const file of hyphenFiles) expect(originOf({ ...file.list, mirrors: ["https://mirror.example/list.txt"] })).toEqual(originOf(file.list));
   });
 });
 
