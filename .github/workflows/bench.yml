@@ -81,8 +81,9 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      # The runners are shared by all repositories of the account (the rule runner-budget)
-      max-parallel: 3
+      # The runners are shared by all repositories of the account (the rule runner-budget).
+      # At most 3 jobs of this workflow run at the same time: 2 bench jobs and the job weight.
+      max-parallel: 2
       matrix:
         run: ${{ fromJSON(needs.changes.outputs.runs) }}
     env:

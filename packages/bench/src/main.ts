@@ -6,8 +6,8 @@ import { appendFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { gateLine, jobModels, writeGateLine } from "@mark1russell7/rigor-bench";
-import { aa, arms, balancedRounds } from "./cases/index.ts";
-import { runBench } from "./harness.ts";
+import { aa, arms, balancedRounds, fontFixtures, fontFolder } from "./cases/index.ts";
+import { aaLevel, runBench } from "./harness.ts";
 
 const { values } = parseArgs({
   options: {
@@ -20,26 +20,36 @@ const { values } = parseArgs({
   },
 });
 
-// A count of rounds that is not a multiple of the balanced count puts some arms at some positions more often. Then the A/A pair can show a bias of order.
-if (Number(values.rounds) % balancedRounds !== 0) console.warn(`warning: ${values.rounds} rounds is not a multiple of ${balancedRounds}, so the order of the arms is not balanced`);
+// The measurer cases read the pinned fonts. The harness checks the SHA-256 of each file before the first process.
+const folder = process.env[fontFolder];
+if (folder === undefined || folder === "") throw new Error(`the bench needs the pinned fonts in the folder of the variable ${fontFolder}`);
 
-const record = runBench({
+const us = (ms: number): string => (ms * 1e3).toFixed(1);
+const ratio = (r: { ratio: number; low: number; high: number }): string => `${r.ratio.toFixed(4)} [${r.low.toFixed(4)}, ${r.high.toFixed(4)}]`;
+
+const record = await runBench({
   module: fileURLToPath(new URL("./cases/index.ts", import.meta.url)),
   arms,
   rounds: Number(values.rounds),
   aa: [...aa],
   child: { samples: Number(values.samples), minSampleMs: Number(values["min-sample-ms"]), warmupMs: Number(values["warmup-ms"]) },
-  onProcess: (p) => console.log(`round ${p.round} #${p.position} ${p.arm}: ${(p.medianNs / 1e3).toFixed(1)} us (batch ${p.batch})`),
+  fixtures: { folder, files: fontFixtures },
+  onProcess: (p) => console.log(`round ${p.round} #${p.position} ${p.arm}: ${us(p.ms)} us (batch ${p.batch})`),
 });
+
+// A count of rounds that is not a multiple of the balanced count puts some arms at some positions more often. Then the A/A pair can show a bias of order.
+for (const warning of record.warnings) console.warn(`warning: ${warning}`);
 
 writeFileSync(values.out, JSON.stringify(record, null, 2) + "\n");
 console.log(`\n${record.environment.cpu}, ${record.environment.node}, ${record.environment.mode}`);
 for (const [arm, s] of Object.entries(record.arms)) {
-  console.log(`${arm}: median ${(s.medianNs / 1e3).toFixed(1)} us, process spread ${(s.processSpread * 100).toFixed(1)} % over ${s.processes} processes`);
+  console.log(`${arm}: median ${us(s.median)} us, p90 / p10 ${s.spread.toFixed(4)}, process spread ${(s.processSpread * 100).toFixed(1)} % over ${s.processes} processes`);
 }
 if (record.aa !== undefined) {
-  const [low, high] = record.aa.interval;
-  console.log(`A/A ${record.aa.arms.join(" / ")}: ${record.aa.ratio.toFixed(4)} [${low.toFixed(4)}, ${high.toFixed(4)}]`);
+  const { orders } = record.aa;
+  console.log(`A/A ${record.aa.arms[1]} / ${record.aa.arms[0]}: ${ratio(orders.all)}`);
+  if (orders.aFirst !== undefined) console.log(`  ${record.aa.arms[0]} first: ${ratio(orders.aFirst)} over ${orders.aFirst.rounds} rounds`);
+  if (orders.bFirst !== undefined) console.log(`  ${record.aa.arms[1]} first: ${ratio(orders.bFirst)} over ${orders.bFirst.rounds} rounds`);
 }
 console.log(`wrote ${values.out}`);
 
@@ -53,9 +63,9 @@ if (summary !== undefined && summary !== "") {
     "",
     "| Arm | Median (us) | Process spread | p90 / p10 | Processes |",
     "|---|---|---|---|---|",
-    ...Object.entries(record.arms).map(([arm, s]) => `| ${arm} | ${(s.medianNs / 1e3).toFixed(1)} | ${(s.processSpread * 100).toFixed(1)} % | ${s.processP90P10.toFixed(4)} | ${s.processes} |`),
+    ...Object.entries(record.arms).map(([arm, s]) => `| ${arm} | ${us(s.median)} | ${(s.processSpread * 100).toFixed(1)} % | ${s.spread.toFixed(4)} | ${s.processes} |`),
   ];
-  if (record.aa !== undefined) lines.push("", `A/A: ${record.aa.ratio.toFixed(4)}, 90 % interval [${record.aa.interval.map((x) => x.toFixed(4)).join(", ")}]`);
+  if (record.aa !== undefined) lines.push("", `A/A (${record.aa.arms[1]} / ${record.aa.arms[0]}): ${ratio(record.aa.orders.all)}, ${aaLevel * 100} % interval`);
   appendFileSync(summary, `${lines.join("\n")}\n`);
 }
 
