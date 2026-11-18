@@ -13,7 +13,7 @@ import { parseArgs } from "node:util";
 import { hyphenator } from "@mark1russell7/typeset/hyphen";
 import { hyphenate as shipped } from "@mark1russell7/typeset/hyphen/en-us";
 import { pinnedBytes } from "../pinned.ts";
-import { hyphenFiles, tugboatExceptions, webster1913 } from "./sources.ts";
+import { hyphenFiles, placesOf, tugboatExceptions, webster1913 } from "./sources.ts";
 import { compareSets, formHook, listedForms, patgenPatterns, sharedForms, texExceptionForms, websterEntries, wordCounts, type TrainParams } from "./train.ts";
 
 const { values } = parseArgs({ options: { folder: { type: "string" }, out: { type: "string" }, runs: { type: "string" }, write: { type: "boolean" } } });
@@ -27,9 +27,9 @@ const { left, right } = params;
 mkdirSync(folder, { recursive: true });
 
 const moby = hyphenFiles.find((file) => file.language === "en-us")!.list;
-const mobyText = (await pinnedBytes(folder, "mhyph.txt", moby.url, moby.sha256)).toString("latin1");
-const tugText = (await pinnedBytes(folder, "ushyphex.tex", tugboatExceptions.url, tugboatExceptions.sha256)).toString("utf8");
-const websterText = (await pinnedBytes(folder, "webster-1913.txt", webster1913.url, webster1913.sha256)).toString("utf8");
+const mobyText = (await pinnedBytes(folder, "mhyph.txt", placesOf(moby), moby.sha256)).toString("latin1");
+const tugText = (await pinnedBytes(folder, "ushyphex.tex", placesOf(tugboatExceptions), tugboatExceptions.sha256)).toString("utf8");
+const websterText = (await pinnedBytes(folder, "webster-1913.txt", placesOf(webster1913), webster1913.sha256)).toString("utf8");
 
 const mobyForms = listedForms(mobyText.split(/\r?\n/u).filter((line) => /^[a-z¥]+$/u.test(line)).map((line) => line.replaceAll("¥", "-"))).forms;
 const tugForms = texExceptionForms(tugText).forms;
