@@ -21,15 +21,15 @@
     "cause": "node src/hyphen/cause-main.ts"
   },
   "dependencies": {
+    "@mark1russell7/rigor-generators": "^0.1.0",
     "@mark1russell7/rigor-statistics": "^0.2.2",
-    "@mark1russell7/typeset": "workspace:*"
+    "@mark1russell7/typeset": "workspace:*",
+    "esbuild": "^0.28.2"
   },
   "devDependencies": {
     "@mark1russell7/cue": "^2.0.0",
-    "@mark1russell7/rigor-generators": "^0.1.0",
     "@types/node": "^26.6.5",
     "@vitest/coverage-v8": "^5.0.3",
-    "esbuild": "^0.28.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   }
