@@ -251,28 +251,28 @@ importers:
 
   packages/conformance:
     dependencies:
+      '@mark1russell7/rigor-generators':
+        specifier: ^0.1.0
+        version: 0.1.16
       '@mark1russell7/rigor-statistics':
         specifier: ^0.2.2
         version: 0.2.2
       '@mark1russell7/typeset':
         specifier: workspace:*
         version: link:../typeset
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
     devDependencies:
       '@mark1russell7/cue':
         specifier: ^2.0.0
         version: 2.1.4
-      '@mark1russell7/rigor-generators':
-        specifier: ^0.1.0
-        version: 0.1.16
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
       '@vitest/coverage-v8':
         specifier: ^5.0.3
         version: 5.1.0(vitest@5.1.0)
-      esbuild:
-        specifier: ^0.28.2
-        version: 0.28.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -381,6 +381,9 @@ importers:
 
   packages/widths:
     dependencies:
+      '@mark1russell7/layout-contract':
+        specifier: ^0.10.0
+        version: 0.10.0
       '@mark1russell7/rigor-bench':
         specifier: ^0.2.58
         version: 0.2.58(esbuild@0.28.2)
@@ -396,6 +399,9 @@ importers:
       '@typeset/corpus':
         specifier: workspace:*
         version: link:../corpus
+      harfbuzzjs:
+        specifier: 1.6.4
+        version: 1.6.4
       playwright:
         specifier: ^1.64.1
         version: 1.65.1
@@ -403,18 +409,12 @@ importers:
       '@mark1russell7/cue':
         specifier: ^2.0.0
         version: 2.1.4
-      '@mark1russell7/layout-contract':
-        specifier: ^0.10.0
-        version: 0.10.0
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.6
       '@vitest/coverage-v8':
         specifier: ^5.0.3
         version: 5.1.0(vitest@5.1.0)
-      harfbuzzjs:
-        specifier: 1.6.4
-        version: 1.6.4
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
