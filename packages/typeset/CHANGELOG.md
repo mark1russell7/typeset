@@ -1,5 +1,13 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.7.0
+
+The release train changes the range of `@mark1russell7/rigor-generators` to a version outside the old range. The public types name @mark1russell7/rigor-generators, so its new version outside the old range can change them.
+
+### Breaking
+
+- The range `^0.1.0` of `@mark1russell7/rigor-generators` in `dependencies` does not hold `0.2.0`, so it changes.
+
 ## 0.6.0
 
 The release train changes the range of `@mark1russell7/collections` to a version outside the old range. The public types name @mark1russell7/collections, so its new version outside the old range can change them.
