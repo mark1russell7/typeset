@@ -36,7 +36,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@afc3a844abdf898aa6439835fbde1c49a0566e17 # main
+        uses: mark1russell7/template/.github/actions/changes@a456a3a088d2bf443f2bce9ac0dc0041e827a1de # main
         with:
           paths: |
             packages/widths/src/justify-read-main.ts
@@ -65,7 +65,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter @typeset/widths...
       # The action of the template installs the browser from a cache, with a time limit and a second try.
       - name: Install the browser
-        uses: mark1russell7/template/.github/actions/setup-playwright@afc3a844abdf898aa6439835fbde1c49a0566e17 # main
+        uses: mark1russell7/template/.github/actions/setup-playwright@a456a3a088d2bf443f2bce9ac0dc0041e827a1de # main
         with:
           browsers: chromium
           command: pnpm --filter @typeset/widths exec playwright
@@ -86,6 +86,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@afc3a844abdf898aa6439835fbde1c49a0566e17 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@a456a3a088d2bf443f2bce9ac0dc0041e827a1de # main
         with:
           needs: ${{ toJSON(needs) }}
