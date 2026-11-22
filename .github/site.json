@@ -1,0 +1,10 @@
+{
+  "$comment": "The site config of this repository (CI.md of the template, \"The site config\"). The Pages workflow deploys this site from main, and a job of ci.yml checks it on each pull request.",
+  "build": "pnpm --filter @typeset/site run build",
+  "out": "packages/site/dist",
+  "env": {
+    "SITE_BASE": "/{repo}"
+  },
+  "roadmap": "docs/ROADMAP.md",
+  "site-name": "typeset"
+}
