@@ -1,5 +1,13 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.7.1
+
+This patch corrects the break opportunities of `paragraphOf` in `@mark1russell7/typeset/breaking`.
+
+### Fixed
+
+- `paragraphOf` does not break a line at a no-break space. The characters U+00A0, U+2007, U+202F and U+FEFF stay in the box of their word, as in CSS `white-space: normal`. In 0.7.0, each of them became glue.
+
 ## 0.7.0
 
 The release train changes the range of `@mark1russell7/rigor-generators` to a version outside the old range. The public types name @mark1russell7/rigor-generators, so its new version outside the old range can change them.

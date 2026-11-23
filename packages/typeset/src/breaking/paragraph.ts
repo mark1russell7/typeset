@@ -72,7 +72,11 @@ export interface ParagraphOptions {
   readonly shrink?: number;
 }
 
-const whiteSpace = /\s+/u;
+/**
+ * The white space that becomes glue: each white space character of JavaScript, but not the no-break spaces. CSS does
+ * not break a line at U+00A0, U+2007 and U+202F (class GL of UAX #14), or at U+FEFF (class WJ).
+ */
+const whiteSpace = /[^\S\u00A0\u2007\u202F\uFEFF]+/u;
 
 /**
  * This function makes the paragraph of a text with the break opportunities of CSS `white-space: normal`. Each run of white

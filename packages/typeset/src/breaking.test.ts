@@ -17,6 +17,12 @@ describe("paragraphOf", () => {
     ]);
   });
 
+  it("keeps each no-break space in the box of its word, as CSS does", () => {
+    const { items } = paragraphOf("5\u00A0weeks to 5\u202Fkm\u2007x\uFEFFy z", { widthOf: count });
+    expect(items.map((item) => item.text)).toEqual(["5\u00A0weeks", " ", "to", " ", "5\u202Fkm\u2007x\uFEFFy", " ", "z"]);
+    expect(items[0]).toEqual({ type: "box", text: "5\u00A0weeks", width: 7 });
+  });
+
   it("gives the same items with no break hook and with an empty break hook", () => {
     const options = { widthOf: count, hyphenate: () => [2] };
     expect(paragraphOf("abcd ef", { ...options, breaks: () => [] }).items).toEqual(paragraphOf("abcd ef", options).items);
