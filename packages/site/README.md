@@ -1,6 +1,6 @@
 # @typeset/site
 
-This package is the GitHub Pages site of typeset: [mark1russell7.github.io/typeset](https://mark1russell7.github.io/typeset/). The workflow `pages.yml` builds and deploys it.
+This package is the GitHub Pages site of typeset: [metrograph-labs.github.io/typeset](https://metrograph-labs.github.io/typeset/). The workflow `pages.yml` builds and deploys it.
 
 - **Lab:** The page downloads a font of the corpus and loads it as a `FontFace`. It measures your text with canvas `measureText` and with `measureWidth`.
 - **Justified lines:** The page breaks your text with total fit and the hyphen patterns of `en-us`, `de` or `fr`. It shows the adjustment ratio of each line next to greedy. A table gives the record of each language set. The patterns of a language load only when you select it.

@@ -9,7 +9,7 @@ name: Fonts
 on:
   pull_request:
   schedule:
-    - cron: "48 7 * * 1"
+    - cron: "45 7 * * 1"
   workflow_dispatch:
     inputs:
       per-cell:

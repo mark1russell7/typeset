@@ -15,7 +15,7 @@ on:
       - packages/conformance/src/pinned.ts
       - .github/workflows/hyphen-sources.yml
   schedule:
-    - cron: "56 4 * * *"
+    - cron: "34 4 * * *"
   workflow_dispatch:
 
 permissions:

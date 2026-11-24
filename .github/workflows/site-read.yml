@@ -16,7 +16,7 @@ on:
       url:
         description: The URL of the site.
         type: string
-        default: https://mark1russell7.github.io/typeset/
+        default: https://metrograph-labs.github.io/typeset/
 
 permissions:
   contents: read
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      SITE_URL: ${{ inputs.url || 'https://mark1russell7.github.io/typeset/' }}
+      SITE_URL: ${{ inputs.url || 'https://metrograph-labs.github.io/typeset/' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
