@@ -1,5 +1,9 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.7.2
+
+This patch has no code change. The repository moved to metrograph-labs. The fields `repository`, `homepage` and `bugs` of `package.json` and the links of the README name the new repository.
+
 ## 0.7.1
 
 This patch corrects the break opportunities of `paragraphOf` in `@mark1russell7/typeset/breaking`.

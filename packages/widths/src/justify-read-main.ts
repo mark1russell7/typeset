@@ -10,7 +10,7 @@ import { parseArgs } from "node:util";
 import { chromium, type Page } from "playwright";
 
 const { values } = parseArgs({
-  options: { url: { type: "string", default: "https://mark1russell7.github.io/typeset/" }, out: { type: "string" } },
+  options: { url: { type: "string", default: "https://metrograph-labs.github.io/typeset/" }, out: { type: "string" } },
 });
 if (values.out === undefined) throw new Error("give --out <file>");
 const url = values.url;

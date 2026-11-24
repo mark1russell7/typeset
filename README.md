@@ -4,7 +4,7 @@ Fast, exact and incremental text measurement and line breaking, for every layout
 
 The goal is to solve text measurement fully: each method is measured, each error has a stated bound, and each result is repeatable.
 
-The site [mark1russell7.github.io/typeset](https://mark1russell7.github.io/typeset/) measures text in your browser with the font tables and with canvas `measureText`. It shows the error for each script, font and platform.
+The site [metrograph-labs.github.io/typeset](https://metrograph-labs.github.io/typeset/) measures text in your browser with the font tables and with canvas `measureText`. It shows the error for each script, font and platform.
 
 ## The idea
 

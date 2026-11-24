@@ -87,4 +87,4 @@ const layout = layoutText("The quick brown fox", { font: "16px Noto Sans", measu
 - The engine rows are `freetype` (Chromium on Linux), `coretext` (macOS) and `directwrite` (Windows).
 - `readFont` reads TrueType, OpenType and WOFF2 files. A WOFF2 file needs a Brotli decompress function, for example `brotliDecompressSync` of `node:zlib`.
 
-The repository [mark1russell7/typeset](https://github.com/mark1russell7/typeset) has the report of the breakers in `docs/BREAKING.md`.
+The repository [metrograph-labs/typeset](https://github.com/metrograph-labs/typeset) has the report of the breakers in `docs/BREAKING.md`.
