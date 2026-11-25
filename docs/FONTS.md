@@ -163,7 +163,7 @@ The comparison has four arms. Each arm is one job of the workflow.
 
 ## The result of T1
 
-The scored run is [41488797104](https://github.com/mark1russell7/typeset/actions/runs/41488797104), on `main`. It gives 20160 widths of 1920 samples in headless Chromium 156 on Linux, at a device scale of 1.
+The scored run is [41488797104](https://github.com/metrograph-labs/typeset/actions/runs/41488797104), on `main`. It gives 20160 widths of 1920 samples in headless Chromium 156 on Linux, at a device scale of 1.
 
 | Script | Worst error of the line class, in px | Bound |
 |---|---|---|
@@ -188,7 +188,7 @@ The scored run is [41488797104](https://github.com/mark1russell7/typeset/actions
 
 ## The result of T1b
 
-The scored run is [41505142794](https://github.com/mark1russell7/typeset/actions/runs/41505142794), on `main`. The run on the pull request gave the same outcomes. The table gives the worst error of the line class, in px.
+The scored run is [41505142794](https://github.com/metrograph-labs/typeset/actions/runs/41505142794), on `main`. The run on the pull request gave the same outcomes. The table gives the worst error of the line class, in px.
 
 | Script | Bound | `linux-2` | `macos-2` | `windows-1` |
 |---|---|---|---|---|

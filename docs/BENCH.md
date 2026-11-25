@@ -52,7 +52,7 @@ Timing runs go to CI, not to a shared machine. The workflow `bench.yml` runs the
 
 ## The noise floor
 
-The run [41446214122](https://github.com/mark1russell7/typeset/actions/runs/41446214122) gave the first 5 records: 5 jobs of 20 rounds on `main` at `c642535`.
+The run [41446214122](https://github.com/metrograph-labs/typeset/actions/runs/41446214122) gave the first 5 records: 5 jobs of 20 rounds on `main` at `c642535`.
 
 | Job | CPU | A/A ratio | Spread of `corpus.generate` |
 |---|---|---|---|
@@ -125,7 +125,7 @@ On the 15 records of the runs 41446214122, 41455318165 and 42414121767:
 
 ### The A/A run of the new harness
 
-The run [44216571207](https://github.com/mark1russell7/typeset/actions/runs/44216571207) has 5 jobs of this harness. The bench has 21 arms at this commit, so the balanced count of rounds is 42.
+The run [44216571207](https://github.com/metrograph-labs/typeset/actions/runs/44216571207) has 5 jobs of this harness. The bench has 21 arms at this commit, so the balanced count of rounds is 42.
 
 | Job | CPU | A/A ratio | 90 % interval |
 |---|---|---|---|
@@ -144,7 +144,7 @@ The run [44216571207](https://github.com/mark1russell7/typeset/actions/runs/4421
 
 ### The A/A run of the old shape on the new harness
 
-The run [44233779076](https://github.com/mark1russell7/typeset/actions/runs/44233779076) has 5 jobs of this harness with the input `arms`. It has the 10 arms of the run 42414121767, in the same order, and 20 balanced rounds.
+The run [44233779076](https://github.com/metrograph-labs/typeset/actions/runs/44233779076) has 5 jobs of this harness with the input `arms`. It has the 10 arms of the run 42414121767, in the same order, and 20 balanced rounds.
 
 | Job | CPU | A/A ratio | 90 % interval |
 |---|---|---|---|
