@@ -10,7 +10,7 @@ The package `@typeset/corpus` (`packages/corpus`) generates the text that the it
 - The fonts are Noto families with the SIL Open Font License. T1 downloads their files. The corpus has only their names and their scripts.
 - `generateEdits` makes a sequence of edits as a person makes them: typing, backspace, a paste, a deletion and a replacement. Each edit starts and ends on a code point boundary.
 - A sample depends only on its seed and its cell. Thus a corpus with fewer scripts is a subset of the full corpus.
-- The random numbers come from `@mark1russell7/rigor-generators` (`random`, `deriveSeed`), the home of this code in the fleet.
+- The random numbers come from `@mark1russell7/rigor-generators` (`random`, `deriveSeed`), the home of this code.
 - The test `corpus.fingerprint` records the fingerprint of the corpus at seed 1. A change of the fingerprint changes every input of the bench. Record such a change in the pull request.
 
 ## The bench
