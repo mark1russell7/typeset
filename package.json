@@ -22,6 +22,9 @@
     "bench": "pnpm --filter @typeset/bench run bench",
     "weight": "pnpm --filter @typeset/bench run weight"
   },
+  "sitePages": {
+    "bareErrors": "fail"
+  },
   "devDependencies": {
     "@mark1russell7/template-cli": "^0.1.4",
     "@mark1russell7/api-report": "^0.5.0",
