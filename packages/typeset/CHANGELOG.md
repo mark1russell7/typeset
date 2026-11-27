@@ -1,5 +1,13 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.8.0
+
+The release train changes the range of `@mark1russell7/collections` to a version outside the old range. The public types name @mark1russell7/collections, so its new version outside the old range can change them.
+
+### Breaking
+
+- The range `^0.11.0` of `@mark1russell7/collections` in `dependencies` does not hold `0.12.0`, so it changes.
+
 ## 0.7.2
 
 This patch has no code change. The repository moved to metrograph-labs. The fields `repository`, `homepage` and `bugs` of `package.json` and the links of the README name the new repository.
