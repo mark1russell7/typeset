@@ -1,5 +1,9 @@
 # Changes of `@mark1russell7/typeset`
 
+## 0.8.1
+
+An automated dependency update changes the shipped files, so this PATCH ships them.
+
 ## 0.8.0
 
 The release train changes the range of `@mark1russell7/collections` to a version outside the old range. The public types name @mark1russell7/collections, so its new version outside the old range can change them.
