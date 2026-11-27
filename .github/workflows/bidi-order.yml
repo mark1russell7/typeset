@@ -36,7 +36,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@7c83f30551e066c06852ea75bf0140eadfc49961 # main
+        uses: mark1russell7/template/.github/actions/changes@a6fe0b4de26f6f9fcc3bc7765dd2bcf141f6da3d # main
         with:
           paths: |
             packages/typeset/src/bidi.ts
@@ -73,7 +73,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter @typeset/widths...
       # The action of the template installs the browser from a cache, with a time limit and a second try.
       - name: Install the browser
-        uses: mark1russell7/template/.github/actions/setup-playwright@7c83f30551e066c06852ea75bf0140eadfc49961 # main
+        uses: mark1russell7/template/.github/actions/setup-playwright@a6fe0b4de26f6f9fcc3bc7765dd2bcf141f6da3d # main
         with:
           browsers: ${{ matrix.browser }}
           command: pnpm --filter @typeset/widths exec playwright
@@ -121,6 +121,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@7c83f30551e066c06852ea75bf0140eadfc49961 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@a6fe0b4de26f6f9fcc3bc7765dd2bcf141f6da3d # main
         with:
           needs: ${{ toJSON(needs) }}
